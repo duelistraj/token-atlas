@@ -1,4 +1,4 @@
-# Phase 2 — Extract Repository Knowledge
+# Phase 2 - Extract Repository Knowledge
 
 ## Purpose
 
@@ -6,7 +6,7 @@ Populate and maintain the OKF knowledge base using verified repository informati
 
 Prefer incremental updates whenever possible to minimize repository analysis and AI context usage.
 
-Do not optimize or reorganize knowledge in this phase.
+Do not reorganize knowledge in this phase except where needed to keep one authoritative location for a newly extracted fact.
 
 ---
 
@@ -14,7 +14,7 @@ Do not optimize or reorganize knowledge in this phase.
 
 - Repository source code
 - Existing PKF runtime
-- Existing OKF knowledge base (if available)
+- Existing OKF knowledge base, if available
 
 ---
 
@@ -46,8 +46,8 @@ Determine changes using the following priority:
 
 1. `git diff --cached`
 2. `git diff`
-3. Repository history comparison (if explicitly requested)
-4. Full repository scan (fallback)
+3. Repository history comparison, if explicitly requested
+4. Full repository scan fallback
 
 Identify:
 
@@ -55,6 +55,7 @@ Identify:
 - Modified files
 - Deleted files
 - Renamed files
+- Changed symbols, routes, schemas, commands, configuration keys, and tests when detectable
 
 For Full Repository Extraction:
 
@@ -76,9 +77,12 @@ Typical mappings:
 | Models | `schema.md` |
 | Services | `business_rules.md` |
 | UI | `ui.md` |
-| New Module | Root `INDEX.md` + Module Skeleton |
+| New Module | Root `INDEX.md` + module skeleton |
 | Repository Structure | `ARCHITECTURE.md` |
 | Stable Project Knowledge | `MEMORY.md` |
+| Config or Tooling | `dependencies.md` or `ARCHITECTURE.md` |
+| Tests | Relevant module document + validation notes |
+| Documentation | Preserve or reconcile with source-backed facts |
 
 Update only affected documents.
 
@@ -97,8 +101,18 @@ Extract only factual knowledge:
 - Module summaries
 - Repository architecture
 - Stable project knowledge
+- Commands, scripts, dependencies, and configuration behavior
+- Source ownership and task routing signals
 
 Never infer missing implementation.
+
+Every non-placeholder fact should include compact evidence:
+
+- Source path.
+- Symbol, route, command, config key, or test name when applicable.
+- Status: `verified` or `TODO`.
+
+Do not paste large code blocks. Summarize behavior and point to source.
 
 ---
 
@@ -116,6 +130,8 @@ Update:
 
 Ensure metadata reflects the current repository.
 
+Keep `pkf.loads` limited to documents that are normally required for the specific document's task. Move optional paths to `pkf.related`.
+
 ---
 
 ### 6. Refresh Routing
@@ -131,6 +147,7 @@ Ensure routing reflects:
 - Document additions
 - Document removals
 - Updated loading paths
+- Keywords, file paths, commands, and task intents that should lead to the module
 
 ---
 
@@ -155,6 +172,9 @@ Update only when required:
 - Never modify application code.
 - Preserve existing manual documentation whenever possible.
 - Generate valid OKF documents.
+- Prefer evidence-linked bullets and tables.
+- Keep indexes concise and route-focused.
+- Mark unverifiable documentation conflicts as validation warnings or errors.
 
 ---
 

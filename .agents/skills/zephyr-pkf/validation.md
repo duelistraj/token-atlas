@@ -1,4 +1,4 @@
-# Validation — PKF & OKF Integrity
+# Validation - PKF & OKF Integrity
 
 ## Purpose
 
@@ -15,8 +15,8 @@ Only report findings.
 ## Inputs
 
 - Repository
-- PKF Runtime (`.ai/`)
-- OKF Knowledge Base (`.ai/knowledge/`)
+- PKF runtime (`.ai/`)
+- OKF knowledge base (`.ai/knowledge/`)
 
 ---
 
@@ -34,11 +34,11 @@ Ensure the runtime startup sequence is valid:
 
 ```text
 PKF.md
-    ↓
+    ->
 MEMORY.md
-    ↓
+    ->
 ARCHITECTURE.md
-    ↓
+    ->
 knowledge/INDEX.md
 ```
 
@@ -107,6 +107,8 @@ Ensure:
 - UI documentation matches the frontend.
 - `ARCHITECTURE.md` reflects repository structure.
 - `MEMORY.md` reflects stable project knowledge.
+- Commands, scripts, dependencies, and configuration facts match repository files.
+- Deleted or renamed source files are not referenced as current facts.
 
 Unknown information must be marked as `TODO`.
 
@@ -122,6 +124,8 @@ Verify:
 - Every concept has one authoritative location.
 - Module summaries remain concise.
 - Shared documents contain only repository-wide knowledge.
+- Indexes route to knowledge instead of duplicating leaf document content.
+- Facts include enough source evidence to be rechecked.
 
 ---
 
@@ -133,15 +137,15 @@ Expected navigation:
 
 ```text
 PKF.md
-    ↓
+    ->
 MEMORY.md
-    ↓
+    ->
 ARCHITECTURE.md
-    ↓
+    ->
 knowledge/INDEX.md
-    ↓
+    ->
 Module INDEX.md
-    ↓
+    ->
 Knowledge Documents
 ```
 
@@ -168,6 +172,19 @@ Verify that:
 
 The knowledge base should support minimal-context retrieval.
 
+Simulate representative tasks:
+
+| Task | Expected routing |
+|------|------------------|
+| API change | Root index -> module index -> `api.md` |
+| Schema change | Root index -> module index -> `schema.md` |
+| Business rule change | Root index -> module index -> `business_rules.md` |
+| UI change | Root index -> module index -> `ui.md` |
+| Architecture question | Root index -> `ARCHITECTURE.md` and relevant module index |
+| Dependency/tooling change | Root index -> `dependencies.md` and affected module index |
+
+Flag any route that loads unrelated module facts.
+
 ---
 
 ## Validation Report
@@ -189,6 +206,7 @@ Include:
 - File
 - Issue
 - Recommendation
+- Retrieval impact, when relevant
 
 ---
 
@@ -201,6 +219,7 @@ Include:
 - File
 - Issue
 - Recommended fix
+- Source evidence or missing evidence
 
 Stop the PKF pipeline if any blocking errors exist.
 
@@ -213,6 +232,8 @@ Stop the PKF pipeline if any blocking errors exist.
 - Never ignore validation failures.
 - Validate against the repository only.
 - Treat the repository as the single source of truth.
+- Treat misleading stale knowledge as blocking.
+- Treat bloated automatic load paths as blocking when they defeat minimal-context retrieval.
 
 ---
 
