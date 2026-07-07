@@ -18,6 +18,7 @@ Only report findings.
 - PKF runtime (`.ai/`)
 - OKF knowledge base (`.ai/knowledge/`)
 - Selected execution profile and options
+- Retrieval export files only when `retrieval_exports` is enabled
 
 ---
 
@@ -249,6 +250,34 @@ Validation must fail in `ci` strictness when unrelated modules are loaded automa
 
 ---
 
+### 9. Retrieval Export Integrity
+
+Run this section only when `retrieval_exports` is `rag`, `graph`, or `all`.
+
+If `retrieval_exports: off`, verify that validation does not require `.ai/retrieval/` and skip export checks.
+
+Expected files:
+
+| Option | Required files |
+|--------|----------------|
+| `rag` | `documents.jsonl`, `claims.jsonl` |
+| `graph` | `entities.jsonl`, `relationships.jsonl`, `claims.jsonl` |
+| `all` | `documents.jsonl`, `entities.jsonl`, `relationships.jsonl`, `claims.jsonl` |
+
+Verify:
+
+- Every required export file exists when exports are enabled.
+- No extra export file is required for the selected option.
+- Every line is valid JSON.
+- Every record has stable `id`, `type`, `source_path`, `evidence`, `timestamp`, and `confidence` fields.
+- `source_path` resolves to canonical Markdown or cited repository evidence.
+- Relationship endpoints resolve to exported entities, documents, or claims.
+- Claims are source-backed or marked `TODO`.
+- `.ai/retrieval/` is not treated as canonical source input.
+
+Flag errors for invalid JSONL, missing required fields, unresolved relationship endpoints, unsupported claims, or exports that contradict canonical Markdown.
+
+---
 ## Validation Report
 
 Produce:
@@ -327,6 +356,7 @@ Validation succeeds when:
 - Every document is OKF compliant.
 - Repository knowledge is synchronized.
 - Routing is valid.
+- Retrieval export validation is skipped when disabled and passes when enabled.
 - Enabled retrieval simulations succeed or record evidence-backed skips.
 - Enabled simulation reports selected modules, required docs, optional docs, token cost, routing evidence, warnings, and errors.
 - Token budget output is present at the selected summary or full level and threshold status is clear.

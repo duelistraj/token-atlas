@@ -82,3 +82,16 @@ Simulation reports include:
 - Errors for unrelated automatic loads.
 
 Default simulation mode is `changed`, which only simulates the current task intent or changed paths. Required scenarios cover API routes, schemas/models, business logic, UI behavior, architecture understanding, and dependencies/tooling in `ci`, `full`, `required`, or `all` mode. Validation treats unrelated automatic module loads as defects.
+
+## Optional Retrieval Exports
+
+`export.md` defines optional backend-neutral retrieval exports under `.ai/retrieval/`.
+
+| `retrieval_exports` | Generated files |
+|---------------------|-----------------|
+| `off` | none |
+| `rag` | `documents.jsonl`, `claims.jsonl` |
+| `graph` | `entities.jsonl`, `relationships.jsonl`, `claims.jsonl` |
+| `all` | all export files |
+
+Exports are generated from canonical `.ai/` Markdown and cited source evidence. They can feed vector RAG, GraphRAG, or custom retrieval tooling, but they are never loaded in the PKF startup path and never become source truth.

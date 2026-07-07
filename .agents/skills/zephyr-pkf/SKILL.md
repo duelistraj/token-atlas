@@ -74,6 +74,7 @@ If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 - Validate
 - Execute `optimize.md`
 - Execute `simulate.md` only according to the selected `simulation` option
+- Execute `export.md` only when `retrieval_exports` is not `off`
 - Validate
 
 Otherwise:
@@ -82,6 +83,7 @@ Otherwise:
 - Validate
 - Execute `optimize.md`
 - Execute `simulate.md` only according to the selected `simulation` option
+- Execute `export.md` only when `retrieval_exports` is not `off`
 - Validate
 
 Stop immediately on validation failures only when `validation_strictness: ci` is selected. In advisory mode, report blocking recommendations without treating the default workflow as a CI gate.
@@ -134,6 +136,20 @@ Treat unrelated modules loaded automatically through `pkf.loads` as blocking val
 
 ---
 
+## Retrieval Exports
+
+Use `export.md` only when `retrieval_exports` is `rag`, `graph`, or `all`.
+
+Export modes:
+
+- `off`: generate no retrieval artifacts and do not validate `.ai/retrieval/`.
+- `rag`: generate `documents.jsonl` and `claims.jsonl`.
+- `graph`: generate `entities.jsonl`, `relationships.jsonl`, and `claims.jsonl`.
+- `all`: generate all retrieval export files.
+
+Exports are backend-neutral generated artifacts under `.ai/retrieval/`. They may feed vector RAG, GraphRAG, or custom tooling, but they must never become source truth or startup context.
+
+---
 ## Knowledge Quality Standard
 
 Each durable fact must be:
@@ -203,4 +219,5 @@ Execution succeeds only when:
 - Validation completes after every phase, with hard failure behavior only in `ci` strictness.
 - The PKF runtime is synchronized.
 - The OKF knowledge base reflects the repository.
+- Optional retrieval exports are synchronized only when enabled.
 - AI retrieval is optimized.
