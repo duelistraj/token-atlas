@@ -110,3 +110,22 @@ Default simulation mode is `changed`, which only simulates the current task inte
 | `all` | all export files |
 
 Exports are generated from canonical `.ai/` Markdown and cited source evidence. They can feed vector RAG, GraphRAG, or custom retrieval tooling, but they are never loaded in the PKF startup path and never become source truth.
+
+## Developer Tooling
+
+`scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, or export logic itself.
+
+Examples:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 init
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 maintain
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate -Ci
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 simulate -Intent "change an API route" -Paths src/routes.ts
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export -RetrievalExports graph
+```
+
+Default command options are `profile: core`, `retrieval_exports: off`, `simulation: changed`, `token_budget: summary`, and `validation_strictness: advisory`.
+
+CI mode maps to `validation_strictness: ci`, `simulation: required`, and `token_budget: full`. Missing `.ai/PKF.md` exits nonzero in CI validation.

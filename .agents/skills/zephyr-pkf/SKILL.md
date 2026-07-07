@@ -215,6 +215,23 @@ Default thresholds:
 
 ---
 
+## Developer Tooling
+
+Use `tooling.md` for command wrappers.
+
+Commands are thin workflow selectors:
+
+- `pkf init` -> `initialize.md`
+- `pkf maintain` -> `maintenance.md`
+- `pkf extract` -> `extract.md`
+- `pkf optimize` -> `optimize.md`
+- `pkf validate` -> `validation.md`
+- `pkf export` -> `export.md`
+- `pkf simulate` -> `simulate.md`
+
+Tooling must keep documented workflows authoritative. Scripts may validate arguments and report CI startup failures, but must not reimplement extraction, optimization, validation, or export logic.
+
+---
 ## Global Rules
 
 - Source code is the single source of truth.
@@ -238,4 +255,5 @@ Execution succeeds only when:
 - The OKF knowledge base reflects the repository.
 - Incremental maintenance identifies stale references and duplicate facts.
 - Optional retrieval exports are synchronized only when enabled.
+- Developer tooling maps commands to documented workflows without duplicating PKF logic.
 - AI retrieval is optimized.

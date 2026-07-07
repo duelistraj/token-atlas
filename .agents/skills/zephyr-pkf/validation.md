@@ -306,6 +306,30 @@ Severity:
 
 ---
 
+### 11. Tooling Contract
+
+Verify developer tooling remains a thin wrapper over documented workflows.
+
+Check:
+
+- `pkf init` maps to `initialize.md`.
+- `pkf maintain` maps to `maintenance.md`.
+- `pkf extract` maps to `extract.md`.
+- `pkf optimize` maps to `optimize.md`.
+- `pkf validate` maps to `validation.md`.
+- `pkf export` maps to `export.md` and is a no-op when `retrieval_exports: off`.
+- `pkf simulate` maps to `simulate.md`.
+- CI mode maps to `validation_strictness: ci`, `simulation: required`, and `token_budget: full`.
+- Scripts do not duplicate extraction, optimization, validation, or export logic.
+
+CI behavior:
+
+- Exit `0` for valid advisory command requests.
+- Exit `1` for CI blocking validation failures.
+- Exit `2` for invalid command usage.
+
+---
+
 ## Validation Report
 
 Produce:
@@ -386,6 +410,7 @@ Validation succeeds when:
 - Routing is valid.
 - Retrieval export validation is skipped when disabled and passes when enabled.
 - Maintenance gates report stale references and duplicate facts with correct severity.
+- Tooling maps commands to documented workflows and preserves CI exit behavior.
 - Enabled retrieval simulations succeed or record evidence-backed skips.
 - Enabled simulation reports selected modules, required docs, optional docs, token cost, routing evidence, warnings, and errors.
 - Token budget output is present at the selected summary or full level and threshold status is clear.
