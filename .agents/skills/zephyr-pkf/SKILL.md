@@ -50,7 +50,7 @@ Default profile is `core`.
 
 Use these profiles:
 
-- `core`: initialize, extract, optimize, and run lightweight validation.
+- `core`: initialize, maintain incrementally, extract, optimize, and run lightweight validation.
 - `ci`: `core` plus strict validation, required simulator scenarios, and token budget gates.
 - `retrieval`: `core` plus retrieval export generation when explicitly requested.
 - `full`: all workflows, including full simulator scenarios and retrieval exports.
@@ -79,6 +79,7 @@ If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
 Otherwise:
 
+- Execute `maintenance.md` to detect changed paths, stale references, duplicate facts, and affected docs
 - Execute `extract.md` using **Incremental Extraction**
 - Validate
 - Execute `optimize.md`
@@ -118,6 +119,21 @@ Use each layer for a different job:
 
 ---
 
+## Incremental Maintenance
+
+Use `maintenance.md` in the default `core` profile whenever an existing PKF runtime is present.
+
+Maintenance determines changed paths, affected modules, affected canonical docs, stale references, duplicate facts, and optional retrieval export invalidation.
+
+Change detection order:
+
+1. `git diff --cached --name-status`
+2. `git diff --name-status`
+3. Full repository scan fallback
+
+Deleted or renamed source evidence must invalidate affected facts. Retrieval exports are regenerated only when `retrieval_exports` is not `off`.
+
+---
 ## Retrieval Simulator
 
 Use `simulate.md` to predict the smallest useful context set for a natural-language task intent and optional changed file paths.
@@ -150,6 +166,7 @@ Export modes:
 Exports are backend-neutral generated artifacts under `.ai/retrieval/`. They may feed vector RAG, GraphRAG, or custom tooling, but they must never become source truth or startup context.
 
 ---
+
 ## Knowledge Quality Standard
 
 Each durable fact must be:
@@ -205,7 +222,7 @@ Default thresholds:
 - Preserve existing documentation whenever possible.
 - Never invent implementation details.
 - Never modify application code.
-- Prefer incremental updates.
+- Prefer incremental maintenance and affected-document updates.
 - Optimize for minimal AI context retrieval.
 - Keep routing deterministic and easy to validate.
 - Treat stale or unverified knowledge as a blocking issue when it could mislead an agent.
@@ -219,5 +236,6 @@ Execution succeeds only when:
 - Validation completes after every phase, with hard failure behavior only in `ci` strictness.
 - The PKF runtime is synchronized.
 - The OKF knowledge base reflects the repository.
+- Incremental maintenance identifies stale references and duplicate facts.
 - Optional retrieval exports are synchronized only when enabled.
 - AI retrieval is optimized.

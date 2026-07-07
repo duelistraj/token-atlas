@@ -19,6 +19,7 @@ Only report findings.
 - OKF knowledge base (`.ai/knowledge/`)
 - Selected execution profile and options
 - Retrieval export files only when `retrieval_exports` is enabled
+- Maintenance impact report, when available
 
 ---
 
@@ -136,6 +137,7 @@ Ensure:
 - `MEMORY.md` reflects stable project knowledge.
 - Commands, scripts, dependencies, and configuration facts match repository files.
 - Deleted or renamed source files are not referenced as current facts.
+- Maintenance impact reports identify every deleted or renamed evidence path still cited by canonical Markdown.
 - Source evidence labels point to existing files, symbols, commands, config keys, or tests.
 - Source evidence older than the current implementation is updated or marked `TODO`.
 
@@ -151,7 +153,7 @@ Verify:
 
 - No duplicate knowledge exists.
 - Every concept has one authoritative location.
-- Duplicate facts across authoritative documents are reported.
+- Duplicate facts across authoritative documents are reported with advisory or `ci` severity.
 - Module summaries remain concise.
 - Shared documents contain only repository-wide knowledge.
 - Indexes route to knowledge instead of duplicating leaf document content.
@@ -278,6 +280,32 @@ Verify:
 Flag errors for invalid JSONL, missing required fields, unresolved relationship endpoints, unsupported claims, or exports that contradict canonical Markdown.
 
 ---
+
+### 10. Maintenance Gates
+
+Verify incremental maintenance integrity.
+
+Use the maintenance impact report when available. Otherwise, inspect current Git changes using the documented priority order.
+
+Check:
+
+- Added, modified, deleted, and renamed files are represented in affected docs or reported as intentionally irrelevant.
+- Deleted file paths are not cited as current evidence.
+- Renamed file paths are updated to the new path when the rename is certain.
+- Removed symbols, routes, schemas, commands, config keys, and tests are not cited as current evidence.
+- Facts with unresolved evidence are removed or marked `TODO`.
+- Duplicate authoritative facts are reported.
+- Retrieval exports are ignored when disabled and marked stale or regenerated when enabled.
+
+Severity:
+
+- Stale references to removed files or symbols are blocking errors in `ci` strictness.
+- In advisory mode, stale references are reported as blocking recommendations.
+- Duplicate facts warn by default.
+- Duplicate facts block in `ci` when they affect source truth, routing, `pkf.loads`, or module ownership.
+
+---
+
 ## Validation Report
 
 Produce:
@@ -357,6 +385,7 @@ Validation succeeds when:
 - Repository knowledge is synchronized.
 - Routing is valid.
 - Retrieval export validation is skipped when disabled and passes when enabled.
+- Maintenance gates report stale references and duplicate facts with correct severity.
 - Enabled retrieval simulations succeed or record evidence-backed skips.
 - Enabled simulation reports selected modules, required docs, optional docs, token cost, routing evidence, warnings, and errors.
 - Token budget output is present at the selected summary or full level and threshold status is clear.

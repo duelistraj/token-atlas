@@ -6,15 +6,16 @@ Zephyr PKF is an AI context optimization framework that continuously extracts ve
 Zephyr PKF treats `.ai/` Markdown as the canonical source of repository knowledge. Generated indexes and retrieval exports are derived artifacts, not the source of truth.
 
 1. Initialize: create `.ai/PKF.md`, runtime docs, the root knowledge index, shared docs, and module skeletons.
-2. Extract: populate only source-backed facts from the repository into the narrowest authoritative OKF documents.
-3. Optimize: reduce duplicate knowledge, tighten routing, and keep `pkf.loads` minimal.
-4. Simulate retrieval when enabled: predict selected modules, required docs, optional related docs, token cost, and routing evidence.
-5. Validate: check structure, metadata, stale evidence, broken references, duplicate facts, routing integrity, enabled simulations, and token impact.
-6. Generate retrieval exports only when requested; derived JSONL and graph artifacts are never the source of truth.
+2. Maintain incrementally: detect changed, renamed, and deleted files and map them to affected knowledge.
+3. Extract: populate only source-backed facts into the narrowest authoritative OKF documents.
+4. Optimize: reduce duplicate knowledge, tighten routing, and keep `pkf.loads` minimal.
+5. Simulate retrieval when enabled: predict selected modules, required docs, optional related docs, token cost, and routing evidence.
+6. Validate: check structure, metadata, stale evidence, broken references, duplicate facts, routing integrity, enabled simulations, and token impact.
+7. Generate retrieval exports only when requested; derived JSONL and graph artifacts are never the source of truth.
 
 ## Execution Profiles
 
-Default profile is `core`: initialize, extract, optimize, and run lightweight validation.
+Default profile is `core`: initialize, maintain incrementally, extract, optimize, and run lightweight validation.
 
 Options:
 
@@ -26,6 +27,20 @@ Options:
 | `validation_strictness` | `advisory`, `ci` | `advisory` |
 
 Use `ci` or `full` for required simulator scenarios and full token budget gates. Use `retrieval` or explicit retrieval export options for RAG/GraphRAG artifacts. Repos that do not use RAG should keep `retrieval_exports: off`.
+
+## Incremental Maintenance
+
+`maintenance.md` defines the default core workflow for keeping PKF synchronized after repository changes.
+
+Maintenance uses:
+
+1. `git diff --cached --name-status`
+2. `git diff --name-status`
+3. Full scan fallback
+
+It maps changed paths to affected modules and canonical docs, invalidates facts that cite deleted or renamed evidence, reports duplicate authoritative facts, and regenerates retrieval exports only when `retrieval_exports` is enabled.
+
+Stale references to removed files or symbols are blocking in `ci` strictness. Duplicate facts warn by default and block in `ci` when they affect routing, source truth, `pkf.loads`, or module ownership.
 
 ## Startup Recovery
 

@@ -18,12 +18,13 @@ Do not generate exports when `retrieval_exports: off`.
 - OKF knowledge base (`.ai/knowledge/`).
 - Selected `retrieval_exports` option.
 - Current validation status.
+- Maintenance impact report, when available.
 
 ---
 
 ## Outputs
 
-Create or update `.ai/retrieval/` only when exports are enabled.
+Create or update `.ai/retrieval/` only when exports are enabled. Prefer regenerating only affected records from the maintenance impact report; fall back to full export regeneration when affected records cannot be isolated safely.
 
 | Option | Generated files |
 |--------|-----------------|
@@ -206,7 +207,17 @@ Exclude `.ai/retrieval/**` from source collection.
 
 ---
 
-### 3. Build Export Records
+### 3. Determine Export Impact
+
+When a maintenance impact report is available, map affected canonical Markdown docs to export records.
+
+If impact is narrow and deterministic, regenerate only affected records.
+
+If impact cannot be isolated safely, regenerate the selected export files fully.
+
+---
+
+### 4. Build Export Records
 
 Generate records deterministically from OKF metadata, headings, routing fields, source maps, verified facts, and evidence labels.
 
@@ -214,7 +225,7 @@ Do not infer missing symbols, routes, schemas, or relationships.
 
 ---
 
-### 4. Validate Export Records
+### 5. Validate Export Records
 
 Before writing or reporting success, verify:
 
@@ -225,6 +236,7 @@ Before writing or reporting success, verify:
 - Relationship endpoints resolve.
 - Claims are supported by evidence.
 - Export files match the selected `retrieval_exports` option.
+- Removed source paths are absent from current export records unless marked `TODO`.
 
 ---
 
@@ -244,6 +256,7 @@ Before writing or reporting success, verify:
 Export succeeds when:
 
 - Only the files required by `retrieval_exports` are generated.
+- Incremental export regeneration is used when maintenance impact is safely isolated.
 - Every generated file is valid JSONL.
 - Every record has required shared fields.
 - Every graph relationship endpoint resolves.

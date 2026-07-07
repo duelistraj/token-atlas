@@ -15,6 +15,7 @@ Do not reorganize knowledge in this phase except where needed to keep one author
 - Repository source code
 - Existing PKF runtime
 - Existing OKF knowledge base, if available
+- Maintenance impact report, when available
 
 ---
 
@@ -42,7 +43,7 @@ Otherwise:
 
 For Incremental Extraction:
 
-Determine changes using the following priority:
+Prefer the maintenance impact report from `maintenance.md`. If it is unavailable, determine changes using the following priority:
 
 1. `git diff --cached`
 2. `git diff`
@@ -55,6 +56,7 @@ Identify:
 - Modified files
 - Deleted files
 - Renamed files
+- Stale references caused by deleted or renamed evidence
 - Changed symbols, routes, schemas, commands, configuration keys, and tests when detectable
 
 For Full Repository Extraction:
@@ -84,7 +86,7 @@ Typical mappings:
 | Tests | Relevant module document + validation notes |
 | Documentation | Preserve or reconcile with source-backed facts |
 
-Update only affected documents.
+Update only affected documents. For deleted or renamed files, update every canonical Markdown document that cites the removed or old path.
 
 ---
 
@@ -113,6 +115,8 @@ Every non-placeholder fact should include compact evidence:
 - Status: `verified` or `TODO`.
 
 Do not paste large code blocks. Summarize behavior and point to source.
+
+When a fact can no longer be verified because source evidence was removed, remove the fact or mark it `TODO` with stale evidence noted.
 
 ---
 
@@ -167,6 +171,8 @@ Update only when required:
 - Prefer incremental extraction.
 - Fall back to a full repository scan when Git information is unavailable.
 - Update only affected documents whenever possible.
+- Use maintenance impact reports to avoid broad repository scans.
+- Invalidate stale facts from deleted or renamed files before adding new facts.
 - Never invent information.
 - Never duplicate knowledge.
 - Never modify application code.
@@ -189,4 +195,5 @@ Phase 2 succeeds when:
 - OKF metadata is valid and current.
 - Unknown information is marked as `TODO`.
 - No duplicate knowledge exists.
+- Stale references from deleted or renamed evidence are removed, replaced, or marked `TODO`.
 - The repository is ready for Phase 3.
