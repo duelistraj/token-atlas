@@ -119,6 +119,23 @@ Optimize for small, predictable loads:
 - Split a document only when independent tasks can load the split sections separately.
 - Preserve useful manual notes, but move them to the correct authoritative location.
 
+Every optimization and validation run must produce a token budget report.
+
+Estimate token cost for:
+
+- Startup path: `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
+- Each module index load: `knowledge/INDEX.md -> knowledge/<module>/INDEX.md`.
+- Representative tasks: API, schema, business logic, UI, architecture, and dependency/tooling work.
+- Accidental broad `pkf.loads` chains, especially chains that cross into unrelated modules.
+
+Use an exact tokenizer when one is available locally for the target model. If no exact tokenizer is available, use a deterministic approximate estimator and label the report `approximate`; the default approximation is `ceil(character_count / 4)` for Markdown content after front matter is included.
+
+Default thresholds:
+
+- Warn when startup context is above 4,000 estimated tokens.
+- Warn when any module task is above 8,000 estimated tokens.
+- Treat unrelated modules loaded automatically through `pkf.loads` as a blocking error.
+
 ---
 
 ## Global Rules

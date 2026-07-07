@@ -19,7 +19,7 @@ Do not extract new repository knowledge.
 
 ## Outputs
 
-A concise, consistent, and retrieval-optimized OKF knowledge base.
+A concise, consistent, and retrieval-optimized OKF knowledge base, plus a token budget report for the optimized retrieval paths.
 
 ---
 
@@ -95,6 +95,7 @@ Ensure:
 - `tags` remain accurate.
 - `pkf.loads` loads only the minimum required documents.
 - `pkf.related` references only meaningful related knowledge.
+- Automatic load paths stay within token budget thresholds.
 
 Remove obsolete metadata.
 
@@ -169,6 +170,38 @@ For each scenario, list the expected documents and remove any unnecessary loads.
 
 ---
 
+### 8. Generate Token Budget Report
+
+Generate a token budget report during optimization.
+
+Track:
+
+- Startup path: `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
+- Each module index load: `knowledge/INDEX.md -> knowledge/<module>/INDEX.md`.
+- Representative task loads for API, schema, business logic, UI, architecture, and dependency/tooling work.
+- Any `pkf.loads` chain that automatically pulls broad or unrelated context.
+
+For each entry report:
+
+- Route name.
+- Documents loaded automatically.
+- Estimated token cost.
+- Estimator type: `exact` or `approximate`.
+- Threshold status: `passed`, `warning`, or `error`.
+- Retrieval impact.
+
+Use an exact tokenizer when available locally for the target model. Otherwise use the deterministic approximate estimator `ceil(character_count / 4)` and label the report as approximate.
+
+Default thresholds:
+
+- Startup path above 4,000 estimated tokens: warning.
+- Module task above 8,000 estimated tokens: warning.
+- Any unrelated module loaded automatically: blocking error.
+
+If a route exceeds a threshold, tighten indexes, split oversized documents, or move optional documents from `pkf.loads` to `pkf.related`.
+
+---
+
 ## Rules
 
 - Do not modify application code.
@@ -181,6 +214,8 @@ For each scenario, list the expected documents and remove any unnecessary loads.
 - Maintain valid OKF documents.
 - Keep root and module indexes as routing surfaces.
 - Treat excessive `pkf.loads` entries as optimization defects.
+- Generate token budget reports with exact tokenizer counts when available, otherwise with clearly labeled approximate estimates.
+- Treat unrelated automatic module loads as blocking optimization defects.
 
 ---
 
@@ -195,4 +230,7 @@ Phase 3 succeeds when:
 - Shared knowledge contains only repository-wide information.
 - All cross references are valid.
 - AI retrieval requires only the minimum necessary context.
+- Token budget report is generated and threshold status is recorded.
+- Startup context is at or below warning threshold, or warnings are reported with recommendations.
+- No unrelated modules are loaded automatically.
 - The knowledge base is optimized for long-term maintenance.

@@ -204,6 +204,35 @@ Flag any route that loads unrelated module facts.
 
 ---
 
+### 8. Token Budgeting
+
+Generate or verify a token budget report during validation.
+
+Track:
+
+- Startup path: `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
+- Each module index load.
+- Representative task loads for API, schema, business logic, UI, architecture, and dependency/tooling work.
+- Accidental broad `pkf.loads` chains.
+
+Estimator rules:
+
+- Use an exact tokenizer when available locally for the target model.
+- Otherwise use `ceil(character_count / 4)` and label the result `approximate`.
+- Report which estimator was used.
+
+Default thresholds:
+
+| Check | Threshold | Severity |
+|------|-----------|----------|
+| Startup path | Above 4,000 estimated tokens | Warning |
+| Module task | Above 8,000 estimated tokens | Warning |
+| Unrelated automatic module load | Any occurrence | Error |
+
+Validation must fail when unrelated modules are loaded automatically through `pkf.loads`.
+
+---
+
 ## Validation Report
 
 Produce:
@@ -252,11 +281,13 @@ Summarize estimated retrieval cost and load-path risk.
 Include:
 
 - Startup path estimate for `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
-- Largest module index load estimate.
+- Each module index load estimate.
+- Representative task estimates for API, schema, business logic, UI, architecture, and dependency/tooling work.
 - Broad or accidental `pkf.loads` chains.
+- Threshold status for every tracked route.
 - Whether estimates are exact tokenizer counts or approximate counts.
 
-Use this section even when the estimate is approximate. Label approximations clearly.
+Use this section even when the estimate is approximate. Label approximations clearly. Include warnings above the 4,000-token startup threshold and 8,000-token module task threshold. Report unrelated automatic module loads as blocking errors.
 
 ---
 
@@ -282,5 +313,6 @@ Validation succeeds when:
 - Repository knowledge is synchronized.
 - Routing is valid.
 - Retrieval simulation succeeds.
+- Token budget report is present and threshold status is clear.
 - AI can navigate using minimal context.
 - No blocking errors remain.

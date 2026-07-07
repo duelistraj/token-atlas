@@ -25,3 +25,28 @@ Validation reports use four sections:
 - Token Impact: estimated startup and task retrieval costs, including broad `pkf.loads` chains.
 
 Token counts should use an exact tokenizer when available. Otherwise, reports must label estimates as approximate.
+
+## Token Budgeting
+
+Optimization and validation generate a token budget report for the startup path, each module index load, representative task loads, and broad `pkf.loads` chains.
+
+Default thresholds:
+
+| Route | Threshold | Result |
+|------|-----------|--------|
+| Startup path | Above 4,000 estimated tokens | Warning |
+| Module task | Above 8,000 estimated tokens | Warning |
+| Unrelated automatic module load | Any occurrence | Error |
+
+Use an exact tokenizer when available. Otherwise use `ceil(character_count / 4)` and mark the report approximate.
+
+Example report shape:
+
+```text
+Token Impact
+Estimator: approximate, ceil(character_count / 4)
+Startup path: 3,420 tokens, passed
+Module task: auth API change, 5,880 tokens, passed
+Module task: sales UI change, 8,450 tokens, warning, split UI notes or move optional docs to pkf.related
+Broad loads: none, passed
+```
