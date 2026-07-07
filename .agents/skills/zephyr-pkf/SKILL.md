@@ -15,9 +15,23 @@ Zephyr PKF continuously extracts verified repository knowledge, stores each fact
 
 ## Execution
 
-### 1. Analyze Repository
+### 1. Recover PKF Startup
 
-Determine:
+At the beginning of every session, attempt to read `.ai/PKF.md`.
+
+If `.ai/PKF.md` is missing:
+
+- Do not continue with repository analysis yet.
+- Execute `initialize.md` to create the PKF runtime and OKF skeleton.
+- Validate the initialized structure.
+- Resume the normal execution flow only after `PKF.md` exists.
+- Report the recovery as a startup action.
+
+If `.ai/` exists but `.ai/PKF.md` is missing, treat the runtime as incomplete and run initialization before extraction.
+
+### 2. Analyze Repository
+
+After startup recovery, determine:
 
 - Repository structure
 - Technologies
@@ -30,9 +44,9 @@ Do not modify files during analysis.
 
 ---
 
-### 2. Determine Execution Mode
+### 3. Determine Execution Mode
 
-If `.ai/` does **not** exist:
+If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
 - Execute `initialize.md`
 - Validate

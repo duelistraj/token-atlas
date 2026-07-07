@@ -6,6 +6,8 @@ Initialize the Project Knowledge Framework (PKF) by creating a repository-specif
 
 This phase creates the knowledge structure and retrieval contract only. Do **not** extract implementation details.
 
+Run this workflow before repository analysis when `.ai/PKF.md` is missing. A missing `PKF.md` means the PKF startup contract is unavailable, even if other `.ai/` files exist.
+
 ---
 
 ## Inputs
@@ -67,9 +69,12 @@ Create or update:
 
 These documents define the repository-specific PKF runtime and may evolve as the project evolves.
 
+If `.ai/` already exists but `PKF.md` is absent, preserve existing `.ai/` content and create the missing runtime document before any extraction or optimization.
+
 `PKF.md` must define:
 
 - Startup sequence.
+- Startup recovery when `.ai/PKF.md` is missing.
 - Source-of-truth rules.
 - Extraction, optimization, and validation gates.
 - The difference between `pkf.loads` and `pkf.related`.
@@ -171,11 +176,19 @@ This is the root entry point into the OKF knowledge base.
 Update `PKF.md` so every AI session follows this startup sequence:
 
 ```text
+PKF.md
+    ->
 MEMORY.md
     ->
 ARCHITECTURE.md
     ->
 knowledge/INDEX.md
+```
+
+Also document this recovery rule:
+
+```text
+If .ai/PKF.md is missing, run initialization before repository analysis.
 ```
 
 ---

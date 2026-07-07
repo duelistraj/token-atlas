@@ -30,6 +30,12 @@ Verify:
 - `MEMORY.md` exists.
 - `ARCHITECTURE.md` exists.
 
+If `.ai/PKF.md` is missing:
+
+- Report a blocking startup error.
+- Recommend running `initialize.md`.
+- Do not continue into repository synchronization checks that depend on the startup contract.
+
 Ensure the runtime startup sequence is valid:
 
 ```text
@@ -48,6 +54,7 @@ knowledge/INDEX.md
 
 Verify:
 
+- `.ai/` exists.
 - `.ai/knowledge/` exists.
 - Root `INDEX.md` exists.
 - Every detected module has a directory.
@@ -92,6 +99,11 @@ Verify:
 - Metadata is valid.
 - Metadata is internally consistent.
 - Referenced resources exist.
+- Every `.ai/**/*.md` document that participates in PKF retrieval has the required metadata.
+- Required metadata fields are present exactly once.
+- `pkf.loads` and `pkf.related` are lists.
+- `pkf.loads` and `pkf.related` entries resolve to existing documents.
+- `resource` paths resolve to existing repository paths or are marked `TODO`.
 
 ---
 
@@ -109,6 +121,8 @@ Ensure:
 - `MEMORY.md` reflects stable project knowledge.
 - Commands, scripts, dependencies, and configuration facts match repository files.
 - Deleted or renamed source files are not referenced as current facts.
+- Source evidence labels point to existing files, symbols, commands, config keys, or tests.
+- Source evidence older than the current implementation is updated or marked `TODO`.
 
 Unknown information must be marked as `TODO`.
 
@@ -122,6 +136,7 @@ Verify:
 
 - No duplicate knowledge exists.
 - Every concept has one authoritative location.
+- Duplicate facts across authoritative documents are reported.
 - Module summaries remain concise.
 - Shared documents contain only repository-wide knowledge.
 - Indexes route to knowledge instead of duplicating leaf document content.
@@ -155,6 +170,8 @@ Ensure:
 - Every module is reachable.
 - No broken references exist.
 - No circular routing exists.
+- Every graph edge implied by `pkf.loads`, `pkf.related`, source references, and module ownership resolves to valid endpoints.
+- Missing, stale, or ambiguous graph endpoints are reported as validation defects.
 
 ---
 
@@ -207,6 +224,7 @@ Include:
 - Issue
 - Recommendation
 - Retrieval impact, when relevant
+- Token Impact, when relevant
 
 ---
 
@@ -220,8 +238,25 @@ Include:
 - Issue
 - Recommended fix
 - Source evidence or missing evidence
+- Retrieval impact, when relevant
+- Token Impact, when relevant
 
 Stop the PKF pipeline if any blocking errors exist.
+
+---
+
+### Token Impact
+
+Summarize estimated retrieval cost and load-path risk.
+
+Include:
+
+- Startup path estimate for `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
+- Largest module index load estimate.
+- Broad or accidental `pkf.loads` chains.
+- Whether estimates are exact tokenizer counts or approximate counts.
+
+Use this section even when the estimate is approximate. Label approximations clearly.
 
 ---
 
