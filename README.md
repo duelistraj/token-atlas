@@ -8,8 +8,9 @@ Zephyr PKF treats `.ai/` Markdown as the canonical source of repository knowledg
 1. Initialize: create `.ai/PKF.md`, runtime docs, the root knowledge index, shared docs, and module skeletons.
 2. Extract: populate only source-backed facts from the repository into the narrowest authoritative OKF documents.
 3. Optimize: reduce duplicate knowledge, tighten routing, and keep `pkf.loads` minimal.
-4. Validate: check structure, metadata, stale evidence, broken references, duplicate facts, routing integrity, and token impact.
-5. Generate retrieval exports: build backend-neutral JSONL or graph artifacts from the canonical Markdown knowledge base.
+4. Simulate retrieval: predict selected modules, required docs, optional related docs, token cost, and routing evidence for representative tasks.
+5. Validate: check structure, metadata, stale evidence, broken references, duplicate facts, routing integrity, simulations, and token impact.
+6. Generate retrieval exports: build backend-neutral JSONL or graph artifacts from the canonical Markdown knowledge base.
 
 ## Startup Recovery
 
@@ -50,3 +51,19 @@ Module task: auth API change, 5,880 tokens, passed
 Module task: sales UI change, 8,450 tokens, warning, split UI notes or move optional docs to pkf.related
 Broad loads: none, passed
 ```
+
+## Retrieval Simulation
+
+`simulate.md` defines the deterministic retrieval simulator workflow. Input is a natural-language task intent plus optional changed file paths.
+
+Simulation reports include:
+
+- Selected module or modules.
+- Required OKF documents.
+- Optional related documents.
+- Estimated token cost and estimator type.
+- Source and routing evidence.
+- Warnings for ambiguous or broad retrieval.
+- Errors for unrelated automatic loads.
+
+Required scenarios cover API routes, schemas/models, business logic, UI behavior, architecture understanding, and dependencies/tooling. Validation treats unrelated automatic module loads as defects.

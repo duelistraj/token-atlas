@@ -53,6 +53,7 @@ If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 - Execute `extract.md` using **Full Extraction**
 - Validate
 - Execute `optimize.md`
+- Execute `simulate.md` for representative retrieval scenarios
 - Validate
 
 Otherwise:
@@ -60,6 +61,7 @@ Otherwise:
 - Execute `extract.md` using **Incremental Extraction**
 - Validate
 - Execute `optimize.md`
+- Execute `simulate.md` for representative retrieval scenarios
 - Validate
 
 Stop immediately if validation fails.
@@ -91,6 +93,22 @@ Use each layer for a different job:
 `pkf.loads` means "load automatically for this task." Keep it minimal.
 
 `pkf.related` means "useful if the task expands." Do not treat related documents as automatic context.
+
+---
+
+## Retrieval Simulator
+
+Use `simulate.md` to predict the smallest useful context set for a natural-language task intent and optional changed file paths.
+
+Run the simulator:
+
+- During validation to prove representative tasks load only expected documents.
+- During optimization to identify broad, ambiguous, or unrelated automatic loads.
+- On demand when a user asks what PKF would retrieve for a task.
+
+A simulation report must include selected module or modules, required OKF docs, optional related docs, estimated token cost, routing evidence, and warnings or errors.
+
+Treat unrelated modules loaded automatically through `pkf.loads` as blocking validation defects.
 
 ---
 

@@ -175,32 +175,35 @@ Ensure:
 
 ---
 
-### 7. Retrieval Optimization
+### 7. Retrieval Simulation
 
-Simulate an AI retrieval session.
+Run `simulate.md` to verify that representative AI retrieval tasks select only the expected context.
 
 Verify that:
 
-- Every task begins at `knowledge/INDEX.md`.
+- Every task begins at `knowledge/INDEX.md` after the PKF startup path.
 - Module `INDEX.md` files route correctly.
 - `pkf.loads` loads only the minimum required documents.
-- `pkf.related` references only meaningful documents.
-- Unrelated modules are never loaded.
+- `pkf.related` references only meaningful optional documents.
+- Unrelated modules are never loaded automatically.
+- Simulation output includes selected modules, required docs, optional related docs, token cost, routing evidence, warnings, and errors.
 
-The knowledge base should support minimal-context retrieval.
+Required scenarios:
 
-Simulate representative tasks:
+| Scenario | Expected routing |
+|----------|------------------|
+| API route change | Root index -> module index -> `api.md` |
+| Schema/model change | Root index -> module index -> `schema.md` |
+| Business logic change | Root index -> module index -> `business_rules.md` |
+| UI behavior change | Root index -> module index -> `ui.md` |
+| Architecture understanding | Root index -> `ARCHITECTURE.md` and relevant module index |
+| Dependency/tooling update | Root index -> `dependencies.md` and affected module index |
 
-| Task | Expected routing |
-|------|------------------|
-| API change | Root index -> module index -> `api.md` |
-| Schema change | Root index -> module index -> `schema.md` |
-| Business rule change | Root index -> module index -> `business_rules.md` |
-| UI change | Root index -> module index -> `ui.md` |
-| Architecture question | Root index -> `ARCHITECTURE.md` and relevant module index |
-| Dependency/tooling change | Root index -> `dependencies.md` and affected module index |
+Flag warnings for ambiguous, missing, broad, or stale routing evidence.
 
-Flag any route that loads unrelated module facts.
+Flag errors when a route loads unrelated module facts, references missing documents, or cannot reach the selected module from `knowledge/INDEX.md`.
+
+Treat simulation errors as validation defects.
 
 ---
 
@@ -312,7 +315,8 @@ Validation succeeds when:
 - Every document is OKF compliant.
 - Repository knowledge is synchronized.
 - Routing is valid.
-- Retrieval simulation succeeds.
+- Retrieval simulation succeeds for all required scenarios or records evidence-backed skips.
+- Simulation reports selected modules, required docs, optional docs, token cost, routing evidence, warnings, and errors.
 - Token budget report is present and threshold status is clear.
 - AI can navigate using minimal context.
 - No blocking errors remain.

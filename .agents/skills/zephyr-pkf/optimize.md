@@ -137,7 +137,7 @@ Update or remove:
 
 ### 7. Verify Retrieval Efficiency
 
-Ensure an AI can navigate the knowledge base efficiently.
+Run `simulate.md` while optimizing retrieval.
 
 The expected retrieval flow is:
 
@@ -166,7 +166,9 @@ Test at least these retrieval scenarios:
 - "Understand repository architecture."
 - "Update dependencies or tooling."
 
-For each scenario, list the expected documents and remove any unnecessary loads.
+For each scenario, record selected modules, required documents, optional related documents, token cost, routing evidence, warnings, and errors.
+
+Remove unnecessary automatic loads, move optional context to `pkf.related`, and fix ambiguous routing evidence.
 
 ---
 
@@ -232,5 +234,6 @@ Phase 3 succeeds when:
 - AI retrieval requires only the minimum necessary context.
 - Token budget report is generated and threshold status is recorded.
 - Startup context is at or below warning threshold, or warnings are reported with recommendations.
+- Required retrieval simulations produce evidence-backed reports.
 - No unrelated modules are loaded automatically.
 - The knowledge base is optimized for long-term maintenance.
