@@ -115,17 +115,35 @@ Exports are generated from canonical `.ai/` Markdown and cited source evidence. 
 
 `scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, or export logic itself.
 
-Examples:
+Start with help:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 init
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 maintain
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate -Ci
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 simulate -Intent "change an API route" -Paths src/routes.ts
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export -RetrievalExports graph
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 --help
+```
+
+Codex skill usage and local wrapper usage are different surfaces. In Codex, ask for the `zephyr-pkf` skill by name and state options in natural language, such as `profile=ci` or `retrieval_exports=off`. In the terminal, use `scripts\pkf.ps1` for repeatable workflow requests.
+
+Common commands:
+
+| Goal | Command |
+|------|---------|
+| Show help | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 --help` |
+| Initialize PKF | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 init` |
+| Maintain changed knowledge | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 maintain` |
+| Validate advisory mode | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate` |
+| Validate CI mode | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate -Ci` |
+| Simulate retrieval | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 simulate -Intent "change an API route" -Paths src/routes.ts` |
+| Export retrieval graph | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export -RetrievalExports graph` |
+
+The wrapper supports PowerShell parameters and common kebab-case aliases:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export --retrieval-exports graph
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --ci
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --help
 ```
 
 Default command options are `profile: core`, `retrieval_exports: off`, `simulation: changed`, `token_budget: summary`, and `validation_strictness: advisory`.
 
 CI mode maps to `validation_strictness: ci`, `simulation: required`, and `token_budget: full`. Missing `.ai/PKF.md` exits nonzero in CI validation.
+

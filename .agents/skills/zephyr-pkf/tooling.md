@@ -19,6 +19,7 @@ Tooling must not become a second source of truth. Commands select profiles, opti
 | `pkf validate` | `validation.md` |
 | `pkf export` | `export.md` |
 | `pkf simulate` | `simulate.md` |
+| `pkf help` | local wrapper help |
 
 Default options:
 
@@ -32,18 +33,44 @@ validation_strictness: advisory
 
 ---
 
+## Help Surface
+
+The local PowerShell wrapper must support these help forms:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 help
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 --help
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 -Help
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --help
+```
+
+Help output must include:
+
+- Wrapper purpose and the rule that documented workflows remain authoritative.
+- Available commands and their workflow files.
+- Profiles and default options.
+- Supported PowerShell parameters and kebab-case aliases.
+- Examples for default validation, CI validation, simulation, and retrieval export.
+- Exit codes.
+- A short distinction between Codex skill usage and the local script wrapper.
+
+---
+
 ## Profiles And Flags
 
-Commands accept these shared options:
+Commands accept these shared options. PowerShell-style parameters are canonical for the script; kebab-case aliases exist for common CLI muscle memory.
 
-| Option | Values | Default |
-|--------|--------|---------|
-| `--profile` | `core`, `ci`, `retrieval`, `full` | `core` |
-| `--retrieval-exports` | `off`, `rag`, `graph`, `all` | `off` |
-| `--simulation` | `off`, `changed`, `required`, `all` | `changed` |
-| `--token-budget` | `summary`, `full` | `summary` |
-| `--validation-strictness` | `advisory`, `ci` | `advisory` |
-| `--ci` / `-Ci` | shortcut for CI validation | disabled |
+| Script option | Alias | Values | Default |
+|---------------|-------|--------|---------|
+| `-Profile` | `--profile` | `core`, `ci`, `retrieval`, `full` | `core` |
+| `-RetrievalExports` | `--retrieval-exports` | `off`, `rag`, `graph`, `all` | `off` |
+| `-Simulation` | `--simulation` | `off`, `changed`, `required`, `all` | `changed` |
+| `-TokenBudget` | `--token-budget` | `summary`, `full` | `summary` |
+| `-ValidationStrictness` | `--validation-strictness` | `advisory`, `ci` | `advisory` |
+| `-Ci` | `--ci` | shortcut for CI validation | disabled |
+| `-Intent` | `--intent` | task text for simulation | empty |
+| `-Paths` | `--paths` | changed paths for simulation | empty |
+| `-Help` | `--help` | print local wrapper help | disabled |
 
 Profile defaults:
 
@@ -53,6 +80,20 @@ Profile defaults:
 - `full`: `validation_strictness: ci`, `simulation: all`, `token_budget: full`, `retrieval_exports: all`.
 
 Explicit flags override profile defaults.
+
+---
+
+## Codex Skill Usage
+
+Codex skill usage is not the same as local wrapper execution.
+
+In Codex, select the skill by naming it and state options in natural language, for example:
+
+```text
+Use the zephyr-pkf skill with profile=ci, simulation=required, token_budget=full.
+```
+
+The local `scripts/pkf.ps1` wrapper is for repeatable developer and CI requests. It prints the selected workflow and options so Codex or a developer can execute the documented workflow.
 
 ---
 
@@ -100,9 +141,9 @@ Request retrieval simulation.
 
 Inputs:
 
-- `--intent "<task>"`
-- `--paths "<path1,path2>"`
-- `--simulation changed|required|all`
+- `-Intent "<task>"` or `--intent "<task>"`
+- `-Paths "<path1>","<path2>"` or `--paths "<path1>","<path2>"`
+- `-Simulation changed|required|all` or `--simulation changed|required|all`
 
 ---
 
@@ -110,7 +151,7 @@ Inputs:
 
 | Code | Meaning |
 |------|---------|
-| `0` | Command request is valid, or advisory findings were reported. |
+| `0` | Command request is valid, help was printed, or advisory findings were reported. |
 | `1` | CI blocking validation error. |
 | `2` | Invalid command or invalid options. |
 
@@ -134,6 +175,8 @@ Tooling succeeds when:
 
 - Commands map directly to documented workflows.
 - Shared profile options are supported.
+- `help`, `--help`, `-Help`, and command-local `--help` print useful wrapper guidance.
 - `validate --ci` or `validate -Ci` has CI-friendly nonzero behavior for blocking startup failures.
 - `export` is a no-op when `retrieval_exports: off`.
-- README examples show default, CI, simulation, and retrieval export usage.
+- README examples show help, default, CI, simulation, and retrieval export usage.
+
