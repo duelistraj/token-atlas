@@ -148,7 +148,7 @@ Leave unknown values empty or marked as `TODO`.
 
 Use consistent tags:
 
-- Project tag, such as `zephyr-pkf`.
+- Project tag, such as `token-atlas`.
 - Module tag.
 - Knowledge type tag, such as `api`, `schema`, `rules`, `ui`, `routing`, or `architecture`.
 

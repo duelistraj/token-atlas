@@ -1,15 +1,15 @@
 ---
-name: zephyr-pkf
-description: Generate and maintain this repository's PKF runtime and OKF-compatible knowledge base. Use when Codex needs to initialize, extract, validate, or optimize `.ai/` knowledge files for the zephyr-pkf repository while preserving source-code truth and avoiding application-code changes.
+name: token-atlas
+description: Generate and maintain this repository's PKF runtime and OKF-compatible knowledge base. Use when Codex needs to initialize, extract, validate, or optimize `.ai/` knowledge files for the token-atlas repository while preserving source-code truth and avoiding application-code changes.
 ---
 
-# Zephyr PKF
+# Token Atlas
 
 ## Purpose
 
 Generate and maintain a repository-specific, Open Knowledge Format (OKF) compatible knowledge base optimized for minimal-context retrieval by AI coding agents.
 
-Zephyr PKF continuously extracts verified repository knowledge, stores each fact in one authoritative location, and routes agents to the smallest useful context set for a task.
+Token Atlas continuously extracts verified repository knowledge, stores each fact in one authoritative location, and routes agents to the smallest useful context set for a task.
 
 ---
 

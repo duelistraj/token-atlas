@@ -1,9 +1,9 @@
-# zephyr-pkf
-Zephyr PKF is an AI context optimization framework that continuously extracts verified repository knowledge and generates an OKF-compatible knowledge base optimized for minimal-context retrieval by AI coding agents.
+# token-atlas
+Token Atlas is an AI context optimization framework that continuously extracts verified repository knowledge and generates an OKF-compatible knowledge base optimized for minimal-context retrieval by AI coding agents.
 
 ## PKF Lifecycle
 
-Zephyr PKF treats `.ai/` Markdown as the canonical source of repository knowledge. Generated indexes and retrieval exports are derived artifacts, not the source of truth.
+Token Atlas treats `.ai/` Markdown as the canonical source of repository knowledge. Generated indexes and retrieval exports are derived artifacts, not the source of truth.
 
 1. Initialize: create `.ai/PKF.md`, runtime docs, the root knowledge index, shared docs, and module skeletons.
 2. Maintain incrementally: detect changed, renamed, and deleted files and map them to affected knowledge.
@@ -121,7 +121,7 @@ Start with help:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 --help
 ```
 
-Codex skill usage and local wrapper usage are different surfaces. In Codex, ask for the `zephyr-pkf` skill by name and state options in natural language, such as `profile=ci` or `retrieval_exports=off`. In the terminal, use `scripts\pkf.ps1` for repeatable workflow requests.
+Codex skill usage and local wrapper usage are different surfaces. In Codex, ask for the `token-atlas` skill by name and state options in natural language, such as `profile=ci` or `retrieval_exports=off`. In the terminal, use `scripts\pkf.ps1` for repeatable workflow requests.
 
 Common commands:
 

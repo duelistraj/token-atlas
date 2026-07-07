@@ -1,6 +1,6 @@
 # AGENTS
 
-This repository uses the Zephyr Project Knowledge Framework (PKF).
+This repository uses the Token Atlas Project Knowledge Framework (PKF).
 
 At the beginning of every session, read `.ai/PKF.md` before performing repository analysis.
 

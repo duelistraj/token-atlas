@@ -90,7 +90,7 @@ Codex skill usage is not the same as local wrapper execution.
 In Codex, select the skill by naming it and state options in natural language, for example:
 
 ```text
-Use the zephyr-pkf skill with profile=ci, simulation=required, token_budget=full.
+Use the token-atlas skill with profile=ci, simulation=required, token_budget=full.
 ```
 
 The local `scripts/pkf.ps1` wrapper is for repeatable developer and CI requests. It prints the selected workflow and options so Codex or a developer can execute the documented workflow.

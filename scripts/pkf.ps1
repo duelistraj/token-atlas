@@ -30,7 +30,7 @@ $allowedStrictness = @('advisory', 'ci')
 function Show-Help {
     Write-Output 'PKF thin workflow wrapper'
     Write-Output ''
-    Write-Output 'This script selects documented Zephyr PKF workflows. It does not implement extraction, optimization, validation, or retrieval export logic.'
+    Write-Output 'This script selects documented Token Atlas workflows. It does not implement extraction, optimization, validation, or retrieval export logic.'
     Write-Output ''
     Write-Output 'Usage:'
     Write-Output '  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 <command> [options]'
@@ -76,8 +76,8 @@ function Show-Help {
     Write-Output '  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export --retrieval-exports graph'
     Write-Output ''
     Write-Output 'Codex skill usage:'
-    Write-Output '  In Codex, ask for the zephyr-pkf skill by name and include options in natural language, for example:'
-    Write-Output '  "Use zephyr-pkf with profile=ci, simulation=required, token_budget=full."'
+    Write-Output '  In Codex, ask for the token-atlas skill by name and include options in natural language, for example:'
+    Write-Output '  "Use token-atlas with profile=ci, simulation=required, token_budget=full."'
     Write-Output ''
     Write-Output 'Exit codes:'
     Write-Output '  0  Valid command request, help output, or advisory findings.'
@@ -144,7 +144,7 @@ $pkfExists = Test-Path -LiteralPath $pkfPath
 
 Write-Output 'PKF Tool Request'
 Write-Output "Command: $Command"
-Write-Output "Workflow: .agents/skills/zephyr-pkf/$workflow"
+Write-Output "Workflow: .agents/skills/token-atlas/$workflow"
 Write-Output "Profile: $Profile"
 Write-Output "retrieval_exports: $RetrievalExports"
 Write-Output "simulation: $Simulation"
