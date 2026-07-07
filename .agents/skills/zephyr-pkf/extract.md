@@ -20,7 +20,7 @@ Do not reorganize knowledge in this phase except where needed to keep one author
 
 ## Outputs
 
-Update only the affected OKF documents so they accurately reflect the current repository.
+Update only the affected OKF documents so they accurately reflect the current repository. Retrieval exports are not updated in extraction unless an explicit retrieval profile or export workflow requests derived artifacts.
 
 ---
 
@@ -174,6 +174,7 @@ Update only when required:
 - Generate valid OKF documents.
 - Prefer evidence-linked bullets and tables.
 - Keep indexes concise and route-focused.
+- Treat `.ai/retrieval/` as generated output only; do not use it as extraction source truth.
 - Mark unverifiable documentation conflicts as validation warnings or errors.
 
 ---

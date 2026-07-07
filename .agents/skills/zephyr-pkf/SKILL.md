@@ -44,7 +44,27 @@ Do not modify files during analysis.
 
 ---
 
-### 3. Determine Execution Mode
+### 3. Determine Execution Profile
+
+Default profile is `core`.
+
+Use these profiles:
+
+- `core`: initialize, extract, optimize, and run lightweight validation.
+- `ci`: `core` plus strict validation, required simulator scenarios, and token budget gates.
+- `retrieval`: `core` plus retrieval export generation when explicitly requested.
+- `full`: all workflows, including full simulator scenarios and retrieval exports.
+
+Profile options:
+
+- `retrieval_exports`: `off | rag | graph | all`, default `off`.
+- `simulation`: `off | changed | required | all`, default `changed`.
+- `token_budget`: `summary | full`, default `summary`.
+- `validation_strictness`: `advisory | ci`, default `advisory`.
+
+Do not generate or load retrieval exports unless `retrieval_exports` is not `off`. Retrieval exports are generated artifacts, never the source of truth, and must not be part of the PKF startup path.
+
+### 4. Determine Execution Mode
 
 If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
@@ -53,7 +73,7 @@ If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 - Execute `extract.md` using **Full Extraction**
 - Validate
 - Execute `optimize.md`
-- Execute `simulate.md` for representative retrieval scenarios
+- Execute `simulate.md` only according to the selected `simulation` option
 - Validate
 
 Otherwise:
@@ -61,10 +81,10 @@ Otherwise:
 - Execute `extract.md` using **Incremental Extraction**
 - Validate
 - Execute `optimize.md`
-- Execute `simulate.md` for representative retrieval scenarios
+- Execute `simulate.md` only according to the selected `simulation` option
 - Validate
 
-Stop immediately if validation fails.
+Stop immediately on validation failures only when `validation_strictness: ci` is selected. In advisory mode, report blocking recommendations without treating the default workflow as a CI gate.
 
 ---
 
@@ -102,7 +122,9 @@ Use `simulate.md` to predict the smallest useful context set for a natural-langu
 
 Run the simulator:
 
-- During validation to prove representative tasks load only expected documents.
+- In `changed` mode to test only changed paths or the current task intent.
+- In `required` mode to prove representative tasks load only expected documents.
+- In `all` mode to test changed-path, required, and broad-load scenarios.
 - During optimization to identify broad, ambiguous, or unrelated automatic loads.
 - On demand when a user asks what PKF would retrieve for a task.
 
@@ -137,14 +159,18 @@ Optimize for small, predictable loads:
 - Split a document only when independent tasks can load the split sections separately.
 - Preserve useful manual notes, but move them to the correct authoritative location.
 
-Every optimization and validation run must produce a token budget report.
+Optimization and validation must produce token budget output according to `token_budget`.
+
+Use:
+
+- `summary`: startup path, changed module paths, and threshold status.
+- `full`: summary plus every module index load, representative tasks, and broad `pkf.loads` chains.
 
 Estimate token cost for:
 
 - Startup path: `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
-- Each module index load: `knowledge/INDEX.md -> knowledge/<module>/INDEX.md`.
-- Representative tasks: API, schema, business logic, UI, architecture, and dependency/tooling work.
-- Accidental broad `pkf.loads` chains, especially chains that cross into unrelated modules.
+- Changed module paths in `summary` mode.
+- Each module index load, representative tasks, and accidental broad `pkf.loads` chains in `full` mode.
 
 Use an exact tokenizer when one is available locally for the target model. If no exact tokenizer is available, use a deterministic approximate estimator and label the report `approximate`; the default approximation is `ceil(character_count / 4)` for Markdown content after front matter is included.
 
@@ -174,7 +200,7 @@ Default thresholds:
 
 Execution succeeds only when:
 
-- Validation passes after every phase.
+- Validation completes after every phase, with hard failure behavior only in `ci` strictness.
 - The PKF runtime is synchronized.
 - The OKF knowledge base reflects the repository.
 - AI retrieval is optimized.

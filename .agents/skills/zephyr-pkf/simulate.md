@@ -24,6 +24,7 @@ Optional:
 - Known module name.
 - Known task type.
 - Current token estimator, when one is available.
+- Simulation mode: `off`, `changed`, `required`, or `all`.
 
 ---
 
@@ -41,6 +42,21 @@ Produce a retrieval simulation report with:
 - Errors for unrelated automatic loads.
 
 Use the token budget rules from `SKILL.md` and `validation.md`.
+
+---
+
+## Simulation Modes
+
+Default mode is `changed`.
+
+Use:
+
+- `off`: do not run simulation unless explicitly requested by a user.
+- `changed`: simulate only the current task intent or changed file paths.
+- `required`: run the required representative scenarios.
+- `all`: run changed-path, required, and broad-load scenarios.
+
+`required` and `all` are intended for `ci`, `full`, or explicit validation requests. They are not part of the default `core` token cost.
 
 ---
 
@@ -161,7 +177,7 @@ Treat errors as validation defects.
 
 ## Required Simulation Scenarios
 
-Validation and optimization must run these scenarios against representative modules:
+Validation and optimization run these scenarios only in `required` or `all` simulation mode:
 
 | Scenario | Input intent | Expected required docs |
 |----------|--------------|------------------------|
@@ -172,7 +188,7 @@ Validation and optimization must run these scenarios against representative modu
 | Architecture | Understand repository architecture | `ARCHITECTURE.md`, root index, relevant module index |
 | Dependencies/tooling | Update dependencies or tooling | Root index, `dependencies.md`, affected module index when applicable |
 
-If the repository has no module matching a scenario, report it as skipped with evidence.
+If the repository has no module matching a scenario, report it as skipped with evidence. In default `changed` mode, skip this table unless the current task intent matches one of the scenarios.
 
 ---
 
@@ -183,6 +199,7 @@ Retrieval Simulation
 Intent: <natural-language task>
 Changed paths: <paths or none>
 Task type: <classified type>
+Simulation mode: <off, changed, required, or all>
 Selected modules: <modules>
 Required docs: <docs loaded automatically>
 Optional related docs: <docs not automatically loaded>
@@ -219,4 +236,5 @@ Simulation succeeds when:
 - Optional related documents are separated from automatic loads.
 - Token estimate and estimator type are reported.
 - Ambiguous or broad routing is reported.
+- The report states which simulation mode was used.
 - No unrelated modules are loaded automatically.

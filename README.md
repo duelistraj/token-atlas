@@ -8,9 +8,24 @@ Zephyr PKF treats `.ai/` Markdown as the canonical source of repository knowledg
 1. Initialize: create `.ai/PKF.md`, runtime docs, the root knowledge index, shared docs, and module skeletons.
 2. Extract: populate only source-backed facts from the repository into the narrowest authoritative OKF documents.
 3. Optimize: reduce duplicate knowledge, tighten routing, and keep `pkf.loads` minimal.
-4. Simulate retrieval: predict selected modules, required docs, optional related docs, token cost, and routing evidence for representative tasks.
-5. Validate: check structure, metadata, stale evidence, broken references, duplicate facts, routing integrity, simulations, and token impact.
-6. Generate retrieval exports: build backend-neutral JSONL or graph artifacts from the canonical Markdown knowledge base.
+4. Simulate retrieval when enabled: predict selected modules, required docs, optional related docs, token cost, and routing evidence.
+5. Validate: check structure, metadata, stale evidence, broken references, duplicate facts, routing integrity, enabled simulations, and token impact.
+6. Generate retrieval exports only when requested; derived JSONL and graph artifacts are never the source of truth.
+
+## Execution Profiles
+
+Default profile is `core`: initialize, extract, optimize, and run lightweight validation.
+
+Options:
+
+| Option | Values | Default |
+|--------|--------|---------|
+| `retrieval_exports` | `off`, `rag`, `graph`, `all` | `off` |
+| `simulation` | `off`, `changed`, `required`, `all` | `changed` |
+| `token_budget` | `summary`, `full` | `summary` |
+| `validation_strictness` | `advisory`, `ci` | `advisory` |
+
+Use `ci` or `full` for required simulator scenarios and full token budget gates. Use `retrieval` or explicit retrieval export options for RAG/GraphRAG artifacts. Repos that do not use RAG should keep `retrieval_exports: off`.
 
 ## Startup Recovery
 
@@ -29,7 +44,7 @@ Token counts should use an exact tokenizer when available. Otherwise, reports mu
 
 ## Token Budgeting
 
-Optimization and validation generate a token budget report for the startup path, each module index load, representative task loads, and broad `pkf.loads` chains.
+Optimization and validation generate token budget output according to `token_budget`. Default `summary` mode covers the startup path, changed module paths, and threshold status. `full` mode adds every module index load, representative task loads, and broad `pkf.loads` chains.
 
 Default thresholds:
 
@@ -66,4 +81,4 @@ Simulation reports include:
 - Warnings for ambiguous or broad retrieval.
 - Errors for unrelated automatic loads.
 
-Required scenarios cover API routes, schemas/models, business logic, UI behavior, architecture understanding, and dependencies/tooling. Validation treats unrelated automatic module loads as defects.
+Default simulation mode is `changed`, which only simulates the current task intent or changed paths. Required scenarios cover API routes, schemas/models, business logic, UI behavior, architecture understanding, and dependencies/tooling in `ci`, `full`, `required`, or `all` mode. Validation treats unrelated automatic module loads as defects.

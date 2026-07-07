@@ -17,6 +17,20 @@ Only report findings.
 - Repository
 - PKF runtime (`.ai/`)
 - OKF knowledge base (`.ai/knowledge/`)
+- Selected execution profile and options
+
+---
+
+## Validation Profiles
+
+Default validation is advisory and lightweight.
+
+Use:
+
+- `advisory`: report warnings and errors, but run only summary token budgeting and changed-path simulation by default.
+- `ci`: fail on blocking errors, unrelated automatic loads, missing required simulations, and token budget gates.
+
+`retrieval_exports` defaults to `off`; validation must not require `.ai/retrieval/` unless retrieval exports are explicitly enabled.
 
 ---
 
@@ -177,7 +191,7 @@ Ensure:
 
 ### 7. Retrieval Simulation
 
-Run `simulate.md` to verify that representative AI retrieval tasks select only the expected context.
+Run `simulate.md` according to the selected `simulation` option.
 
 Verify that:
 
@@ -186,9 +200,9 @@ Verify that:
 - `pkf.loads` loads only the minimum required documents.
 - `pkf.related` references only meaningful optional documents.
 - Unrelated modules are never loaded automatically.
-- Simulation output includes selected modules, required docs, optional related docs, token cost, routing evidence, warnings, and errors.
+- Enabled simulation output includes selected modules, required docs, optional related docs, token cost, routing evidence, warnings, and errors.
 
-Required scenarios:
+Run required scenarios only in `ci`, `full`, `simulation: required`, or `simulation: all` mode:
 
 | Scenario | Expected routing |
 |----------|------------------|
@@ -203,20 +217,19 @@ Flag warnings for ambiguous, missing, broad, or stale routing evidence.
 
 Flag errors when a route loads unrelated module facts, references missing documents, or cannot reach the selected module from `knowledge/INDEX.md`.
 
-Treat simulation errors as validation defects.
+Treat simulation errors as validation defects. In default `changed` mode, validate only the current task intent or changed file paths and skip representative scenarios with an explicit note.
 
 ---
 
 ### 8. Token Budgeting
 
-Generate or verify a token budget report during validation.
+Generate or verify token budget output during validation according to `token_budget`.
 
 Track:
 
 - Startup path: `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
-- Each module index load.
-- Representative task loads for API, schema, business logic, UI, architecture, and dependency/tooling work.
-- Accidental broad `pkf.loads` chains.
+- Changed module paths in `summary` mode.
+- Each module index load, representative task load, and accidental broad `pkf.loads` chain in `full` mode.
 
 Estimator rules:
 
@@ -232,7 +245,7 @@ Default thresholds:
 | Module task | Above 8,000 estimated tokens | Warning |
 | Unrelated automatic module load | Any occurrence | Error |
 
-Validation must fail when unrelated modules are loaded automatically through `pkf.loads`.
+Validation must fail in `ci` strictness when unrelated modules are loaded automatically through `pkf.loads`. In advisory mode, report the same condition as a blocking error recommendation.
 
 ---
 
@@ -273,7 +286,7 @@ Include:
 - Retrieval impact, when relevant
 - Token Impact, when relevant
 
-Stop the PKF pipeline if any blocking errors exist.
+Stop the PKF pipeline if any blocking errors exist in `ci` strictness. In advisory mode, report the same issues without implying default workflow failure.
 
 ---
 
@@ -284,9 +297,8 @@ Summarize estimated retrieval cost and load-path risk.
 Include:
 
 - Startup path estimate for `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
-- Each module index load estimate.
-- Representative task estimates for API, schema, business logic, UI, architecture, and dependency/tooling work.
-- Broad or accidental `pkf.loads` chains.
+- Changed module path estimates in `summary` mode.
+- Each module index load, representative task estimate, and broad `pkf.loads` chain in `full` mode.
 - Threshold status for every tracked route.
 - Whether estimates are exact tokenizer counts or approximate counts.
 
@@ -315,8 +327,8 @@ Validation succeeds when:
 - Every document is OKF compliant.
 - Repository knowledge is synchronized.
 - Routing is valid.
-- Retrieval simulation succeeds for all required scenarios or records evidence-backed skips.
-- Simulation reports selected modules, required docs, optional docs, token cost, routing evidence, warnings, and errors.
-- Token budget report is present and threshold status is clear.
+- Enabled retrieval simulations succeed or record evidence-backed skips.
+- Enabled simulation reports selected modules, required docs, optional docs, token cost, routing evidence, warnings, and errors.
+- Token budget output is present at the selected summary or full level and threshold status is clear.
 - AI can navigate using minimal context.
 - No blocking errors remain.

@@ -78,6 +78,8 @@ If `.ai/` already exists but `PKF.md` is absent, preserve existing `.ai/` conten
 - Source-of-truth rules.
 - Extraction, optimization, and validation gates.
 - The difference between `pkf.loads` and `pkf.related`.
+- Execution profiles and defaults: `core`, `ci`, `retrieval`, `full`.
+- Profile options: `retrieval_exports`, `simulation`, `token_budget`, and `validation_strictness`.
 
 `MEMORY.md` must start with only stable repository-wide facts.
 
@@ -189,6 +191,16 @@ Also document this recovery rule:
 
 ```text
 If .ai/PKF.md is missing, run initialization before repository analysis.
+```
+
+Also document default profile options:
+
+```yaml
+profile: core
+retrieval_exports: off
+simulation: changed
+token_budget: summary
+validation_strictness: advisory
 ```
 
 ---

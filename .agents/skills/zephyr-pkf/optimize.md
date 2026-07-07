@@ -19,7 +19,7 @@ Do not extract new repository knowledge.
 
 ## Outputs
 
-A concise, consistent, and retrieval-optimized OKF knowledge base, plus a token budget report for the optimized retrieval paths.
+A concise, consistent, and retrieval-optimized OKF knowledge base, plus token budget output according to the selected profile.
 
 ---
 
@@ -137,7 +137,7 @@ Update or remove:
 
 ### 7. Verify Retrieval Efficiency
 
-Run `simulate.md` while optimizing retrieval.
+Run `simulate.md` while optimizing retrieval only when the selected `simulation` option requires it.
 
 The expected retrieval flow is:
 
@@ -157,7 +157,7 @@ Required OKF documents
 
 The knowledge base should support minimal-context retrieval without unnecessary repository exploration.
 
-Test at least these retrieval scenarios:
+In `required` or `all` simulation mode, test these retrieval scenarios:
 
 - "Change an API route."
 - "Change a schema or data model."
@@ -166,7 +166,7 @@ Test at least these retrieval scenarios:
 - "Understand repository architecture."
 - "Update dependencies or tooling."
 
-For each scenario, record selected modules, required documents, optional related documents, token cost, routing evidence, warnings, and errors.
+For each simulated scenario, record selected modules, required documents, optional related documents, token cost, routing evidence, warnings, and errors. In default `changed` mode, simulate only the current task intent or changed paths.
 
 Remove unnecessary automatic loads, move optional context to `pkf.related`, and fix ambiguous routing evidence.
 
@@ -174,16 +174,15 @@ Remove unnecessary automatic loads, move optional context to `pkf.related`, and 
 
 ### 8. Generate Token Budget Report
 
-Generate a token budget report during optimization.
+Generate token budget output during optimization according to `token_budget`.
 
 Track:
 
 - Startup path: `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
-- Each module index load: `knowledge/INDEX.md -> knowledge/<module>/INDEX.md`.
-- Representative task loads for API, schema, business logic, UI, architecture, and dependency/tooling work.
-- Any `pkf.loads` chain that automatically pulls broad or unrelated context.
+- Changed module paths in `summary` mode.
+- Each module index load, representative task load, and broad `pkf.loads` chain in `full` mode.
 
-For each entry report:
+For each reported entry include:
 
 - Route name.
 - Documents loaded automatically.
@@ -216,7 +215,7 @@ If a route exceeds a threshold, tighten indexes, split oversized documents, or m
 - Maintain valid OKF documents.
 - Keep root and module indexes as routing surfaces.
 - Treat excessive `pkf.loads` entries as optimization defects.
-- Generate token budget reports with exact tokenizer counts when available, otherwise with clearly labeled approximate estimates.
+- Generate summary token budget output by default; generate full token budget reports only in `ci`, `full`, or explicit `token_budget: full` mode.
 - Treat unrelated automatic module loads as blocking optimization defects.
 
 ---
@@ -232,8 +231,8 @@ Phase 3 succeeds when:
 - Shared knowledge contains only repository-wide information.
 - All cross references are valid.
 - AI retrieval requires only the minimum necessary context.
-- Token budget report is generated and threshold status is recorded.
+- Token budget output is generated at the selected summary or full level and threshold status is recorded.
 - Startup context is at or below warning threshold, or warnings are reported with recommendations.
-- Required retrieval simulations produce evidence-backed reports.
+- Retrieval simulations produce evidence-backed reports when enabled; required scenarios run in `ci`, `full`, or `simulation: required|all` mode.
 - No unrelated modules are loaded automatically.
 - The knowledge base is optimized for long-term maintenance.
