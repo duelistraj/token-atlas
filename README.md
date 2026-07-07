@@ -1,23 +1,62 @@
 # token-atlas
+
 Token Atlas is an AI context optimization framework that continuously extracts verified repository knowledge and generates an OKF-compatible knowledge base optimized for minimal-context retrieval by AI coding agents.
+
+It treats repository source as truth, `.ai/` Markdown as canonical AI knowledge, and optional retrieval exports as derived artifacts.
 
 ## PKF Lifecycle
 
-Token Atlas treats `.ai/` Markdown as the canonical source of repository knowledge. Generated indexes and retrieval exports are derived artifacts, not the source of truth.
+```mermaid
+flowchart TD
+    Start([Start PKF session]) --> ReadPKF{.ai/PKF.md exists?}
+    ReadPKF -- No --> Init[Initialize PKF runtime and OKF skeleton]
+    Init --> ValidateInit[Validate initialized structure]
+    ValidateInit --> FullExtract[Full source-backed extraction]
+    ReadPKF -- Yes --> Maintain[Incremental maintenance]
+    Maintain --> IncrementalExtract[Incremental source-backed extraction]
+    FullExtract --> ValidateExtract[Validate knowledge sync]
+    IncrementalExtract --> ValidateExtract
+    ValidateExtract --> Optimize[Optimize routing, duplication, and token budget]
+    Optimize --> Simulate{Simulation enabled?}
+    Simulate -- Yes --> RunSim[Simulate minimal retrieval]
+    Simulate -- No --> ExportCheck{Retrieval exports enabled?}
+    RunSim --> ExportCheck
+    ExportCheck -- Yes --> Export[Generate derived JSONL exports]
+    ExportCheck -- No --> FinalValidate[Final validation]
+    Export --> FinalValidate
+    FinalValidate --> Done([Synchronized minimal-context knowledge base])
+```
 
-1. Initialize: create `.ai/PKF.md`, runtime docs, the root knowledge index, shared docs, and module skeletons.
-2. Maintain incrementally: detect changed, renamed, and deleted files and map them to affected knowledge.
-3. Extract: populate only source-backed facts into the narrowest authoritative OKF documents.
-4. Optimize: reduce duplicate knowledge, tighten routing, and keep `pkf.loads` minimal.
-5. Simulate retrieval when enabled: predict selected modules, required docs, optional related docs, token cost, and routing evidence.
-6. Validate: check structure, metadata, stale evidence, broken references, duplicate facts, routing integrity, enabled simulations, and token impact.
-7. Generate retrieval exports only when requested; derived JSONL and graph artifacts are never the source of truth.
+Lifecycle phases:
+
+| Phase | Purpose | Output |
+|-------|---------|--------|
+| Initialize | Create `.ai/PKF.md`, runtime docs, root index, shared docs, and module skeletons. | Empty OKF-compatible structure. |
+| Maintain | Detect changed, renamed, and deleted files. | Affected modules, docs, stale references, and duplicate facts. |
+| Extract | Add only source-backed facts to the narrowest authoritative document. | Current canonical `.ai/` Markdown. |
+| Optimize | Tighten routing, remove duplication, and keep automatic loads small. | Minimal `pkf.loads`, useful `pkf.related`, token impact report. |
+| Simulate | Predict context for a task intent or changed paths. | Selected modules, required docs, optional docs, token estimate, warnings. |
+| Validate | Check structure, metadata, sync, stale evidence, routing, simulation, tooling, and token budget. | Passed, Warnings, Errors, and Token Impact. |
+| Export | Generate optional RAG or GraphRAG JSONL from canonical Markdown. | Derived `.ai/retrieval/` files only when enabled. |
+
+## Startup Recovery
+
+At the beginning of a PKF session, read `.ai/PKF.md`. If it is missing, run initialization before repository analysis. Initialization creates the runtime contract that routes agents through `MEMORY.md`, `ARCHITECTURE.md`, and `knowledge/INDEX.md`.
+
+Missing `.ai/PKF.md` is a CI blocking startup error. Advisory workflows should report the recovery step without treating the default workflow as a CI failure.
 
 ## Execution Profiles
 
-Default profile is `core`: initialize, maintain incrementally, extract, optimize, and run lightweight validation.
+Default profile is `core`: initialize or maintain, extract, optimize, and run lightweight validation.
 
-Options:
+| Profile | Use when | Defaults |
+|---------|----------|----------|
+| `core` | Normal local maintenance. | `retrieval_exports: off`, `simulation: changed`, `token_budget: summary`, `validation_strictness: advisory` |
+| `ci` | PR or release validation. | `simulation: required`, `token_budget: full`, `validation_strictness: ci` |
+| `retrieval` | Generating RAG or graph exports on request. | Core defaults unless `retrieval_exports` is set. |
+| `full` | Exhaustive validation and export generation. | `retrieval_exports: all`, `simulation: all`, `token_budget: full`, `validation_strictness: ci` |
+
+Shared options:
 
 | Option | Values | Default |
 |--------|--------|---------|
@@ -26,25 +65,54 @@ Options:
 | `token_budget` | `summary`, `full` | `summary` |
 | `validation_strictness` | `advisory`, `ci` | `advisory` |
 
-Use `ci` or `full` for required simulator scenarios and full token budget gates. Use `retrieval` or explicit retrieval export options for RAG/GraphRAG artifacts. Repos that do not use RAG should keep `retrieval_exports: off`.
+## Retrieval Optimization
+
+Token Atlas optimizes for the smallest predictable context set that can safely handle a task. The standard load path is:
+
+```text
+PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md -> knowledge/<module>/INDEX.md -> required leaf docs
+```
+
+| Layer | Keep | Avoid |
+|-------|------|-------|
+| `PKF.md` | Startup sequence, execution rules, validation gates. | Repository implementation details. |
+| `MEMORY.md` | Stable facts that apply across most tasks. | Module-specific behavior. |
+| `ARCHITECTURE.md` | Path ownership, source roots, module map. | API, schema, or business-rule facts. |
+| `knowledge/INDEX.md` | Root routing by task, keyword, module, and path. | Leaf knowledge copied from modules. |
+| Module `INDEX.md` | Module purpose, task routing, document map. | Long explanations better kept in leaf docs. |
+| Leaf docs | Source-backed facts for one knowledge type. | Repeated facts from other documents. |
+
+Use `pkf.loads` only for context required automatically for a task. Use `pkf.related` for useful optional context when the task expands.
+
+Default token thresholds:
+
+| Route | Threshold | Result |
+|-------|-----------|--------|
+| Startup path | Above 4,000 estimated tokens | Warning |
+| Module task | Above 8,000 estimated tokens | Warning |
+| Unrelated automatic module load | Any occurrence | Error |
+
+Use an exact tokenizer when available. Otherwise use `ceil(character_count / 4)` and mark the estimate approximate.
 
 ## Incremental Maintenance
 
-`maintenance.md` defines the default core workflow for keeping PKF synchronized after repository changes.
+`maintenance.md` defines the default core workflow for synchronizing PKF after repository changes.
 
-Maintenance uses:
+Change detection order:
 
 1. `git diff --cached --name-status`
 2. `git diff --name-status`
-3. Full scan fallback
+3. Full repository scan fallback
 
-It maps changed paths to affected modules and canonical docs, invalidates facts that cite deleted or renamed evidence, reports duplicate authoritative facts, and regenerates retrieval exports only when `retrieval_exports` is enabled.
+Maintenance maps changed paths to affected modules and canonical docs, invalidates facts that cite deleted or renamed evidence, reports duplicate authoritative facts, and regenerates retrieval exports only when `retrieval_exports` is enabled.
 
-Stale references to removed files or symbols are blocking in `ci` strictness. Duplicate facts warn by default and block in `ci` when they affect routing, source truth, `pkf.loads`, or module ownership.
+## Retrieval Simulation
 
-## Startup Recovery
+`simulate.md` predicts the smallest OKF context set for a natural-language task intent and optional changed paths.
 
-At the beginning of a PKF session, read `.ai/PKF.md`. If it is missing, run initialization before repository analysis. This creates the runtime contract that tells agents how to load `MEMORY.md`, `ARCHITECTURE.md`, and `knowledge/INDEX.md`.
+Simulation reports include selected modules, required docs, optional related docs, token cost, estimator type, routing evidence, warnings, and errors. Default `changed` mode only simulates the current task intent or changed paths. `required` and `all` modes cover representative API, schema, business logic, UI, architecture, and tooling scenarios.
+
+Unrelated modules loaded automatically through `pkf.loads` are validation defects.
 
 ## Validation Report
 
@@ -53,75 +121,32 @@ Validation reports use four sections:
 - Passed: checks that succeeded.
 - Warnings: non-blocking issues with recommendations and retrieval impact.
 - Errors: blocking issues with evidence and recommended fixes.
-- Token Impact: estimated startup and task retrieval costs, including broad `pkf.loads` chains.
+- Token Impact: startup and task retrieval costs, including broad `pkf.loads` chains.
 
-Token counts should use an exact tokenizer when available. Otherwise, reports must label estimates as approximate.
-
-## Token Budgeting
-
-Optimization and validation generate token budget output according to `token_budget`. Default `summary` mode covers the startup path, changed module paths, and threshold status. `full` mode adds every module index load, representative task loads, and broad `pkf.loads` chains.
-
-Default thresholds:
-
-| Route | Threshold | Result |
-|------|-----------|--------|
-| Startup path | Above 4,000 estimated tokens | Warning |
-| Module task | Above 8,000 estimated tokens | Warning |
-| Unrelated automatic module load | Any occurrence | Error |
-
-Use an exact tokenizer when available. Otherwise use `ceil(character_count / 4)` and mark the report approximate.
-
-Example report shape:
-
-```text
-Token Impact
-Estimator: approximate, ceil(character_count / 4)
-Startup path: 3,420 tokens, passed
-Module task: auth API change, 5,880 tokens, passed
-Module task: sales UI change, 8,450 tokens, warning, split UI notes or move optional docs to pkf.related
-Broad loads: none, passed
-```
-
-## Retrieval Simulation
-
-`simulate.md` defines the deterministic retrieval simulator workflow. Input is a natural-language task intent plus optional changed file paths.
-
-Simulation reports include:
-
-- Selected module or modules.
-- Required OKF documents.
-- Optional related documents.
-- Estimated token cost and estimator type.
-- Source and routing evidence.
-- Warnings for ambiguous or broad retrieval.
-- Errors for unrelated automatic loads.
-
-Default simulation mode is `changed`, which only simulates the current task intent or changed paths. Required scenarios cover API routes, schemas/models, business logic, UI behavior, architecture understanding, and dependencies/tooling in `ci`, `full`, `required`, or `all` mode. Validation treats unrelated automatic module loads as defects.
+CI strictness exits nonzero for blocking validation failures. Advisory strictness reports the same issues as recommendations.
 
 ## Optional Retrieval Exports
 
-`export.md` defines optional backend-neutral retrieval exports under `.ai/retrieval/`.
+`export.md` defines backend-neutral generated artifacts under `.ai/retrieval/`.
 
 | `retrieval_exports` | Generated files |
 |---------------------|-----------------|
 | `off` | none |
 | `rag` | `documents.jsonl`, `claims.jsonl` |
 | `graph` | `entities.jsonl`, `relationships.jsonl`, `claims.jsonl` |
-| `all` | all export files |
+| `all` | `documents.jsonl`, `entities.jsonl`, `relationships.jsonl`, `claims.jsonl` |
 
-Exports are generated from canonical `.ai/` Markdown and cited source evidence. They can feed vector RAG, GraphRAG, or custom retrieval tooling, but they are never loaded in the PKF startup path and never become source truth.
+Exports are generated from canonical `.ai/` Markdown and cited source evidence. They may feed vector RAG, GraphRAG, or custom retrieval tooling, but they are never loaded in the PKF startup path and never become source truth.
 
 ## Developer Tooling
 
-`scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, or export logic itself.
+`scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, simulation, or export logic.
 
 Start with help:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 --help
 ```
-
-Codex skill usage and local wrapper usage are different surfaces. In Codex, ask for the `token-atlas` skill by name and state options in natural language, such as `profile=ci` or `retrieval_exports=off`. In the terminal, use `scripts\pkf.ps1` for repeatable workflow requests.
 
 Common commands:
 
@@ -143,7 +168,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --c
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --help
 ```
 
-Default command options are `profile: core`, `retrieval_exports: off`, `simulation: changed`, `token_budget: summary`, and `validation_strictness: advisory`.
-
-CI mode maps to `validation_strictness: ci`, `simulation: required`, and `token_budget: full`. Missing `.ai/PKF.md` exits nonzero in CI validation.
+Codex skill usage and local wrapper usage are separate surfaces. In Codex, ask for the `token-atlas` skill by name and state options in natural language, such as `profile=ci` or `retrieval_exports=off`.
 
