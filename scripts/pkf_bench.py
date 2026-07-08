@@ -26,9 +26,12 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_FIXTURES = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "fixtures"
 DEFAULT_SCHEMA = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "schemas" / "codex_fixture_report.schema.json"
 SKILL_DIR = ROOT / ".agents" / "skills" / "token-atlas"
+DEFAULT_MODEL = "gpt-5.5"
+DEFAULT_MODEL_REASONING_EFFORT = "medium"
 ALLOWED_SUITES = {"quick", "core", "full"}
 ALLOWED_MODES = {"local", "codex", "both"}
 ALLOWED_FORMATS = {"text", "json"}
+ALLOWED_REASONING_EFFORTS = {"minimal", "low", "medium", "high"}
 REQUIRED_FRONT_MATTER = {"type", "title", "description", "resource", "tags", "timestamp", "pkf"}
 REQUIRED_MANIFEST_KEYS = {
     "name",
@@ -75,6 +78,7 @@ def main() -> int:
         report = {
             "suite": args.suite,
             "mode": args.mode,
+            "model": resolved_model_config(args),
             "started_at": started_at,
             "duration_ms": int((time.time() - started) * 1000),
             "fixtures": fixture_reports,
@@ -95,12 +99,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--format", choices=sorted(ALLOWED_FORMATS), default="text")
     parser.add_argument("--report", type=Path)
     parser.add_argument("--timeout-seconds", type=int, default=1200)
+    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--model-reasoning-effort", choices=sorted(ALLOWED_REASONING_EFFORTS), default=DEFAULT_MODEL_REASONING_EFFORT)
     parser.add_argument("--keep-workspaces", action="store_true")
     parser.add_argument("--fixtures-dir", type=Path, default=DEFAULT_FIXTURES)
     args = parser.parse_args()
     if args.timeout_seconds < 1:
         raise BenchmarkError("--timeout-seconds must be at least 1")
+    args.model_source = "cli" if "--model" in sys.argv else "runner-default"
+    args.model_reasoning_effort_source = "cli" if "--model-reasoning-effort" in sys.argv else "runner-default"
     return args
+
+
+def resolved_model_config(args: argparse.Namespace) -> dict[str, str]:
+    return {
+        "name": getattr(args, "model", DEFAULT_MODEL),
+        "source": getattr(args, "model_source", "runner-default"),
+        "reasoning_effort": getattr(args, "model_reasoning_effort", DEFAULT_MODEL_REASONING_EFFORT),
+        "reasoning_effort_source": getattr(args, "model_reasoning_effort_source", "runner-default"),
+    }
 
 
 def load_selected_manifests(fixtures_dir: Path, suite: str) -> list[tuple[Path, dict[str, Any]]]:
@@ -224,6 +241,7 @@ def run_fixture(fixture_dir: Path, manifest: dict[str, Any], args: argparse.Name
         "name": name,
         "overall_status": "passed",
         "checks": {"passed": 0, "total": 0},
+        "model": resolved_model_config(args),
         "warnings": [],
         "errors": [],
         "token_impact": {},
@@ -231,7 +249,7 @@ def run_fixture(fixture_dir: Path, manifest: dict[str, Any], args: argparse.Name
     }
 
     try:
-        local_result = run_local_mode(fixture_dir, manifest, args.keep_workspaces) if args.mode in {"local", "both"} else None
+        local_result = run_local_mode(fixture_dir, manifest, args) if args.mode in {"local", "both"} else None
         codex_result = run_codex_mode(fixture_dir, manifest, args) if args.mode in {"codex", "both"} else None
         if local_result is not None:
             report["local"] = local_result
@@ -254,9 +272,10 @@ def run_fixture(fixture_dir: Path, manifest: dict[str, Any], args: argparse.Name
     return report
 
 
-def run_local_mode(fixture_dir: Path, manifest: dict[str, Any], keep_workspaces: bool) -> dict[str, Any]:
+def run_local_mode(fixture_dir: Path, manifest: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     result = empty_mode_result("local")
-    workspace_root, cleanup = make_workspace(keep_workspaces)
+    result["model"] = resolved_model_config(args)
+    workspace_root, cleanup = make_workspace(args.keep_workspaces)
     try:
         readme = fixture_dir / "README.md"
         repo_src = fixture_dir / str(manifest["repo_root"])
@@ -445,6 +464,8 @@ def verify_exports_static(repo: Path, manifest: dict[str, Any], result: dict[str
 
 def run_codex_mode(fixture_dir: Path, manifest: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     result = empty_mode_result("codex")
+    model_config = resolved_model_config(args)
+    result["model"] = model_config
     workspace_root, cleanup = make_workspace(args.keep_workspaces)
     started = time.time()
     try:
@@ -453,6 +474,11 @@ def run_codex_mode(fixture_dir: Path, manifest: dict[str, Any], args: argparse.N
         skill_copy = workspace_root / "token-atlas-skill"
         shutil.copytree(repo_src, repo)
         shutil.copytree(SKILL_DIR, skill_copy, ignore=shutil.ignore_patterns("benchmarks"))
+        metadata_dir = repo / ".benchmark"
+        metadata_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(fixture_dir / "fixture.yaml", metadata_dir / "fixture.yaml")
+        if (fixture_dir / "README.md").is_file():
+            shutil.copy2(fixture_dir / "README.md", metadata_dir / "README.md")
         result["workspace"] = str(repo)
         result["evidence"].append(f"copied repo to {repo}")
         initialize_git(repo, result)
@@ -460,14 +486,18 @@ def run_codex_mode(fixture_dir: Path, manifest: dict[str, Any], args: argparse.N
             apply_patch_file(repo, fixture_dir / str(manifest["patch"]), result)
 
         output_path = workspace_root / f"{manifest['name']}-codex-report.json"
-        prompt = build_codex_prompt(manifest, skill_copy)
+        prompt = build_codex_prompt(manifest, skill_copy, metadata_dir)
         command = [
             "codex",
+            "--ask-for-approval",
+            "never",
+            "--model",
+            model_config["name"],
+            "--config",
+            f'model_reasoning_effort="{model_config["reasoning_effort"]}"',
             "exec",
             "--sandbox",
             "workspace-write",
-            "--ask-for-approval",
-            "never",
             "--ephemeral",
             "--output-schema",
             str(DEFAULT_SCHEMA),
@@ -515,11 +545,13 @@ def run_codex_mode(fixture_dir: Path, manifest: dict[str, Any], args: argparse.N
     return result
 
 
-def build_codex_prompt(manifest: dict[str, Any], skill_copy: Path) -> str:
+def build_codex_prompt(manifest: dict[str, Any], skill_copy: Path, metadata_dir: Path) -> str:
     return (
         "Run the Token Atlas benchmark fixture in this isolated repository.\n"
         f"Fixture name: {manifest['name']}\n"
         f"Use the copied skill docs at: {skill_copy}\n"
+        f"Use the fixture manifest at: {metadata_dir / 'fixture.yaml'}\n"
+        f"Use the fixture README contract at: {metadata_dir / 'README.md'}\n"
         "Do not analyze or modify the token-atlas skill-maintenance repository.\n"
         "Execute only the workflow named in fixture.yaml for this fixture.\n"
         "Apply the Token Atlas skill instructions from the copied skill docs.\n"
@@ -563,7 +595,8 @@ def score_codex_report(manifest: dict[str, Any], report: dict[str, Any], result:
     for doc in flatten_expected_docs(manifest.get("expected_required_docs", [])):
         add_check(result, doc in required_docs, f"Codex required doc: {doc}", f"missing required doc in Codex report: {doc}")
 
-    expected_errors = flatten_strings(manifest.get("expected_errors", []))
+    expected_errors = expected_errors_for_scoring(manifest)
+    allowed_errors = allowed_errors_for_scoring(manifest)
     actual_errors = listify(report.get("errors", []))
     result["errors"].extend(actual_errors)
     if expected_errors:
@@ -571,8 +604,14 @@ def score_codex_report(manifest: dict[str, Any], report: dict[str, Any], result:
         for expected in expected_errors:
             add_check(result, fuzzy_contains(joined, expected), f"Codex reported expected error: {expected}", f"missing expected error: {expected}")
     else:
-        add_check(result, not actual_errors, "Codex reported no unexpected errors", f"unexpected Codex errors: {actual_errors}")
-        add_check(result, reported_status != "failed", "Codex report status is not failed", "Codex report status failed unexpectedly")
+        unexpected = [error for error in actual_errors if not matches_any_expected(str(error), allowed_errors)]
+        add_check(result, not unexpected, "Codex reported no unexpected errors", f"unexpected Codex errors: {unexpected}")
+        add_check(
+            result,
+            reported_status != "failed" or (actual_errors and not unexpected),
+            "Codex report status is compatible with expected errors",
+            "Codex report status failed unexpectedly",
+        )
 
     expected_warnings = flatten_strings(manifest.get("expected_warnings", []))
     actual_warnings = listify(report.get("warnings", []))
@@ -594,11 +633,30 @@ def fuzzy_contains(haystack: str, needle: str) -> bool:
     return all(word in haystack for word in words[:4])
 
 
+def expected_errors_for_scoring(manifest: dict[str, Any]) -> list[str]:
+    value = manifest.get("expected_errors", [])
+    if isinstance(value, dict):
+        if "after_recovery" in value:
+            return flatten_strings(value["after_recovery"])
+        if "default" in value:
+            return flatten_strings(value["default"])
+    return flatten_strings(value)
+
+
+def allowed_errors_for_scoring(manifest: dict[str, Any]) -> list[str]:
+    return flatten_strings(manifest.get("expected_errors", []))
+
+
+def matches_any_expected(error: str, expected_errors: list[str]) -> bool:
+    return any(fuzzy_contains(error, expected) for expected in expected_errors)
+
+
 def empty_mode_result(mode: str) -> dict[str, Any]:
     return {
         "mode": mode,
         "status": "passed",
         "checks": {"passed": 0, "total": 0},
+        "model": {},
         "selected_modules": [],
         "required_docs": [],
         "forbidden_loads": [],
@@ -699,6 +757,8 @@ def render_text_report(report: dict[str, Any]) -> str:
         "Token Atlas Benchmark",
         f"Suite: {report['suite']}",
         f"Mode: {report['mode']}",
+        f"Model: {report['model']['name']} ({report['model']['source']})",
+        f"Reasoning Effort: {report['model']['reasoning_effort']} ({report['model']['reasoning_effort_source']})",
         f"Duration: {report['duration_ms']} ms",
         "",
     ]

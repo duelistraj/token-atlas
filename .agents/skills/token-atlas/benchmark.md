@@ -39,8 +39,12 @@ Runner options:
 | `--mode` | `local`, `codex`, `both` | `local` |
 | `--format` | `text`, `json` | `text` |
 | `--timeout-seconds` | positive integer | `1200` |
+| `--model` | Codex model id | `gpt-5.5` |
+| `--model-reasoning-effort` | `minimal`, `low`, `medium`, `high` | `medium` |
 
 The PowerShell `pkf bench` wrapper remains a selector for this workflow and must not implement scoring. The executable benchmark harness is `scripts/pkf_bench.py`.
+
+The runner must pass the resolved model and reasoning effort explicitly to `codex exec`; it must not rely on ambient `config.toml` defaults. Every text and JSON benchmark report must include the resolved model, reasoning effort, and source (`runner-default` or `cli`).
 
 ---
 

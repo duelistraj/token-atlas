@@ -1,5 +1,6 @@
 import importlib.util
 import subprocess
+import sys
 import unittest
 from argparse import Namespace
 from pathlib import Path
@@ -15,6 +16,15 @@ spec.loader.exec_module(pkf_bench)
 
 
 class PkfBenchTests(unittest.TestCase):
+    def test_parse_args_pins_model_defaults(self):
+        with mock.patch.object(sys, "argv", ["pkf_bench.py"]):
+            args = pkf_bench.parse_args()
+
+        self.assertEqual(args.model, pkf_bench.DEFAULT_MODEL)
+        self.assertEqual(args.model_reasoning_effort, pkf_bench.DEFAULT_MODEL_REASONING_EFFORT)
+        self.assertEqual(args.model_source, "runner-default")
+        self.assertEqual(args.model_reasoning_effort_source, "runner-default")
+
     def test_parse_manifest_subset(self):
         manifest = pkf_bench.parse_manifest(
             ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "fixtures" / "missing-runtime" / "fixture.yaml"
@@ -71,9 +81,11 @@ class PkfBenchTests(unittest.TestCase):
         manifest = pkf_bench.parse_manifest(fixture_dir / "fixture.yaml")
         args = Namespace(keep_workspaces=False, timeout_seconds=1)
         real_run = subprocess.run
+        captured = {}
 
         def fake_run(command, *args, **kwargs):
             if command and command[0] == "codex":
+                captured["command"] = command
                 raise subprocess.TimeoutExpired(command, timeout=1)
             return real_run(command, *args, **kwargs)
 
@@ -82,6 +94,9 @@ class PkfBenchTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "timeout")
         self.assertTrue(result["errors"])
+        self.assertIn("--model", captured["command"])
+        self.assertIn(pkf_bench.DEFAULT_MODEL, captured["command"])
+        self.assertIn(f'model_reasoning_effort="{pkf_bench.DEFAULT_MODEL_REASONING_EFFORT}"', captured["command"])
 
 
 if __name__ == "__main__":

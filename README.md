@@ -158,6 +158,14 @@ python scripts\pkf_bench.py --suite quick --mode local
 python scripts\pkf_bench.py --suite full --mode both --format json --report .\token-atlas-bench-full.json
 ```
 
+The runner pins benchmark model defaults instead of inheriting ambient Codex config:
+
+```text
+--model gpt-5.5 --model-reasoning-effort medium
+```
+
+Every benchmark report records the resolved model, reasoning effort, and whether each came from a runner default or CLI flag.
+
 Runner modes:
 
 | Mode | Purpose |
@@ -193,6 +201,7 @@ Common commands:
 | Benchmark full JSON suite | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench -BenchSuite full -BenchOutput json` |
 | Run local benchmark | `python scripts\pkf_bench.py --suite quick --mode local` |
 | Run full hybrid benchmark | `python scripts\pkf_bench.py --suite full --mode both --format json` |
+| Run full hybrid benchmark with explicit model | `python scripts\pkf_bench.py --suite full --mode both --model gpt-5.5 --model-reasoning-effort medium` |
 
 The wrapper supports PowerShell parameters and common kebab-case aliases:
 
