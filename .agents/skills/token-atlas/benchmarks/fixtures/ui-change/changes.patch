@@ -1,0 +1,12 @@
+diff --git a/src/frontend/CartSummary.tsx b/src/frontend/CartSummary.tsx
+index 9df2c1a..0b13a77 100644
+--- a/src/frontend/CartSummary.tsx
++++ b/src/frontend/CartSummary.tsx
+@@ -8,6 +8,6 @@ export function renderCartSummary(props: CartSummaryProps): string {
+   const formattedTotal = `$${(props.totalCents / 100).toFixed(2)}`;
+ 
+   return [
+-    `<section aria-label="Cart summary">`,
++    `<section aria-label="Order review">`,
+     `<p>${props.itemCount} items</p>`,
+     `<strong>${formattedTotal}</strong>`,

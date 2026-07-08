@@ -1,0 +1,10 @@
+diff --git a/src/backend/models/customer.ts b/src/backend/models/customer.ts
+index 1f5e1aa..b8c7ad2 100644
+--- a/src/backend/models/customer.ts
++++ b/src/backend/models/customer.ts
+@@ -2,4 +2,5 @@ export interface CustomerRecord {
+   id: string;
+   email: string;
+   marketingOptIn: boolean;
++  loyaltyTier: "standard" | "gold";
+ }

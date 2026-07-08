@@ -1,0 +1,13 @@
+diff --git a/src/backend/routes/legacyOrders.ts b/src/backend/routes/legacyOrders.ts
+deleted file mode 100644
+index 0fd9b8d..0000000
+--- a/src/backend/routes/legacyOrders.ts
++++ /dev/null
+@@ -1,7 +0,0 @@
+-export function getLegacyOrderRoute(orderId: string) {
+-  return {
+-    status: 200,
+-    body: { id: orderId, source: "legacy" }
+-  };
+-}
+-
