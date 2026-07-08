@@ -1,228 +1,144 @@
 # token-atlas
 
-Token Atlas is an AI context optimization framework that extracts verified repository knowledge on demand or incrementally and generates an OKF-compatible knowledge base optimized for minimal-context retrieval by AI coding agents.
+Token Atlas is an AI context-optimization skill for coding agents. It extracts **verified** repository knowledge into a compact `.ai/` knowledge base, so agents load the *smallest* reliable context for each task instead of the whole repo.
 
-It treats repository source as truth, `.ai/` Markdown as canonical AI knowledge, and optional retrieval exports as derived artifacts.
+- Repository source is truth; `.ai/` Markdown is canonical AI knowledge; retrieval exports are derived.
+- Runs on demand or incrementally — no daemons, watchers, or global hooks.
+- Portable: copy one folder into any repo and invoke it by name.
 
-## PKF Lifecycle
+## Quick start (for end users)
+
+1. Copy the public skill package into your repo at your agent's skill-discovery path (for example `.agents/skills/`):
+
+   ```bash
+   cp -r skills/token-atlas <your-repo>/.agents/skills/token-atlas
+   ```
+
+   Copy only `skills/token-atlas/` (`SKILL.md`, `references/`, `agents/`). You do not need `scripts/`, `tests/`, or the benchmark fixtures.
+
+2. Ask your agent for the skill by name — it does not auto-activate:
+
+   > Use the **token-atlas** skill to initialize PKF and extract knowledge for this repo.
+
+3. The first run creates `.ai/` (runtime plus knowledge skeleton), extracts source-backed facts, optimizes routing, and validates. Re-run it later to keep knowledge in sync as code changes.
+
+## Real-world examples
+
+State options in plain language (`profile=…`, `retrieval_exports=…`, and so on).
+
+| When you… | Ask your agent |
+|-----------|----------------|
+| Start in a new repo | "Use token-atlas to **initialize** PKF and extract knowledge for this repo." |
+| Finish a feature branch | "Use token-atlas to **maintain** knowledge for my staged changes." |
+| Open a pull request | "Use token-atlas with **profile=ci** to validate PKF and run required simulations." |
+| Explore unfamiliar code | "Use token-atlas to **simulate** what context a change to the checkout flow would load." |
+| Wire up RAG or GraphRAG | "Use token-atlas with **retrieval_exports=graph** to export retrieval JSONL." |
+| Trim a bloated context | "Use token-atlas to **optimize** routing and shrink the startup token budget." |
+| Audit stale docs | "Use token-atlas to **validate** and list facts that cite deleted or renamed files." |
+
+A healthy run lets agents start from `.ai/PKF.md`, follow routing to only the modules a task needs, and stay within the startup and per-module token budgets.
+
+## What it produces
+
+```text
+.ai/
+  PKF.md            # startup contract + routing rules
+  MEMORY.md         # stable, cross-task facts
+  ARCHITECTURE.md   # path ownership, source roots, module map
+  knowledge/
+    INDEX.md              # root routing by task, keyword, module, path
+    <module>/INDEX.md     # module routing + source-backed leaf docs
+  retrieval/        # optional derived JSONL exports (only when enabled)
+```
+
+Load path: `PKF.md → MEMORY.md → ARCHITECTURE.md → knowledge/INDEX.md → knowledge/<module>/INDEX.md → required leaf docs`.
+
+## Lifecycle and profiles
+
+A run initializes on first use or maintains on later runs, then extracts, optimizes, and validates. Simulation and exports are optional.
 
 ```mermaid
-flowchart TD
-    Start([Start PKF session]) --> ReadPKF{.ai/PKF.md exists?}
-    ReadPKF -- No --> Init[Initialize PKF runtime and OKF skeleton]
-    Init --> ValidateInit[Validate initialized structure]
-    ValidateInit --> FullExtract[Full source-backed extraction]
-    ReadPKF -- Yes --> Maintain[Incremental maintenance]
-    Maintain --> IncrementalExtract[Incremental source-backed extraction]
-    FullExtract --> ValidateExtract[Validate knowledge sync]
-    IncrementalExtract --> ValidateExtract
-    ValidateExtract --> Optimize[Optimize routing, duplication, and token budget]
-    Optimize --> Simulate{Simulation enabled?}
-    Simulate -- Yes --> RunSim[Simulate minimal retrieval]
-    Simulate -- No --> ExportCheck{Retrieval exports enabled?}
-    RunSim --> ExportCheck
-    ExportCheck -- Yes --> Export[Generate derived JSONL exports]
-    ExportCheck -- No --> FinalValidate[Final validation]
-    Export --> FinalValidate
-    FinalValidate --> Done([Synchronized minimal-context knowledge base])
+flowchart LR
+    Start([Start]) --> Exists{".ai/ exists?"}
+    Exists -- no --> Initialize
+    Exists -- yes --> Maintain
+    Initialize --> Extract
+    Maintain --> Extract
+    Extract --> Optimize --> Validate --> Done([In sync])
+    Validate -. optional .-> Simulate
+    Validate -. optional .-> Export
 ```
 
-Lifecycle phases:
+| Phase | Purpose |
+|-------|---------|
+| Initialize | Create the `.ai/` runtime and OKF skeleton (first run). |
+| Maintain | Map changed, renamed, and deleted files to affected docs. |
+| Extract | Add only source-backed facts to the narrowest document. |
+| Optimize | Tighten routing, remove duplication, and shrink automatic loads. |
+| Simulate | Predict the minimal context for a task or change. |
+| Validate | Check structure, sync, routing, and token budget. |
+| Export | Emit optional RAG or GraphRAG JSONL when enabled. |
 
-| Phase | Purpose | Output |
-|-------|---------|--------|
-| Initialize | Create `.ai/PKF.md`, runtime docs, root index, shared docs, and module skeletons. | Empty OKF-compatible structure. |
-| Maintain | Detect changed, renamed, and deleted files. | Affected modules, docs, stale references, and duplicate facts. |
-| Extract | Add only source-backed facts to the narrowest authoritative document. | Current canonical `.ai/` Markdown. |
-| Optimize | Tighten routing, remove duplication, and keep automatic loads small. | Minimal `pkf.loads`, useful `pkf.related`, token impact report. |
-| Simulate | Predict context for a task intent or changed paths. | Selected modules, required docs, optional docs, token estimate, warnings. |
-| Validate | Check structure, metadata, sync, stale evidence, routing, simulation, tooling, and token budget. | Passed, Warnings, Errors, and Token Impact. |
-| Export | Generate optional RAG or GraphRAG JSONL from canonical Markdown. | Derived `.ai/retrieval/` files only when enabled. |
-| Benchmark | Run fixture-based skill evals. | Fixture reports, aggregate score, token regressions, and routing failures. |
+Pick a profile; `core` is the default for everyday use.
 
-## Startup Recovery
+| Profile | Use when | Key defaults |
+|---------|----------|--------------|
+| `core` | Normal local maintenance. | exports off, simulate changed, advisory validation |
+| `ci` | PR or release gates. | simulate required, full budget, CI validation |
+| `retrieval` | Generating exports on request. | core defaults plus `retrieval_exports` |
+| `full` | Exhaustive validation and all exports. | everything on, CI validation |
 
-At the beginning of a PKF session, read `.ai/PKF.md`. If it is missing, run initialization before repository analysis. Initialization creates the runtime contract that routes agents through `MEMORY.md`, `ARCHITECTURE.md`, and `knowledge/INDEX.md`.
+Options: `retrieval_exports` (`off`, `rag`, `graph`, `all`), `simulation` (`off`, `changed`, `required`, `all`), `token_budget` (`summary`, `full`), `validation_strictness` (`advisory`, `ci`).
 
-Missing `.ai/PKF.md` is a CI blocking startup error. Advisory workflows should report the recovery step without treating the default workflow as a CI failure.
+Full workflow details live in the reference docs: [initialize](skills/token-atlas/references/initialize.md), [maintenance](skills/token-atlas/references/maintenance.md), [extract](skills/token-atlas/references/extract.md), [optimize](skills/token-atlas/references/optimize.md), [simulate](skills/token-atlas/references/simulate.md), [validation](skills/token-atlas/references/validation.md), and [export](skills/token-atlas/references/export.md).
 
-## Execution Profiles
+## How it keeps context small
 
-Default profile is `core`: initialize or maintain, extract, optimize, and run lightweight validation.
+- **Routing over duplication.** `pkf.loads` holds only what a task needs automatically; `pkf.related` holds optional context for when the task expands.
+- **Source-backed only.** Every fact cites real evidence, so deleted or renamed evidence invalidates the fact on the next maintain — no invented or stale knowledge.
 
-| Profile | Use when | Defaults |
-|---------|----------|----------|
-| `core` | Normal local maintenance. | `retrieval_exports: off`, `simulation: changed`, `token_budget: summary`, `validation_strictness: advisory` |
-| `ci` | PR or release validation. | `simulation: required`, `token_budget: full`, `validation_strictness: ci` |
-| `retrieval` | Generating RAG or graph exports on request. | Core defaults unless `retrieval_exports` is set. |
-| `full` | Exhaustive validation and export generation. | `retrieval_exports: all`, `simulation: all`, `token_budget: full`, `validation_strictness: ci` |
+Token usage is measured with an exact tokenizer when available, otherwise estimated as `ceil(character_count / 4)` (marked approximate). Validation flags routes that grow too heavy:
 
-Shared options:
+| Signal | Threshold | Result |
+|--------|-----------|--------|
+| Startup path (`PKF.md` through the indexes) | above ~4,000 tokens | Warning |
+| Single module task | above ~8,000 tokens | Warning |
+| Unrelated module loaded automatically | any occurrence | Error |
 
-| Option | Values | Default |
-|--------|--------|---------|
-| `retrieval_exports` | `off`, `rag`, `graph`, `all` | `off` |
-| `simulation` | `off`, `changed`, `required`, `all` | `changed` |
-| `token_budget` | `summary`, `full` | `summary` |
-| `validation_strictness` | `advisory`, `ci` | `advisory` |
+Warnings are advisory locally and become blocking under `validation_strictness: ci`.
 
-## Retrieval Optimization
+## Other useful features
 
-Token Atlas optimizes for the smallest predictable context set that can safely handle a task. The standard load path is:
+- **Retrieval simulation** — preview which modules and docs a task would load, with a token estimate, before you start.
+- **Deterministic validation** — structure, routing, reference, and token-budget checks with `--format json` for CI and no model calls.
+- **Optional retrieval exports** — generate RAG (`documents.jsonl`, `claims.jsonl`) or GraphRAG (`entities`, `relationships`, `claims`) artifacts from canonical Markdown.
+- **Advisory or CI strictness** — the same checks read as recommendations locally and fail the build in CI.
 
-```text
-PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md -> knowledge/<module>/INDEX.md -> required leaf docs
-```
+## Repository layout
 
-| Layer | Keep | Avoid |
-|-------|------|-------|
-| `PKF.md` | Startup sequence, execution rules, validation gates. | Repository implementation details. |
-| `MEMORY.md` | Stable facts that apply across most tasks. | Module-specific behavior. |
-| `ARCHITECTURE.md` | Path ownership, source roots, module map. | API, schema, or business-rule facts. |
-| `knowledge/INDEX.md` | Root routing by task, keyword, module, and path. | Leaf knowledge copied from modules. |
-| Module `INDEX.md` | Module purpose, task routing, document map. | Long explanations better kept in leaf docs. |
-| Leaf docs | Source-backed facts for one knowledge type. | Repeated facts from other documents. |
-
-Use `pkf.loads` only for context required automatically for a task. Use `pkf.related` for useful optional context when the task expands.
-
-Default token thresholds:
-
-| Route | Threshold | Result |
-|-------|-----------|--------|
-| Startup path | Above 4,000 estimated tokens | Warning |
-| Module task | Above 8,000 estimated tokens | Warning |
-| Unrelated automatic module load | Any occurrence | Error |
-
-Use an exact tokenizer when available. Otherwise use `ceil(character_count / 4)` and mark the estimate approximate.
-
-## Incremental Maintenance
-
-`.agents/skills/token-atlas/references/maintenance.md` defines the default core workflow for synchronizing PKF after repository changes.
-
-Change detection order:
-
-1. `git diff --cached --name-status`
-2. `git diff --name-status`
-3. Full repository scan fallback
-
-Maintenance maps changed paths to affected modules and canonical docs, invalidates facts that cite deleted or renamed evidence, reports duplicate authoritative facts, and regenerates retrieval exports only when `retrieval_exports` is enabled.
-
-## Retrieval Simulation
-
-`.agents/skills/token-atlas/references/simulate.md` predicts the smallest OKF context set for a natural-language task intent and optional changed paths.
-
-Simulation reports include selected modules, required docs, optional related docs, token cost, estimator type, routing evidence, warnings, and errors. Default `changed` mode only simulates the current task intent or changed paths. `required` and `all` modes cover representative API, schema, business logic, UI, architecture, and tooling scenarios.
-
-Unrelated modules loaded automatically through `pkf.loads` are validation defects.
-
-## Validation Report
-
-Validation reports use four sections:
-
-- Passed: checks that succeeded.
-- Warnings: non-blocking issues with recommendations and retrieval impact.
-- Errors: blocking issues with evidence and recommended fixes.
-- Token Impact: startup and task retrieval costs, including broad `pkf.loads` chains.
-
-CI strictness exits nonzero for blocking validation failures. Advisory strictness reports the same issues as recommendations.
-
-## Optional Retrieval Exports
-
-`.agents/skills/token-atlas/references/export.md` defines backend-neutral generated artifacts under `.ai/retrieval/`.
-
-| `retrieval_exports` | Generated files |
-|---------------------|-----------------|
-| `off` | none |
-| `rag` | `documents.jsonl`, `claims.jsonl` |
-| `graph` | `entities.jsonl`, `relationships.jsonl`, `claims.jsonl` |
-| `all` | `documents.jsonl`, `entities.jsonl`, `relationships.jsonl`, `claims.jsonl` |
-
-Exports are generated from canonical `.ai/` Markdown and cited source evidence. They may feed vector RAG, GraphRAG, or custom retrieval tooling, but they are never loaded in the PKF startup path and never become source truth.
-
-## Benchmarks
-
-`.agents/skills/token-atlas/references/benchmark.md` defines fixture-based skill evals. Benchmarks score startup recovery, initialization, extraction, maintenance, validation, simulation, optimization, exports, and wrapper behavior.
-
-| Suite | Use when |
-|-------|----------|
-| `quick` | Fast local confidence for startup and simple routing. |
-| `core` | Normal development checks across the main skill behaviors. |
-| `full` | Release or CI checks, including retrieval exports. |
-
-Benchmarks run against isolated fixture repositories under `.agents/skills/token-atlas/benchmarks/fixtures/`. Do not run Token Atlas against this skill-maintenance repository itself.
-
-Executable benchmark harness:
-
-```powershell
-python scripts\pkf_bench.py --suite quick --mode local
-python scripts\pkf_bench.py --suite full --mode both --format json --report .\token-atlas-bench-full.json
-```
-
-The runner pins benchmark model defaults instead of inheriting ambient Codex config:
-
-```text
---model gpt-5.5 --model-reasoning-effort medium
-```
-
-Every benchmark report records the resolved model, reasoning effort, and whether each came from a runner default or CLI flag.
-
-Runner modes:
-
-| Mode | Purpose |
-|------|---------|
-| `local` | Fast deterministic fixture, patch, generated `.ai` overlay, validator, and routing contract checks. |
-| `codex` | Runs `codex exec` inside isolated fixture workspaces and scores the structured report. |
-| `both` | Runs local and Codex checks; a fixture fails if either mode fails. |
-
-Full Codex-backed runs can be slow and may incur model cost. Local mode is structural/contract validation; Codex mode is the real reasoning evaluation. Prefer non-benchmark unit tests and validator self-checks for routine CI, and reserve Codex-backed benchmark runs for explicit manual approval.
-
-## Two-Tier Skill Layout
-
-This repository keeps two Token Atlas skill surfaces:
+This repository maintains the skill itself and ships two surfaces:
 
 | Path | Purpose |
 |------|---------|
-| `.agents/skills/token-atlas/` | Internal development copy used to maintain and benchmark Token Atlas itself. |
-| `skills/token-atlas/` | Public standalone skill package for installation or copying into other projects. |
+| `skills/token-atlas/` | Public, activation-light package to copy into other projects. |
+| `.agents/skills/token-atlas/` | Internal development and benchmark copy. |
 
-The public package is intentionally activation-light. It provides `SKILL.md` plus workflow references, but no daemon, watcher, global hook, benchmark fixtures, or repo-local wrapper script. Use it when a target repository explicitly wants PKF/OKF initialization, maintenance, extraction, optimization, validation, simulation, or exports.
+> This is the skill-maintenance repo. Do not run Token Atlas against it; the internal copy is for development and benchmarking only.
 
-## Developer Tooling
+## Maintainer tooling
 
-`scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, simulation, benchmark scoring, or export logic.
-
-Start with help:
+`scripts/pkf.ps1` is a thin workflow selector — it chooses documented workflows and options but does not implement extraction, validation, or export logic. `scripts/pkf_validate.py` runs deterministic structure, routing, and token checks with no model calls.
 
 ```powershell
+# Show available workflows
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 --help
+
+# Deterministic validation (no model calls)
+python scripts\pkf_validate.py --path .ai --strictness ci
 ```
 
-Common commands:
+Benchmarks are model-backed and can incur cost — run them only with explicit approval. See [tooling](skills/token-atlas/references/tooling.md) for the wrapper and workflow surface, and `.agents/skills/token-atlas/references/benchmark.md` for the internal benchmark harness.
 
-| Goal | Command |
-|------|---------|
-| Show help | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 --help` |
-| Initialize PKF | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 init` |
-| Maintain changed knowledge | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 maintain` |
-| Validate advisory mode | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate` |
-| Validate CI mode | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate -Ci` |
-| Simulate retrieval | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 simulate -Intent "change an API route" -Paths src/routes.ts` |
-| Export retrieval graph | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export -RetrievalExports graph` |
-| Benchmark quick suite | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench` |
-| Benchmark full JSON suite | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench -BenchSuite full -BenchOutput json` |
-| Run local benchmark | `python scripts\pkf_bench.py --suite quick --mode local` |
-| Run full hybrid benchmark | `python scripts\pkf_bench.py --suite full --mode both --format json` |
-| Run full hybrid benchmark with explicit model | `python scripts\pkf_bench.py --suite full --mode both --model gpt-5.5 --model-reasoning-effort medium` |
+## License
 
-The wrapper supports PowerShell parameters and common kebab-case aliases:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export --retrieval-exports graph
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --ci
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --help
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench --bench-suite core
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench --bench-suite full --bench-output json
-```
-
-Codex skill usage and local wrapper usage are separate surfaces. In Codex, ask for the `token-atlas` skill by name and state options in natural language, such as `profile=ci` or `retrieval_exports=off`.
-
+Released under the terms in [LICENSE](LICENSE).
