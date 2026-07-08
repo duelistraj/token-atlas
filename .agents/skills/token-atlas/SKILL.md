@@ -1,6 +1,12 @@
 ---
 name: token-atlas
 description: Generate and maintain this repository's PKF runtime and OKF-compatible knowledge base. Use when Codex needs to initialize, extract, validate, or optimize `.ai/` knowledge files for the token-atlas repository while preserving source-code truth and avoiding application-code changes.
+interface:
+  display_name: "Token Atlas"
+  short_description: "Maintain PKF and OKF repository knowledge"
+  default_prompt: "Use $token-atlas to initialize, maintain, validate, optimize, or simulate PKF/OKF repository knowledge."
+policy:
+  allow_implicit_invocation: false
 ---
 
 # Token Atlas
