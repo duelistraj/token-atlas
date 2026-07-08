@@ -32,6 +32,10 @@ $allowedTokenBudget = @('summary', 'full')
 $allowedStrictness = @('advisory', 'ci')
 $allowedBenchSuites = @('quick', 'core', 'full')
 $allowedBenchOutputs = @('text', 'json')
+# Benchmark runner correspondence, if automation later invokes scripts\pkf_bench.py:
+# -BenchSuite maps to runner --suite; -BenchOutput maps to runner --format.
+# Runner --mode local|codex|both is intentionally not exposed here because it is
+# an execution-harness detail, not a PKF workflow-selection option.
 
 function Show-Help {
     Write-Output 'PKF thin workflow wrapper'

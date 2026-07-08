@@ -151,6 +151,23 @@ Exports are generated from canonical `.ai/` Markdown and cited source evidence. 
 
 Benchmarks run against isolated fixture repositories under `.agents/skills/token-atlas/benchmarks/fixtures/`. Do not run Token Atlas against this skill-maintenance repository itself.
 
+Executable benchmark harness:
+
+```powershell
+python scripts\pkf_bench.py --suite quick --mode local
+python scripts\pkf_bench.py --suite full --mode both --format json --report .\token-atlas-bench-full.json
+```
+
+Runner modes:
+
+| Mode | Purpose |
+|------|---------|
+| `local` | Fast deterministic fixture, patch, `.ai`, and routing contract checks. |
+| `codex` | Runs `codex exec` inside isolated fixture workspaces and scores the structured report. |
+| `both` | Runs local and Codex checks; a fixture fails if either mode fails. |
+
+Full Codex-backed runs can be slow and may incur model cost. Prefer `local` or quick/core suites for routine CI, and reserve full Codex runs for manual, release, or nightly checks.
+
 ## Developer Tooling
 
 `scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, simulation, benchmark scoring, or export logic.
@@ -174,6 +191,8 @@ Common commands:
 | Export retrieval graph | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export -RetrievalExports graph` |
 | Benchmark quick suite | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench` |
 | Benchmark full JSON suite | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench -BenchSuite full -BenchOutput json` |
+| Run local benchmark | `python scripts\pkf_bench.py --suite quick --mode local` |
+| Run full hybrid benchmark | `python scripts\pkf_bench.py --suite full --mode both --format json` |
 
 The wrapper supports PowerShell parameters and common kebab-case aliases:
 

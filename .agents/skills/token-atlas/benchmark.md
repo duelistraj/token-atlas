@@ -25,6 +25,23 @@ bench_suite: quick
 bench_output: text
 ```
 
+Executable runner defaults:
+
+```text
+python scripts\pkf_bench.py --suite quick --mode local --format text
+```
+
+Runner options:
+
+| Option | Values | Default |
+|--------|--------|---------|
+| `--suite` | `quick`, `core`, `full` | `quick` |
+| `--mode` | `local`, `codex`, `both` | `local` |
+| `--format` | `text`, `json` | `text` |
+| `--timeout-seconds` | positive integer | `1200` |
+
+The PowerShell `pkf bench` wrapper remains a selector for this workflow and must not implement scoring. The executable benchmark harness is `scripts/pkf_bench.py`.
+
 ---
 
 ## Suites
@@ -127,6 +144,12 @@ Evidence: <compact source and routing evidence>
 ```
 
 When `bench_output: json` is selected, emit deterministic JSON with the same fields and stable fixture ordering.
+
+`scripts/pkf_bench.py --mode both` reports separate `local` and `codex` result blocks for each fixture. The fixture-level status is AND-based: a fixture fails if any executed mode fails, warns if no mode fails but any mode warns, and passes only when all executed modes pass.
+
+`Score` is not a weighted quality metric. It is the contract check count rendered as `<passed checks>/<total checks>`.
+
+Codex execution timeouts are fixture failures, not invalid runner usage. They must be reported with status `timeout` in the Codex mode block and cause runner exit code `1`.
 
 ### 5. Aggregate Report
 
