@@ -1,0 +1,7 @@
+interface:
+  display_name: "Token Atlas"
+  short_description: "Maintain PKF and OKF repository knowledge"
+  default_prompt: "Use $token-atlas to initialize, maintain, validate, optimize, or simulate PKF/OKF repository knowledge."
+
+policy:
+  allow_implicit_invocation: false

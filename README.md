@@ -176,6 +176,17 @@ Runner modes:
 
 Full Codex-backed runs can be slow and may incur model cost. Prefer `local` or quick/core suites for routine CI, and reserve full Codex runs for manual, release, or nightly checks.
 
+## Two-Tier Skill Layout
+
+This repository keeps two Token Atlas skill surfaces:
+
+| Path | Purpose |
+|------|---------|
+| `.agents/skills/token-atlas/` | Internal development copy used to maintain and benchmark Token Atlas itself. |
+| `skills/token-atlas/` | Public standalone skill package for installation or copying into other projects. |
+
+The public package is intentionally activation-light. It provides `SKILL.md` plus workflow references, but no daemon, watcher, global hook, benchmark fixtures, or repo-local wrapper script. Use it when a target repository explicitly wants PKF/OKF initialization, maintenance, extraction, optimization, validation, simulation, or exports.
+
 ## Developer Tooling
 
 `scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, simulation, benchmark scoring, or export logic.

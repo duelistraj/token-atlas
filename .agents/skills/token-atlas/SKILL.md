@@ -17,6 +17,8 @@ Generate and maintain a repository-specific, Open Knowledge Format (OKF) compati
 
 Token Atlas continuously extracts verified repository knowledge, stores each fact in one authoritative location, and routes agents to the smallest useful context set for a task.
 
+This `.agents/skills/token-atlas/` copy is the internal development and benchmarking surface for the Token Atlas project. The public user-facing package lives under `skills/token-atlas/`; keep normal target-repository usage guidance there and keep benchmark or maintenance-repo-specific guidance here.
+
 ---
 
 ## Execution
