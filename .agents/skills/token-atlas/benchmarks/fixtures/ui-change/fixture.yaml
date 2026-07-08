@@ -1,0 +1,45 @@
+name: ui-change
+suites:
+  - core
+  - full
+goal: Verify UI behavior changes route to UI knowledge only.
+repo_root: repo
+language: typescript
+workflow:
+  - maintenance
+  - extract
+  - simulate
+  - validation
+intent: Change UI behavior
+patch: changes.patch
+source_shape:
+  pkf_runtime: present
+  modules:
+    - frontend
+  source_roots:
+    - src/frontend
+changed_paths:
+  - src/frontend/CartSummary.tsx
+deleted_paths: []
+expected_modules:
+  - frontend
+expected_required_docs:
+  - .ai/PKF.md
+  - .ai/MEMORY.md
+  - .ai/ARCHITECTURE.md
+  - .ai/knowledge/INDEX.md
+  - .ai/knowledge/frontend/INDEX.md
+  - .ai/knowledge/frontend/ui.md
+forbidden_loads:
+  - .ai/knowledge/backend/
+  - .ai/knowledge/frontend/api.md
+  - .ai/knowledge/frontend/schema.md
+  - .ai/knowledge/frontend/business_rules.md
+  - .ai/retrieval/
+expected_warnings: []
+expected_errors: []
+token_thresholds:
+  module_task_warn_above: 8000
+exit_behavior:
+  advisory: 0
+  ci: 0

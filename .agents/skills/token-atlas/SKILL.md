@@ -1,6 +1,12 @@
 ---
 name: token-atlas
 description: Generate and maintain this repository's PKF runtime and OKF-compatible knowledge base. Use when Codex needs to initialize, extract, validate, or optimize `.ai/` knowledge files for the token-atlas repository while preserving source-code truth and avoiding application-code changes.
+interface:
+  display_name: "Token Atlas"
+  short_description: "Maintain PKF and OKF repository knowledge"
+  default_prompt: "Use $token-atlas to initialize, maintain, validate, optimize, or simulate PKF/OKF repository knowledge."
+policy:
+  allow_implicit_invocation: false
 ---
 
 # Token Atlas
@@ -10,6 +16,8 @@ description: Generate and maintain this repository's PKF runtime and OKF-compati
 Generate and maintain a repository-specific, Open Knowledge Format (OKF) compatible knowledge base optimized for minimal-context retrieval by AI coding agents.
 
 Token Atlas continuously extracts verified repository knowledge, stores each fact in one authoritative location, and routes agents to the smallest useful context set for a task.
+
+This `.agents/skills/token-atlas/` copy is the internal development and benchmarking surface for the Token Atlas project. The public user-facing package lives under `skills/token-atlas/`; keep normal target-repository usage guidance there and keep benchmark or maintenance-repo-specific guidance here.
 
 ---
 
@@ -167,6 +175,27 @@ Exports are backend-neutral generated artifacts under `.ai/retrieval/`. They may
 
 ---
 
+## Benchmarking
+
+Use `benchmark.md` when a user or CI process requests skill benchmarking.
+
+Benchmarking measures fixture-based skill quality, not just runtime speed. It must run against isolated fixture repositories under `benchmarks/fixtures/`, never against the token-atlas skill-maintenance repository itself.
+
+Benchmark suites:
+
+- `quick`: startup and simple routing confidence.
+- `core`: initialization, extraction, maintenance, validation, simulation, optimization, and stale-reference fixtures.
+- `full`: `core` plus retrieval export fixtures.
+
+Benchmark output modes:
+
+- `text`: human-readable fixture and aggregate report.
+- `json`: deterministic machine-readable report.
+
+Treat invented facts, unsupported durable facts, stale evidence, broken routing, unrelated automatic loads, invalid exports, and wrapper workflow drift as benchmark failures.
+
+---
+
 ## Knowledge Quality Standard
 
 Each durable fact must be:
@@ -228,6 +257,7 @@ Commands are thin workflow selectors:
 - `pkf validate` -> `validation.md`
 - `pkf export` -> `export.md`
 - `pkf simulate` -> `simulate.md`
+- `pkf bench` -> `benchmark.md`
 
 Tooling must keep documented workflows authoritative. Scripts may validate arguments and report CI startup failures, but must not reimplement extraction, optimization, validation, or export logic.
 

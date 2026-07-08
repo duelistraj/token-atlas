@@ -1,0 +1,44 @@
+name: simple-api
+suites:
+  - quick
+  - core
+  - full
+goal: Verify source-backed API extraction and route-change retrieval.
+repo_root: repo
+language: typescript
+workflow:
+  - initialize_if_needed
+  - extract
+  - simulate
+  - validation
+intent: Change an API route
+source_shape:
+  pkf_runtime: missing
+  modules:
+    - backend
+  source_roots:
+    - src/backend
+changed_paths:
+  - src/backend/routes/orders.ts
+deleted_paths: []
+expected_modules:
+  - backend
+expected_required_docs:
+  - .ai/PKF.md
+  - .ai/MEMORY.md
+  - .ai/ARCHITECTURE.md
+  - .ai/knowledge/INDEX.md
+  - .ai/knowledge/backend/INDEX.md
+  - .ai/knowledge/backend/api.md
+forbidden_loads:
+  - .ai/knowledge/backend/schema.md
+  - .ai/knowledge/backend/business_rules.md
+  - .ai/knowledge/backend/ui.md
+  - .ai/retrieval/
+expected_warnings: []
+expected_errors: []
+token_thresholds:
+  module_task_warn_above: 8000
+exit_behavior:
+  advisory: 0
+  ci: 0

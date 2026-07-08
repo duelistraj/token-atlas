@@ -13,6 +13,10 @@ param(
     [switch]$Ci,
     [Alias('h')]
     [switch]$Help,
+    [Alias('bench-suite')]
+    [string]$BenchSuite = 'quick',
+    [Alias('bench-output')]
+    [string]$BenchOutput = 'text',
     [string]$Intent = '',
     [string[]]$Paths = @()
 )
@@ -20,17 +24,23 @@ param(
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $pkfPath = Join-Path $repoRoot '.ai\PKF.md'
 
-$allowedCommands = @('help', 'init', 'maintain', 'extract', 'optimize', 'validate', 'export', 'simulate')
+$allowedCommands = @('help', 'init', 'maintain', 'extract', 'optimize', 'validate', 'export', 'simulate', 'bench')
 $allowedProfiles = @('core', 'ci', 'retrieval', 'full')
 $allowedExports = @('off', 'rag', 'graph', 'all')
 $allowedSimulation = @('off', 'changed', 'required', 'all')
 $allowedTokenBudget = @('summary', 'full')
 $allowedStrictness = @('advisory', 'ci')
+$allowedBenchSuites = @('quick', 'core', 'full')
+$allowedBenchOutputs = @('text', 'json')
+# Benchmark runner correspondence, if automation later invokes scripts\pkf_bench.py:
+# -BenchSuite maps to runner --suite; -BenchOutput maps to runner --format.
+# Runner --mode local|codex|both is intentionally not exposed here because it is
+# an execution-harness detail, not a PKF workflow-selection option.
 
 function Show-Help {
     Write-Output 'PKF thin workflow wrapper'
     Write-Output ''
-    Write-Output 'This script selects documented Token Atlas workflows. It does not implement extraction, optimization, validation, or retrieval export logic.'
+    Write-Output 'This script selects documented Token Atlas workflows. It does not implement extraction, optimization, validation, benchmark scoring, or retrieval export logic.'
     Write-Output ''
     Write-Output 'Usage:'
     Write-Output '  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 <command> [options]'
@@ -46,6 +56,7 @@ function Show-Help {
     Write-Output '  validate   Select validation.md for structure, metadata, references, routing, simulation, and token impact.'
     Write-Output '  simulate   Select simulate.md for retrieval prediction from task intent and changed paths.'
     Write-Output '  export     Select export.md when retrieval exports are explicitly enabled.'
+    Write-Output '  bench      Select benchmark.md for fixture-based skill quality evals.'
     Write-Output ''
     Write-Output 'Profiles:'
     Write-Output '  core        Default. Initialize/maintain, extract, optimize, lightweight validation.'
@@ -60,6 +71,8 @@ function Show-Help {
     Write-Output '  -TokenBudget, --token-budget                    summary|full                 default: summary'
     Write-Output '  -ValidationStrictness, --validation-strictness  advisory|ci                  default: advisory'
     Write-Output '  -Ci, --ci                                       Shortcut for CI validation defaults.'
+    Write-Output '  -BenchSuite, --bench-suite                      quick|core|full              default: quick'
+    Write-Output '  -BenchOutput, --bench-output                    text|json                    default: text'
     Write-Output '  -Intent, --intent                               Natural-language task for simulate.'
     Write-Output '  -Paths, --paths                                 Changed paths for simulate.'
     Write-Output '  -Help, --help, help                             Show this help.'
@@ -74,6 +87,8 @@ function Show-Help {
     Write-Output '  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 simulate -Intent "change an API route" -Paths src/routes.ts'
     Write-Output '  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export -RetrievalExports graph'
     Write-Output '  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export --retrieval-exports graph'
+    Write-Output '  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench -BenchSuite core'
+    Write-Output '  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench --bench-suite full --bench-output json'
     Write-Output ''
     Write-Output 'Codex skill usage:'
     Write-Output '  In Codex, ask for the token-atlas skill by name and include options in natural language, for example:'
@@ -108,6 +123,8 @@ Test-AllowedValue -Name 'retrieval_exports' -Value $RetrievalExports -Allowed $a
 Test-AllowedValue -Name 'simulation' -Value $Simulation -Allowed $allowedSimulation
 Test-AllowedValue -Name 'token_budget' -Value $TokenBudget -Allowed $allowedTokenBudget
 Test-AllowedValue -Name 'validation_strictness' -Value $ValidationStrictness -Allowed $allowedStrictness
+Test-AllowedValue -Name 'bench_suite' -Value $BenchSuite -Allowed $allowedBenchSuites
+Test-AllowedValue -Name 'bench_output' -Value $BenchOutput -Allowed $allowedBenchOutputs
 
 if ($Ci) {
     $Profile = 'ci'
@@ -137,6 +154,7 @@ $workflowByCommand = @{
     validate = 'validation.md'
     export = 'export.md'
     simulate = 'simulate.md'
+    bench = 'benchmark.md'
 }
 
 $workflow = $workflowByCommand[$Command]
@@ -156,7 +174,13 @@ if ($Command -eq 'simulate') {
     Write-Output ('Paths: ' + (($Paths | Where-Object { $_ }) -join ', '))
 }
 
-if (-not $pkfExists) {
+if ($Command -eq 'bench') {
+    Write-Output "bench_suite: $BenchSuite"
+    Write-Output "bench_output: $BenchOutput"
+    Write-Output 'Benchmark target: isolated fixtures under .agents/skills/token-atlas/benchmarks/fixtures.'
+}
+
+if ($Command -ne 'bench' -and -not $pkfExists) {
     Write-Output 'Startup: .ai/PKF.md is missing; run pkf init before repository analysis.'
     if ($Command -eq 'validate' -and $ValidationStrictness -eq 'ci') {
         Write-Error 'CI validation failed: missing .ai/PKF.md startup contract.'

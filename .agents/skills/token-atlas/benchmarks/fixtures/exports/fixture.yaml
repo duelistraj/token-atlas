@@ -1,0 +1,59 @@
+name: exports
+suites:
+  - full
+goal: Verify retrieval export behavior and JSONL integrity.
+repo_root: repo
+language: typescript
+workflow:
+  - validation
+  - export_rag
+  - validation
+  - export_graph
+  - validation
+  - export_all
+  - validation
+source_shape:
+  pkf_runtime: present
+  modules:
+    - backend
+  source_roots:
+    - src/backend
+changed_paths: []
+deleted_paths: []
+expected_modules:
+  - backend
+expected_required_docs:
+  - .ai/PKF.md
+  - .ai/MEMORY.md
+  - .ai/ARCHITECTURE.md
+  - .ai/knowledge/INDEX.md
+  - .ai/knowledge/backend/INDEX.md
+  - .ai/knowledge/backend/api.md
+  - .ai/knowledge/backend/schema.md
+expected_export_files:
+  off: []
+  rag:
+    - .ai/retrieval/documents.jsonl
+    - .ai/retrieval/claims.jsonl
+  graph:
+    - .ai/retrieval/entities.jsonl
+    - .ai/retrieval/relationships.jsonl
+    - .ai/retrieval/claims.jsonl
+  all:
+    - .ai/retrieval/documents.jsonl
+    - .ai/retrieval/entities.jsonl
+    - .ai/retrieval/relationships.jsonl
+    - .ai/retrieval/claims.jsonl
+forbidden_loads:
+  - .ai/retrieval/ in startup context
+  - export files as canonical source input
+expected_warnings:
+  - Approximate token estimates if exact tokenization is unavailable.
+expected_errors: []
+token_thresholds:
+  exports_do_not_change_startup_cost_when_off: true
+exit_behavior:
+  off: 0
+  rag: 0
+  graph: 0
+  all: 0

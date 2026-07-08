@@ -1,0 +1,12 @@
+{
+  "name": "fixture-missing-runtime",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "5.5.4"
+  }
+}

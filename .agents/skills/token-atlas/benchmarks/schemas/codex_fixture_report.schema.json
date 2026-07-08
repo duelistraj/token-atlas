@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Token Atlas Codex Fixture Report",
+  "type": "object",
+  "required": [
+    "fixture",
+    "status",
+    "selected_modules",
+    "required_docs",
+    "forbidden_loads",
+    "warnings",
+    "errors",
+    "token_impact",
+    "exit_behavior",
+    "evidence"
+  ],
+  "properties": {
+    "fixture": { "type": "string" },
+    "status": { "type": "string", "enum": ["passed", "warning", "failed"] },
+    "selected_modules": { "type": "array", "items": { "type": "string" } },
+    "required_docs": { "type": "array", "items": { "type": "string" } },
+    "forbidden_loads": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "token_impact": {
+      "type": "object",
+      "required": ["summary"],
+      "properties": {
+        "summary": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "exit_behavior": {
+      "type": "object",
+      "required": ["summary"],
+      "properties": {
+        "summary": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "evidence": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

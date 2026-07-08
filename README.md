@@ -38,6 +38,7 @@ Lifecycle phases:
 | Simulate | Predict context for a task intent or changed paths. | Selected modules, required docs, optional docs, token estimate, warnings. |
 | Validate | Check structure, metadata, sync, stale evidence, routing, simulation, tooling, and token budget. | Passed, Warnings, Errors, and Token Impact. |
 | Export | Generate optional RAG or GraphRAG JSONL from canonical Markdown. | Derived `.ai/retrieval/` files only when enabled. |
+| Benchmark | Run fixture-based skill evals. | Fixture reports, aggregate score, token regressions, and routing failures. |
 
 ## Startup Recovery
 
@@ -138,9 +139,57 @@ CI strictness exits nonzero for blocking validation failures. Advisory strictnes
 
 Exports are generated from canonical `.ai/` Markdown and cited source evidence. They may feed vector RAG, GraphRAG, or custom retrieval tooling, but they are never loaded in the PKF startup path and never become source truth.
 
+## Benchmarks
+
+`benchmark.md` defines fixture-based skill evals. Benchmarks score startup recovery, initialization, extraction, maintenance, validation, simulation, optimization, exports, and wrapper behavior.
+
+| Suite | Use when |
+|-------|----------|
+| `quick` | Fast local confidence for startup and simple routing. |
+| `core` | Normal development checks across the main skill behaviors. |
+| `full` | Release or CI checks, including retrieval exports. |
+
+Benchmarks run against isolated fixture repositories under `.agents/skills/token-atlas/benchmarks/fixtures/`. Do not run Token Atlas against this skill-maintenance repository itself.
+
+Executable benchmark harness:
+
+```powershell
+python scripts\pkf_bench.py --suite quick --mode local
+python scripts\pkf_bench.py --suite full --mode both --format json --report .\token-atlas-bench-full.json
+```
+
+The runner pins benchmark model defaults instead of inheriting ambient Codex config:
+
+```text
+--model gpt-5.5 --model-reasoning-effort medium
+```
+
+Every benchmark report records the resolved model, reasoning effort, and whether each came from a runner default or CLI flag.
+
+Runner modes:
+
+| Mode | Purpose |
+|------|---------|
+| `local` | Fast deterministic fixture, patch, `.ai`, and routing contract checks. |
+| `codex` | Runs `codex exec` inside isolated fixture workspaces and scores the structured report. |
+| `both` | Runs local and Codex checks; a fixture fails if either mode fails. |
+
+Full Codex-backed runs can be slow and may incur model cost. Prefer `local` or quick/core suites for routine CI, and reserve full Codex runs for manual, release, or nightly checks.
+
+## Two-Tier Skill Layout
+
+This repository keeps two Token Atlas skill surfaces:
+
+| Path | Purpose |
+|------|---------|
+| `.agents/skills/token-atlas/` | Internal development copy used to maintain and benchmark Token Atlas itself. |
+| `skills/token-atlas/` | Public standalone skill package for installation or copying into other projects. |
+
+The public package is intentionally activation-light. It provides `SKILL.md` plus workflow references, but no daemon, watcher, global hook, benchmark fixtures, or repo-local wrapper script. Use it when a target repository explicitly wants PKF/OKF initialization, maintenance, extraction, optimization, validation, simulation, or exports.
+
 ## Developer Tooling
 
-`scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, simulation, or export logic.
+`scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, simulation, benchmark scoring, or export logic.
 
 Start with help:
 
@@ -159,6 +208,11 @@ Common commands:
 | Validate CI mode | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate -Ci` |
 | Simulate retrieval | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 simulate -Intent "change an API route" -Paths src/routes.ts` |
 | Export retrieval graph | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export -RetrievalExports graph` |
+| Benchmark quick suite | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench` |
+| Benchmark full JSON suite | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench -BenchSuite full -BenchOutput json` |
+| Run local benchmark | `python scripts\pkf_bench.py --suite quick --mode local` |
+| Run full hybrid benchmark | `python scripts\pkf_bench.py --suite full --mode both --format json` |
+| Run full hybrid benchmark with explicit model | `python scripts\pkf_bench.py --suite full --mode both --model gpt-5.5 --model-reasoning-effort medium` |
 
 The wrapper supports PowerShell parameters and common kebab-case aliases:
 
@@ -166,6 +220,8 @@ The wrapper supports PowerShell parameters and common kebab-case aliases:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export --retrieval-exports graph
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --ci
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --help
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench --bench-suite core
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench --bench-suite full --bench-output json
 ```
 
 Codex skill usage and local wrapper usage are separate surfaces. In Codex, ask for the `token-atlas` skill by name and state options in natural language, such as `profile=ci` or `retrieval_exports=off`.
