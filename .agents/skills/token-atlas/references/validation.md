@@ -417,3 +417,7 @@ Validation succeeds when:
 - Token budget output is present at the selected summary or full level and threshold status is clear.
 - AI can navigate using minimal context.
 - No blocking errors remain.
+
+## Deterministic Validator Non-Goals
+
+scripts/pkf_validate.py enforces the mechanical subset: required files, OKF front matter, path resolution, routing reachability, and token impact. Source-truth synchronization, invented-fact detection, and duplicate-authoritative-fact detection remain semantic validation responsibilities for this workflow.

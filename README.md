@@ -1,6 +1,6 @@
 # token-atlas
 
-Token Atlas is an AI context optimization framework that continuously extracts verified repository knowledge and generates an OKF-compatible knowledge base optimized for minimal-context retrieval by AI coding agents.
+Token Atlas is an AI context optimization framework that extracts verified repository knowledge on demand or incrementally and generates an OKF-compatible knowledge base optimized for minimal-context retrieval by AI coding agents.
 
 It treats repository source as truth, `.ai/` Markdown as canonical AI knowledge, and optional retrieval exports as derived artifacts.
 
@@ -97,7 +97,7 @@ Use an exact tokenizer when available. Otherwise use `ceil(character_count / 4)`
 
 ## Incremental Maintenance
 
-`maintenance.md` defines the default core workflow for synchronizing PKF after repository changes.
+`.agents/skills/token-atlas/references/maintenance.md` defines the default core workflow for synchronizing PKF after repository changes.
 
 Change detection order:
 
@@ -109,7 +109,7 @@ Maintenance maps changed paths to affected modules and canonical docs, invalidat
 
 ## Retrieval Simulation
 
-`simulate.md` predicts the smallest OKF context set for a natural-language task intent and optional changed paths.
+`.agents/skills/token-atlas/references/simulate.md` predicts the smallest OKF context set for a natural-language task intent and optional changed paths.
 
 Simulation reports include selected modules, required docs, optional related docs, token cost, estimator type, routing evidence, warnings, and errors. Default `changed` mode only simulates the current task intent or changed paths. `required` and `all` modes cover representative API, schema, business logic, UI, architecture, and tooling scenarios.
 
@@ -128,7 +128,7 @@ CI strictness exits nonzero for blocking validation failures. Advisory strictnes
 
 ## Optional Retrieval Exports
 
-`export.md` defines backend-neutral generated artifacts under `.ai/retrieval/`.
+`.agents/skills/token-atlas/references/export.md` defines backend-neutral generated artifacts under `.ai/retrieval/`.
 
 | `retrieval_exports` | Generated files |
 |---------------------|-----------------|
@@ -141,7 +141,7 @@ Exports are generated from canonical `.ai/` Markdown and cited source evidence. 
 
 ## Benchmarks
 
-`benchmark.md` defines fixture-based skill evals. Benchmarks score startup recovery, initialization, extraction, maintenance, validation, simulation, optimization, exports, and wrapper behavior.
+`.agents/skills/token-atlas/references/benchmark.md` defines fixture-based skill evals. Benchmarks score startup recovery, initialization, extraction, maintenance, validation, simulation, optimization, exports, and wrapper behavior.
 
 | Suite | Use when |
 |-------|----------|
@@ -170,11 +170,11 @@ Runner modes:
 
 | Mode | Purpose |
 |------|---------|
-| `local` | Fast deterministic fixture, patch, `.ai`, and routing contract checks. |
+| `local` | Fast deterministic fixture, patch, generated `.ai` overlay, validator, and routing contract checks. |
 | `codex` | Runs `codex exec` inside isolated fixture workspaces and scores the structured report. |
 | `both` | Runs local and Codex checks; a fixture fails if either mode fails. |
 
-Full Codex-backed runs can be slow and may incur model cost. Prefer `local` or quick/core suites for routine CI, and reserve full Codex runs for manual, release, or nightly checks.
+Full Codex-backed runs can be slow and may incur model cost. Local mode is structural/contract validation; Codex mode is the real reasoning evaluation. Prefer non-benchmark unit tests and validator self-checks for routine CI, and reserve Codex-backed benchmark runs for explicit manual approval.
 
 ## Two-Tier Skill Layout
 

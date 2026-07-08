@@ -1,6 +1,6 @@
 ---
 name: token-atlas
-description: Generate and maintain repository-specific PKF runtime and OKF knowledge bases in target repositories. Use when Codex is explicitly asked to initialize `.ai/` knowledge, extract source-backed repository facts, maintain stale PKF/OKF docs after code changes, optimize minimal context retrieval, validate PKF integrity, simulate retrieval for a task, or generate optional RAG/GraphRAG exports.
+description: Generate and maintain repository-specific PKF runtime and OKF knowledge bases on demand or incrementally in target repositories. Use when explicitly asked to initialize `.ai/` knowledge, extract source-backed repository facts, maintain stale PKF/OKF docs after code changes, optimize minimal context retrieval, validate PKF integrity, simulate retrieval for a task, or generate optional RAG/GraphRAG exports.
 ---
 
 # Token Atlas

@@ -23,6 +23,14 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from pkf_contract import REQUIRED_FRONT_MATTER  # noqa: E402
+from pkf_lib import PkfParseError, listify, parse_yaml_block, read_front_matter, rel  # noqa: E402
+from pkf_validate import validate_pkf  # noqa: E402
+
 DEFAULT_FIXTURES = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "fixtures"
 DEFAULT_SCHEMA = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "schemas" / "codex_fixture_report.schema.json"
 SKILL_DIR = ROOT / ".agents" / "skills" / "token-atlas"
@@ -32,7 +40,6 @@ ALLOWED_SUITES = {"quick", "core", "full"}
 ALLOWED_MODES = {"local", "codex", "both"}
 ALLOWED_FORMATS = {"text", "json"}
 ALLOWED_REASONING_EFFORTS = {"minimal", "low", "medium", "high"}
-REQUIRED_FRONT_MATTER = {"type", "title", "description", "resource", "tags", "timestamp", "pkf"}
 REQUIRED_MANIFEST_KEYS = {
     "name",
     "suites",
@@ -144,7 +151,10 @@ def parse_manifest(path: Path) -> dict[str, Any]:
         if not line or line.lstrip().startswith("#"):
             continue
         lines.append(line)
-    value, index = parse_yaml_block(lines, 0, 0, path)
+    try:
+        value, index = parse_yaml_block(lines, 0, 0, path)
+    except PkfParseError as exc:
+        raise ManifestError(str(exc)) from exc
     if index != len(lines):
         raise ManifestError(f"{path}: unsupported YAML near line {index + 1}")
     if not isinstance(value, dict):
@@ -153,85 +163,6 @@ def parse_manifest(path: Path) -> dict[str, Any]:
     if missing:
         raise ManifestError(f"{path}: missing required keys: {', '.join(missing)}")
     return value
-
-
-def parse_yaml_block(lines: list[str], index: int, indent: int, path: Path) -> tuple[Any, int]:
-    if index >= len(lines):
-        return {}, index
-    current_indent = count_indent(lines[index])
-    if current_indent < indent:
-        return {}, index
-    if lines[index].lstrip().startswith("- "):
-        return parse_yaml_list(lines, index, current_indent, path)
-    return parse_yaml_map(lines, index, current_indent, path)
-
-
-def parse_yaml_map(lines: list[str], index: int, indent: int, path: Path) -> tuple[dict[str, Any], int]:
-    result: dict[str, Any] = {}
-    while index < len(lines):
-        line = lines[index]
-        current_indent = count_indent(line)
-        if current_indent < indent:
-            break
-        if current_indent > indent:
-            raise ManifestError(f"{path}: unexpected indentation near '{line.strip()}'")
-        stripped = line.strip()
-        if stripped.startswith("- "):
-            break
-        if ":" not in stripped:
-            raise ManifestError(f"{path}: expected key/value line near '{stripped}'")
-        key, raw_value = stripped.split(":", 1)
-        key = key.strip()
-        raw_value = raw_value.strip()
-        if not key:
-            raise ManifestError(f"{path}: empty YAML key")
-        if raw_value:
-            result[key] = parse_yaml_scalar(raw_value)
-            index += 1
-        else:
-            child, index = parse_yaml_block(lines, index + 1, indent + 2, path)
-            result[key] = child
-    return result, index
-
-
-def parse_yaml_list(lines: list[str], index: int, indent: int, path: Path) -> tuple[list[Any], int]:
-    result: list[Any] = []
-    while index < len(lines):
-        line = lines[index]
-        current_indent = count_indent(line)
-        if current_indent < indent:
-            break
-        if current_indent > indent:
-            raise ManifestError(f"{path}: unexpected indentation near '{line.strip()}'")
-        stripped = line.strip()
-        if not stripped.startswith("- "):
-            break
-        raw_value = stripped[2:].strip()
-        if raw_value:
-            result.append(parse_yaml_scalar(raw_value))
-            index += 1
-        else:
-            child, index = parse_yaml_block(lines, index + 1, indent + 2, path)
-            result.append(child)
-    return result, index
-
-
-def parse_yaml_scalar(value: str) -> Any:
-    if value == "[]":
-        return []
-    if value == "{}":
-        return {}
-    if value in {"true", "false"}:
-        return value == "true"
-    if re.fullmatch(r"-?\d+", value):
-        return int(value)
-    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
-        return value[1:-1]
-    return value
-
-
-def count_indent(line: str) -> int:
-    return len(line) - len(line.lstrip(" "))
 
 
 def run_fixture(fixture_dir: Path, manifest: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
@@ -297,11 +228,13 @@ def run_local_mode(fixture_dir: Path, manifest: dict[str, Any], args: argparse.N
             apply_patch_file(repo, fixture_dir / str(patch_name), result)
         verify_git_state(repo, manifest, result, bool(patch_name))
         verify_runtime_state(repo, manifest, result)
+        apply_expected_ai_overlay(fixture_dir, repo, manifest, result)
         verify_expected_docs(repo, manifest, result)
         verify_front_matter(repo, manifest, result)
         verify_pkf_references(repo, result)
         verify_expected_defects(repo, manifest, result)
         verify_exports_static(repo, manifest, result)
+        verify_validator_result(repo, manifest, result)
     finally:
         if cleanup is not None:
             cleanup.cleanup()
@@ -381,6 +314,17 @@ def verify_runtime_state(repo: Path, manifest: dict[str, Any], result: dict[str,
         add_check(result, not pkf.exists(), "PKF runtime is missing before recovery", ".ai/PKF.md should be absent")
 
 
+def apply_expected_ai_overlay(fixture_dir: Path, repo: Path, manifest: dict[str, Any], result: dict[str, Any]) -> None:
+    if manifest.get("source_shape", {}).get("pkf_runtime") != "missing":
+        return
+    overlay = fixture_dir / "expected_ai" / ".ai"
+    add_check(result, overlay.is_dir(), "expected .ai overlay exists", f"missing expected .ai overlay: {overlay}")
+    if not overlay.is_dir():
+        raise BenchmarkError(f"{manifest['name']}: expected .ai overlay is missing")
+    shutil.copytree(overlay, repo / ".ai")
+    result["evidence"].append(f"copied expected .ai overlay from {overlay}")
+
+
 def verify_expected_modules(manifest: dict[str, Any], result: dict[str, Any]) -> None:
     source_modules = manifest.get("source_shape", {}).get("modules", [])
     if not isinstance(source_modules, list):
@@ -392,7 +336,7 @@ def verify_expected_modules(manifest: dict[str, Any], result: dict[str, Any]) ->
 
 def verify_expected_docs(repo: Path, manifest: dict[str, Any], result: dict[str, Any]) -> None:
     docs = flatten_expected_docs(manifest.get("expected_required_docs", []))
-    pkf_present = manifest.get("source_shape", {}).get("pkf_runtime") == "present"
+    pkf_present = (repo / ".ai" / "PKF.md").is_file()
     if not pkf_present:
         result["evidence"].append("required docs are expected to be generated by workflow")
         return
@@ -403,7 +347,7 @@ def verify_expected_docs(repo: Path, manifest: dict[str, Any], result: dict[str,
 
 
 def verify_front_matter(repo: Path, manifest: dict[str, Any], result: dict[str, Any]) -> None:
-    if manifest.get("source_shape", {}).get("pkf_runtime") != "present":
+    if not (repo / ".ai" / "PKF.md").is_file():
         return
     ai_dir = repo / ".ai"
     for md in sorted(ai_dir.rglob("*.md")):
@@ -448,6 +392,25 @@ def verify_expected_defects(repo: Path, manifest: dict[str, Any], result: dict[s
         broad_load_found = find_broad_load(repo, manifest)
         add_check(result, broad_load_found, "expected broad pkf.loads defect is present", "expected broad pkf.loads defect not found")
         result["errors"].extend(expected_errors)
+
+
+def verify_validator_result(repo: Path, manifest: dict[str, Any], result: dict[str, Any]) -> None:
+    ai_dir = repo / ".ai"
+    if not ai_dir.is_dir():
+        result["evidence"].append("pkf_validate skipped because .ai is absent")
+        return
+    report = validate_pkf(ai_dir, strictness="ci")
+    result["token_impact"]["validator"] = [entry.__dict__ for entry in report.token_impact]
+    expected_errors = flatten_strings(manifest.get("expected_errors", []))
+    unexpected = []
+    for finding in report.errors:
+        issue = f"{finding.file}: {finding.issue}"
+        if matches_any_expected(issue, expected_errors):
+            add_check(result, True, f"validator reported expected error: {finding.issue}")
+        else:
+            unexpected.append(issue)
+    add_check(result, not unexpected, "pkf_validate structural checks passed", f"pkf_validate unexpected errors: {unexpected}")
+    result["warnings"].extend(f"pkf_validate: {finding.file}: {finding.issue}" for finding in report.warnings)
 
 
 def verify_exports_static(repo: Path, manifest: dict[str, Any], result: dict[str, Any]) -> None:
@@ -627,10 +590,12 @@ def score_codex_report(manifest: dict[str, Any], report: dict[str, Any], result:
 
 
 def fuzzy_contains(haystack: str, needle: str) -> bool:
-    if needle in haystack:
+    haystack_lower = haystack.lower()
+    needle_lower = needle.lower()
+    if needle_lower in haystack_lower:
         return True
-    words = [word for word in re.split(r"[^A-Za-z0-9_./-]+", needle) if len(word) > 3]
-    return all(word in haystack for word in words[:4])
+    words = [word for word in re.split(r"[^A-Za-z0-9_./-]+", needle_lower) if len(word) > 3]
+    return all(word in haystack_lower for word in words[:4])
 
 
 def expected_errors_for_scoring(manifest: dict[str, Any]) -> list[str]:
@@ -799,18 +764,6 @@ def render_text_report(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def read_front_matter(path: Path) -> dict[str, Any]:
-    text = path.read_text(encoding="utf-8")
-    if not text.startswith("---"):
-        return {}
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}
-    lines = [line.rstrip() for line in parts[1].splitlines() if line.strip()]
-    value, _ = parse_yaml_block(lines, 0, 0, path)
-    return value if isinstance(value, dict) else {}
-
-
 def flatten_expected_docs(value: Any) -> list[str]:
     if isinstance(value, list):
         return [str(item) for item in value]
@@ -833,14 +786,6 @@ def flatten_strings(value: Any) -> list[str]:
     if value in (None, ""):
         return []
     return [str(value)]
-
-
-def listify(value: Any) -> list[Any]:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return value
-    return [value]
 
 
 def require_list(mapping: dict[str, Any], key: str, source: Path) -> list[Any]:
@@ -881,9 +826,6 @@ def find_broad_load(repo: Path, manifest: dict[str, Any]) -> bool:
     return False
 
 
-def rel(path: Path, root: Path) -> str:
-    return path.relative_to(root).as_posix()
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     raise SystemExit(main())
