@@ -19,6 +19,7 @@ Tooling must not become a second source of truth. Commands select profiles, opti
 | `pkf validate` | `validation.md` |
 | `pkf export` | `export.md` |
 | `pkf simulate` | `simulate.md` |
+| `pkf bench` | `benchmark.md` |
 | `pkf help` | local wrapper help |
 
 Default options:
@@ -50,7 +51,7 @@ Help output must include:
 - Available commands and their workflow files.
 - Profiles and default options.
 - Supported PowerShell parameters and kebab-case aliases.
-- Examples for default validation, CI validation, simulation, and retrieval export.
+- Examples for default validation, CI validation, simulation, retrieval export, and benchmarking.
 - Exit codes.
 - A short distinction between Codex skill usage and the local script wrapper.
 
@@ -68,6 +69,8 @@ Commands accept these shared options. PowerShell-style parameters are canonical 
 | `-TokenBudget` | `--token-budget` | `summary`, `full` | `summary` |
 | `-ValidationStrictness` | `--validation-strictness` | `advisory`, `ci` | `advisory` |
 | `-Ci` | `--ci` | shortcut for CI validation | disabled |
+| `-BenchSuite` | `--bench-suite` | `quick`, `core`, `full` | `quick` |
+| `-BenchOutput` | `--bench-output` | `text`, `json` | `text` |
 | `-Intent` | `--intent` | task text for simulation | empty |
 | `-Paths` | `--paths` | changed paths for simulation | empty |
 | `-Help` | `--help` | print local wrapper help | disabled |
@@ -145,6 +148,17 @@ Inputs:
 - `-Paths "<path1>","<path2>"` or `--paths "<path1>","<path2>"`
 - `-Simulation changed|required|all` or `--simulation changed|required|all`
 
+### `pkf bench`
+
+Request fixture-based skill benchmarking through `benchmark.md`.
+
+Inputs:
+
+- `-BenchSuite quick|core|full` or `--bench-suite quick|core|full`
+- `-BenchOutput text|json` or `--bench-output text|json`
+
+Benchmarking must use isolated fixture repositories under `benchmarks/fixtures/` and must not run Token Atlas against the token-atlas skill-maintenance repository itself.
+
 ---
 
 ## CI Exit Codes
@@ -162,7 +176,7 @@ The wrapper may detect simple startup failures locally, but full PKF validation 
 ## Rules
 
 - Keep scripts thin.
-- Do not duplicate extraction, optimization, validation, or export logic inside scripts.
+- Do not duplicate extraction, optimization, validation, benchmark scoring, or export logic inside scripts.
 - Do not modify application code from tooling wrappers.
 - Prefer deterministic local checks for command arguments and startup files.
 - Keep documented workflows authoritative.
@@ -178,5 +192,6 @@ Tooling succeeds when:
 - `help`, `--help`, `-Help`, and command-local `--help` print useful wrapper guidance.
 - `validate --ci` or `validate -Ci` has CI-friendly nonzero behavior for blocking startup failures.
 - `export` is a no-op when `retrieval_exports: off`.
-- README examples show help, default, CI, simulation, and retrieval export usage.
+- `bench` maps to `benchmark.md` and validates benchmark suite/output options without implementing scoring in the wrapper.
+- README examples show help, default, CI, simulation, retrieval export, and benchmark usage.
 

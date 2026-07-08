@@ -319,6 +319,7 @@ Check:
 - `pkf validate` maps to `validation.md`.
 - `pkf export` maps to `export.md` and is a no-op when `retrieval_exports: off`.
 - `pkf simulate` maps to `simulate.md`.
+- `pkf bench` maps to `benchmark.md` and validates only benchmark options locally.
 - CI mode maps to `validation_strictness: ci`, `simulation: required`, and `token_budget: full`.
 - Scripts do not duplicate extraction, optimization, validation, or export logic.
 

@@ -38,6 +38,7 @@ Lifecycle phases:
 | Simulate | Predict context for a task intent or changed paths. | Selected modules, required docs, optional docs, token estimate, warnings. |
 | Validate | Check structure, metadata, sync, stale evidence, routing, simulation, tooling, and token budget. | Passed, Warnings, Errors, and Token Impact. |
 | Export | Generate optional RAG or GraphRAG JSONL from canonical Markdown. | Derived `.ai/retrieval/` files only when enabled. |
+| Benchmark | Run fixture-based skill evals. | Fixture reports, aggregate score, token regressions, and routing failures. |
 
 ## Startup Recovery
 
@@ -138,9 +139,21 @@ CI strictness exits nonzero for blocking validation failures. Advisory strictnes
 
 Exports are generated from canonical `.ai/` Markdown and cited source evidence. They may feed vector RAG, GraphRAG, or custom retrieval tooling, but they are never loaded in the PKF startup path and never become source truth.
 
+## Benchmarks
+
+`benchmark.md` defines fixture-based skill evals. Benchmarks score startup recovery, initialization, extraction, maintenance, validation, simulation, optimization, exports, and wrapper behavior.
+
+| Suite | Use when |
+|-------|----------|
+| `quick` | Fast local confidence for startup and simple routing. |
+| `core` | Normal development checks across the main skill behaviors. |
+| `full` | Release or CI checks, including retrieval exports. |
+
+Benchmarks run against isolated fixture repositories under `.agents/skills/token-atlas/benchmarks/fixtures/`. Do not run Token Atlas against this skill-maintenance repository itself.
+
 ## Developer Tooling
 
-`scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, simulation, or export logic.
+`scripts/pkf.ps1` is a thin workflow wrapper. It selects documented PKF workflows and options; it does not implement extraction, optimization, validation, simulation, benchmark scoring, or export logic.
 
 Start with help:
 
@@ -159,6 +172,8 @@ Common commands:
 | Validate CI mode | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate -Ci` |
 | Simulate retrieval | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 simulate -Intent "change an API route" -Paths src/routes.ts` |
 | Export retrieval graph | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export -RetrievalExports graph` |
+| Benchmark quick suite | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench` |
+| Benchmark full JSON suite | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench -BenchSuite full -BenchOutput json` |
 
 The wrapper supports PowerShell parameters and common kebab-case aliases:
 
@@ -166,6 +181,8 @@ The wrapper supports PowerShell parameters and common kebab-case aliases:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 export --retrieval-exports graph
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --ci
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --help
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench --bench-suite core
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 bench --bench-suite full --bench-output json
 ```
 
 Codex skill usage and local wrapper usage are separate surfaces. In Codex, ask for the `token-atlas` skill by name and state options in natural language, such as `profile=ci` or `retrieval_exports=off`.

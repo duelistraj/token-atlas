@@ -167,6 +167,27 @@ Exports are backend-neutral generated artifacts under `.ai/retrieval/`. They may
 
 ---
 
+## Benchmarking
+
+Use `benchmark.md` when a user or CI process requests skill benchmarking.
+
+Benchmarking measures fixture-based skill quality, not just runtime speed. It must run against isolated fixture repositories under `benchmarks/fixtures/`, never against the token-atlas skill-maintenance repository itself.
+
+Benchmark suites:
+
+- `quick`: startup and simple routing confidence.
+- `core`: initialization, extraction, maintenance, validation, simulation, optimization, and stale-reference fixtures.
+- `full`: `core` plus retrieval export fixtures.
+
+Benchmark output modes:
+
+- `text`: human-readable fixture and aggregate report.
+- `json`: deterministic machine-readable report.
+
+Treat invented facts, unsupported durable facts, stale evidence, broken routing, unrelated automatic loads, invalid exports, and wrapper workflow drift as benchmark failures.
+
+---
+
 ## Knowledge Quality Standard
 
 Each durable fact must be:
@@ -228,6 +249,7 @@ Commands are thin workflow selectors:
 - `pkf validate` -> `validation.md`
 - `pkf export` -> `export.md`
 - `pkf simulate` -> `simulate.md`
+- `pkf bench` -> `benchmark.md`
 
 Tooling must keep documented workflows authoritative. Scripts may validate arguments and report CI startup failures, but must not reimplement extraction, optimization, validation, or export logic.
 
