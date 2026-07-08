@@ -1,12 +1,6 @@
 ---
 name: token-atlas
-description: Generate and maintain this repository's PKF runtime and OKF-compatible knowledge base. Use when Codex needs to initialize, extract, validate, or optimize `.ai/` knowledge files for the token-atlas repository while preserving source-code truth and avoiding application-code changes.
-interface:
-  display_name: "Token Atlas"
-  short_description: "Maintain PKF and OKF repository knowledge"
-  default_prompt: "Use $token-atlas to initialize, maintain, validate, optimize, or simulate PKF/OKF repository knowledge."
-policy:
-  allow_implicit_invocation: false
+description: Generate and maintain this repository's PKF runtime and OKF-compatible knowledge base on demand or incrementally. Use when Codex needs to initialize, extract, validate, or optimize `.ai/` knowledge files for the token-atlas repository while preserving source-code truth and avoiding application-code changes.
 ---
 
 # Token Atlas
@@ -15,7 +9,7 @@ policy:
 
 Generate and maintain a repository-specific, Open Knowledge Format (OKF) compatible knowledge base optimized for minimal-context retrieval by AI coding agents.
 
-Token Atlas continuously extracts verified repository knowledge, stores each fact in one authoritative location, and routes agents to the smallest useful context set for a task.
+Token Atlas extracts verified repository knowledge on demand or incrementally, stores each fact in one authoritative location, and routes agents to the smallest useful context set for a task.
 
 This `.agents/skills/token-atlas/` copy is the internal development and benchmarking surface for the Token Atlas project. The public user-facing package lives under `skills/token-atlas/`; keep normal target-repository usage guidance there and keep benchmark or maintenance-repo-specific guidance here.
 
@@ -30,7 +24,7 @@ At the beginning of every session, attempt to read `.ai/PKF.md`.
 If `.ai/PKF.md` is missing:
 
 - Do not continue with repository analysis yet.
-- Execute `initialize.md` to create the PKF runtime and OKF skeleton.
+- Execute `references/initialize.md` to create the PKF runtime and OKF skeleton.
 - Validate the initialized structure.
 - Resume the normal execution flow only after `PKF.md` exists.
 - Report the recovery as a startup action.
@@ -76,23 +70,23 @@ Do not generate or load retrieval exports unless `retrieval_exports` is not `off
 
 If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
-- Execute `initialize.md`
+- Execute `references/initialize.md`
 - Validate
-- Execute `extract.md` using **Full Extraction**
+- Execute `references/extract.md` using **Full Extraction**
 - Validate
-- Execute `optimize.md`
-- Execute `simulate.md` only according to the selected `simulation` option
-- Execute `export.md` only when `retrieval_exports` is not `off`
+- Execute `references/optimize.md`
+- Execute `references/simulate.md` only according to the selected `simulation` option
+- Execute `references/export.md` only when `retrieval_exports` is not `off`
 - Validate
 
 Otherwise:
 
-- Execute `maintenance.md` to detect changed paths, stale references, duplicate facts, and affected docs
-- Execute `extract.md` using **Incremental Extraction**
+- Execute `references/maintenance.md` to detect changed paths, stale references, duplicate facts, and affected docs
+- Execute `references/extract.md` using **Incremental Extraction**
 - Validate
-- Execute `optimize.md`
-- Execute `simulate.md` only according to the selected `simulation` option
-- Execute `export.md` only when `retrieval_exports` is not `off`
+- Execute `references/optimize.md`
+- Execute `references/simulate.md` only according to the selected `simulation` option
+- Execute `references/export.md` only when `retrieval_exports` is not `off`
 - Validate
 
 Stop immediately on validation failures only when `validation_strictness: ci` is selected. In advisory mode, report blocking recommendations without treating the default workflow as a CI gate.
@@ -129,7 +123,7 @@ Use each layer for a different job:
 
 ## Incremental Maintenance
 
-Use `maintenance.md` in the default `core` profile whenever an existing PKF runtime is present.
+Use `references/maintenance.md` in the default `core` profile whenever an existing PKF runtime is present.
 
 Maintenance determines changed paths, affected modules, affected canonical docs, stale references, duplicate facts, and optional retrieval export invalidation.
 
@@ -144,7 +138,7 @@ Deleted or renamed source evidence must invalidate affected facts. Retrieval exp
 ---
 ## Retrieval Simulator
 
-Use `simulate.md` to predict the smallest useful context set for a natural-language task intent and optional changed file paths.
+Use `references/simulate.md` to predict the smallest useful context set for a natural-language task intent and optional changed file paths.
 
 Run the simulator:
 
@@ -162,7 +156,7 @@ Treat unrelated modules loaded automatically through `pkf.loads` as blocking val
 
 ## Retrieval Exports
 
-Use `export.md` only when `retrieval_exports` is `rag`, `graph`, or `all`.
+Use `references/export.md` only when `retrieval_exports` is `rag`, `graph`, or `all`.
 
 Export modes:
 
@@ -177,7 +171,7 @@ Exports are backend-neutral generated artifacts under `.ai/retrieval/`. They may
 
 ## Benchmarking
 
-Use `benchmark.md` when a user or CI process requests skill benchmarking.
+Use `references/benchmark.md` when a user or CI process requests skill benchmarking.
 
 Benchmarking measures fixture-based skill quality, not just runtime speed. It must run against isolated fixture repositories under `benchmarks/fixtures/`, never against the token-atlas skill-maintenance repository itself.
 
@@ -246,18 +240,18 @@ Default thresholds:
 
 ## Developer Tooling
 
-Use `tooling.md` for command wrappers.
+Use `references/tooling.md` for command wrappers.
 
 Commands are thin workflow selectors:
 
-- `pkf init` -> `initialize.md`
-- `pkf maintain` -> `maintenance.md`
-- `pkf extract` -> `extract.md`
-- `pkf optimize` -> `optimize.md`
-- `pkf validate` -> `validation.md`
-- `pkf export` -> `export.md`
-- `pkf simulate` -> `simulate.md`
-- `pkf bench` -> `benchmark.md`
+- `pkf init` -> `references/initialize.md`
+- `pkf maintain` -> `references/maintenance.md`
+- `pkf extract` -> `references/extract.md`
+- `pkf optimize` -> `references/optimize.md`
+- `pkf validate` -> `references/validation.md`
+- `pkf export` -> `references/export.md`
+- `pkf simulate` -> `references/simulate.md`
+- `pkf bench` -> `references/benchmark.md`
 
 Tooling must keep documented workflows authoritative. Scripts may validate arguments and report CI startup failures, but must not reimplement extraction, optimization, validation, or export logic.
 

@@ -49,14 +49,14 @@ function Show-Help {
     Write-Output '  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 validate --help'
     Write-Output ''
     Write-Output 'Commands:'
-    Write-Output '  init       Select initialize.md. Use when .ai/PKF.md is missing.'
-    Write-Output '  maintain   Select maintenance.md for changed, renamed, deleted, and affected knowledge.'
-    Write-Output '  extract    Select extract.md for source-backed OKF knowledge extraction.'
-    Write-Output '  optimize   Select optimize.md for routing, duplication, and token budget cleanup.'
-    Write-Output '  validate   Select validation.md for structure, metadata, references, routing, simulation, and token impact.'
-    Write-Output '  simulate   Select simulate.md for retrieval prediction from task intent and changed paths.'
-    Write-Output '  export     Select export.md when retrieval exports are explicitly enabled.'
-    Write-Output '  bench      Select benchmark.md for fixture-based skill quality evals.'
+    Write-Output '  init       Select references/initialize.md. Use when .ai/PKF.md is missing.'
+    Write-Output '  maintain   Select references/maintenance.md for changed, renamed, deleted, and affected knowledge.'
+    Write-Output '  extract    Select references/extract.md for source-backed OKF knowledge extraction.'
+    Write-Output '  optimize   Select references/optimize.md for routing, duplication, and token budget cleanup.'
+    Write-Output '  validate   Select references/validation.md for structure, metadata, references, routing, simulation, and token impact.'
+    Write-Output '  simulate   Select references/simulate.md for retrieval prediction from task intent and changed paths.'
+    Write-Output '  export     Select references/export.md when retrieval exports are explicitly enabled.'
+    Write-Output '  bench      Select references/benchmark.md for fixture-based skill quality evals.'
     Write-Output ''
     Write-Output 'Profiles:'
     Write-Output '  core        Default. Initialize/maintain, extract, optimize, lightweight validation.'
@@ -147,14 +147,14 @@ if ($Profile -eq 'full') {
 }
 
 $workflowByCommand = @{
-    init = 'initialize.md'
-    maintain = 'maintenance.md'
-    extract = 'extract.md'
-    optimize = 'optimize.md'
-    validate = 'validation.md'
-    export = 'export.md'
-    simulate = 'simulate.md'
-    bench = 'benchmark.md'
+    init = 'references/initialize.md'
+    maintain = 'references/maintenance.md'
+    extract = 'references/extract.md'
+    optimize = 'references/optimize.md'
+    validate = 'references/validation.md'
+    export = 'references/export.md'
+    simulate = 'references/simulate.md'
+    bench = 'references/benchmark.md'
 }
 
 $workflow = $workflowByCommand[$Command]
@@ -180,6 +180,18 @@ if ($Command -eq 'bench') {
     Write-Output 'Benchmark target: isolated fixtures under .agents/skills/token-atlas/benchmarks/fixtures.'
 }
 
+if ($Command -eq 'validate') {
+    $validator = Join-Path $repoRoot 'scripts\pkf_validate.py'
+    $aiPath = Join-Path $repoRoot '.ai'
+    Write-Output 'Deterministic validation:'
+    & python $validator --path $aiPath --strictness $ValidationStrictness --format text
+    $validatorExit = $LASTEXITCODE
+    Write-Output 'Semantic follow-up: execute .agents/skills/token-atlas/references/validation.md for source-truth sync, invented facts, and duplicate authoritative facts.'
+    if ($validatorExit -ne 0) { exit $validatorExit }
+    Write-Output 'Next: complete the semantic validation follow-up if required.'
+    exit 0
+}
+
 if ($Command -ne 'bench' -and -not $pkfExists) {
     Write-Output 'Startup: .ai/PKF.md is missing; run pkf init before repository analysis.'
     if ($Command -eq 'validate' -and $ValidationStrictness -eq 'ci') {
@@ -194,7 +206,7 @@ if ($Command -eq 'export' -and $RetrievalExports -eq 'off') {
 }
 
 if ($Command -eq 'validate' -and $ValidationStrictness -eq 'ci') {
-    Write-Output 'CI mode selected; blocking validation errors must exit nonzero when reported by validation.md.'
+    Write-Output 'CI mode selected; blocking validation errors must exit nonzero when reported by references/validation.md.'
 }
 
 Write-Output 'Next: execute the selected documented PKF workflow with these options.'

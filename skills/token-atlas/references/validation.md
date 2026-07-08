@@ -63,3 +63,7 @@ Errors should include file, issue, recommended fix, source evidence or missing e
 - `0`: valid advisory request, help output, or no CI blocking errors.
 - `1`: CI blocking validation error.
 - `2`: invalid command or option usage when a wrapper is involved.
+
+## Deterministic Validator Non-Goals
+
+scripts/pkf_validate.py enforces the mechanical subset: required files, OKF front matter, path resolution, routing reachability, and token impact. Source-truth synchronization, invented-fact detection, and duplicate-authoritative-fact detection remain semantic validation responsibilities for this workflow.
