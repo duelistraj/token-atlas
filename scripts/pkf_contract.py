@@ -10,10 +10,16 @@ from __future__ import annotations
 REQUIRED_FRONT_MATTER = {"type", "title", "description", "resource", "tags", "timestamp", "pkf"}
 
 TOKEN_THRESHOLDS = {
-    "startup": 4000,
-    "module": 8000,
+    "startup": 2500,
+    "leaf": 1500,
+    "task": 4000,
 }
 ESTIMATOR_FORMULA = "ceil(character_count / 4)"
+
+RETRIEVAL_BUDGET = {
+    "module_indexes": 1,
+    "leaf_docs": 2,
+}
 
 REQUIRED_RUNTIME_DOCS = (
     "PKF.md",
@@ -33,6 +39,11 @@ REQUIRED_MODULE_DOCS = (
     "business_rules.md",
     "ui.md",
 )
+LEAF_MODULE_DOCS = tuple(doc for doc in REQUIRED_MODULE_DOCS if doc != "INDEX.md")
+LEAF_SOURCE_SYMBOLS_FIELD = "source_symbols"
+EMPTY_LEAF_MARKER = "- TODO: No source-backed facts."
+EDIT_MAP_HEADING = "## Edit Map"
+EDIT_MAP_COLUMNS = ("Behavior", "Source symbols", "Tests", "Styles/tokens", "Locator")
 
 PROFILES = {
     "core": {

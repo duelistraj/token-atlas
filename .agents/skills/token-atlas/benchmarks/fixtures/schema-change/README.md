@@ -42,9 +42,8 @@ Verify schema or data-model changes route to schema knowledge only.
 
 ## Token Thresholds
 
-- Schema-change task should be at or below the 8,000 token module-task warning threshold.
+- Each leaf should stay at or below 1,500 tokens and the normal task route at or below 4,000 tokens.
 
 ## Exit Behavior
 
 - CI validation passes when changed-path routing is source-backed.
-

@@ -176,6 +176,9 @@ def run_fixture(fixture_dir: Path, manifest: dict[str, Any], args: argparse.Name
         "warnings": [],
         "errors": [],
         "token_impact": {},
+        "source_targets": [],
+        "targeted_commands": [],
+        "fallback_search": {},
         "evidence": [],
     }
 
@@ -192,6 +195,9 @@ def run_fixture(fixture_dir: Path, manifest: dict[str, Any], args: argparse.Name
         report["warnings"] = flatten_values(mode_results, "warnings")
         report["errors"] = flatten_values(mode_results, "errors")
         report["token_impact"] = merge_token_impact(mode_results)
+        report["source_targets"] = flatten_values(mode_results, "source_targets")
+        report["targeted_commands"] = flatten_values(mode_results, "targeted_commands")
+        report["fallback_search"] = {item["mode"]: item["fallback_search"] for item in mode_results}
         report["evidence"] = flatten_values(mode_results, "evidence")
         report["overall_status"] = combine_statuses([item["status"] for item in mode_results])
     except BenchmarkError as exc:
@@ -229,12 +235,14 @@ def run_local_mode(fixture_dir: Path, manifest: dict[str, Any], args: argparse.N
         verify_git_state(repo, manifest, result, bool(patch_name))
         verify_runtime_state(repo, manifest, result)
         apply_expected_ai_overlay(fixture_dir, repo, manifest, result)
+        verify_generated_modules(repo, manifest, result)
         verify_expected_docs(repo, manifest, result)
         verify_front_matter(repo, manifest, result)
         verify_pkf_references(repo, result)
         verify_expected_defects(repo, manifest, result)
         verify_exports_static(repo, manifest, result)
         verify_validator_result(repo, manifest, result)
+        collect_retrieval_details(repo, result)
     finally:
         if cleanup is not None:
             cleanup.cleanup()
@@ -315,13 +323,22 @@ def verify_runtime_state(repo: Path, manifest: dict[str, Any], result: dict[str,
 
 
 def apply_expected_ai_overlay(fixture_dir: Path, repo: Path, manifest: dict[str, Any], result: dict[str, Any]) -> None:
-    if manifest.get("source_shape", {}).get("pkf_runtime") != "missing":
+    overlay_root = fixture_dir / str(manifest.get("expected_ai_from", "expected_ai"))
+    overlay = overlay_root / ".ai"
+    runtime_missing = manifest.get("source_shape", {}).get("pkf_runtime") == "missing"
+    if not overlay.is_dir() and not runtime_missing:
         return
-    overlay = fixture_dir / "expected_ai" / ".ai"
     add_check(result, overlay.is_dir(), "expected .ai overlay exists", f"missing expected .ai overlay: {overlay}")
     if not overlay.is_dir():
         raise BenchmarkError(f"{manifest['name']}: expected .ai overlay is missing")
-    shutil.copytree(overlay, repo / ".ai")
+    target = repo / ".ai"
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.copytree(overlay, target)
+    bootstrap = overlay_root / "AGENTS.md"
+    add_check(result, bootstrap.is_file(), "expected root bootstrap exists", f"missing expected root bootstrap: {bootstrap}")
+    if bootstrap.is_file():
+        shutil.copy2(bootstrap, repo / "AGENTS.md")
     result["evidence"].append(f"copied expected .ai overlay from {overlay}")
 
 
@@ -332,6 +349,27 @@ def verify_expected_modules(manifest: dict[str, Any], result: dict[str, Any]) ->
         return
     for module in require_list(manifest, "expected_modules", Path(manifest["name"])):
         add_check(result, module in source_modules, f"expected module declared: {module}", f"expected module missing from source_shape.modules: {module}")
+
+
+def verify_generated_modules(repo: Path, manifest: dict[str, Any], result: dict[str, Any]) -> None:
+    knowledge = repo / ".ai" / "knowledge"
+    generated = (
+        sorted(item.name for item in knowledge.iterdir() if item.is_dir() and item.name != "retrieval")
+        if knowledge.is_dir()
+        else []
+    )
+    result["generated_modules"] = generated
+
+    expected = manifest.get("expected_generated_modules", manifest.get("source_shape", {}).get("modules", []))
+    forbidden = manifest.get("forbidden_generated_modules", [])
+    if not isinstance(expected, list):
+        raise ManifestError(f"{manifest['name']}: 'expected_generated_modules' must be a list")
+    if not isinstance(forbidden, list):
+        raise ManifestError(f"{manifest['name']}: 'forbidden_generated_modules' must be a list")
+    for module in expected:
+        add_check(result, str(module) in generated, f"generated module exists: {module}", f"missing generated module: {module}")
+    for module in forbidden:
+        add_check(result, str(module) not in generated, f"forbidden module absent: {module}", f"forbidden generated module exists: {module}")
 
 
 def verify_expected_docs(repo: Path, manifest: dict[str, Any], result: dict[str, Any]) -> None:
@@ -411,6 +449,33 @@ def verify_validator_result(repo: Path, manifest: dict[str, Any], result: dict[s
             unexpected.append(issue)
     add_check(result, not unexpected, "pkf_validate structural checks passed", f"pkf_validate unexpected errors: {unexpected}")
     result["warnings"].extend(f"pkf_validate: {finding.file}: {finding.issue}" for finding in report.warnings)
+
+
+def collect_retrieval_details(repo: Path, result: dict[str, Any]) -> None:
+    for doc in result["required_docs"]:
+        path = repo / str(doc)
+        if path.name not in {"api.md", "schema.md", "business_rules.md", "ui.md"} or not path.is_file():
+            continue
+        meta = read_front_matter(path)
+        source_symbols = meta.get("source_symbols")
+        if not isinstance(source_symbols, dict):
+            continue
+        for source, symbols in source_symbols.items():
+            for symbol in listify(symbols):
+                result["source_targets"].append(f"{source}:{symbol}")
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if "rg -n -F --" in line or "sg --pattern" in line:
+                cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+                if cells:
+                    result["targeted_commands"].append(cells[-1])
+
+    result["source_targets"] = sorted(set(result["source_targets"]))
+    result["targeted_commands"] = sorted(set(result["targeted_commands"]))
+    stale = any("stale" in str(item).lower() or "deleted evidence" in str(item).lower() for item in result["errors"])
+    result["fallback_search"] = {
+        "required": stale,
+        "reason": "routed source evidence is stale or missing" if stale else "none",
+    }
 
 
 def verify_exports_static(repo: Path, manifest: dict[str, Any], result: dict[str, Any]) -> None:
@@ -519,7 +584,8 @@ def build_codex_prompt(manifest: dict[str, Any], skill_copy: Path, metadata_dir:
         "Execute only the workflow named in fixture.yaml for this fixture.\n"
         "Apply the Token Atlas skill instructions from the copied skill docs.\n"
         "Return a JSON object matching the provided output schema. Include selected modules, "
-        "required docs, forbidden automatic loads status, warnings, errors, token impact, exit "
+        "the complete generated module inventory, required docs, exact source targets, targeted commands, fallback-search status and reason, "
+        "forbidden automatic loads status, warnings, errors, token impact, exit "
         "behavior, and compact evidence. Expected benchmark defects should be reported as errors "
         "in the report rather than hidden.\n"
     )
@@ -553,6 +619,19 @@ def score_codex_report(manifest: dict[str, Any], report: dict[str, Any], result:
     for module in expected_modules:
         add_check(result, module in selected, f"Codex selected module: {module}", f"missing selected module: {module}")
 
+    generated = [str(item) for item in listify(report.get("generated_modules", []))]
+    result["generated_modules"] = generated
+    expected_generated = manifest.get("expected_generated_modules", manifest.get("source_shape", {}).get("modules", []))
+    forbidden_generated = manifest.get("forbidden_generated_modules", [])
+    if not isinstance(expected_generated, list):
+        raise ManifestError(f"{manifest['name']}: 'expected_generated_modules' must be a list")
+    if not isinstance(forbidden_generated, list):
+        raise ManifestError(f"{manifest['name']}: 'forbidden_generated_modules' must be a list")
+    for module in expected_generated:
+        add_check(result, str(module) in generated, f"Codex generated module: {module}", f"missing Codex generated module: {module}")
+    for module in forbidden_generated:
+        add_check(result, str(module) not in generated, f"Codex omitted forbidden module: {module}", f"Codex generated forbidden module: {module}")
+
     required_docs = listify(report.get("required_docs", []))
     result["required_docs"] = required_docs
     for doc in flatten_expected_docs(manifest.get("expected_required_docs", [])):
@@ -583,6 +662,9 @@ def score_codex_report(manifest: dict[str, Any], report: dict[str, Any], result:
         result["warnings"].extend(expected_warnings)
 
     result["forbidden_loads"] = report.get("forbidden_loads", [])
+    result["source_targets"] = listify(report.get("source_targets", []))
+    result["targeted_commands"] = listify(report.get("targeted_commands", []))
+    result["fallback_search"] = report.get("fallback_search", {"required": False, "reason": "none"})
     result["token_impact"] = report.get("token_impact", {})
     result["exit_behavior"] = report.get("exit_behavior", result.get("exit_behavior", {}))
     evidence = listify(report.get("evidence", []))
@@ -623,7 +705,11 @@ def empty_mode_result(mode: str) -> dict[str, Any]:
         "checks": {"passed": 0, "total": 0},
         "model": {},
         "selected_modules": [],
+        "generated_modules": [],
         "required_docs": [],
+        "source_targets": [],
+        "targeted_commands": [],
+        "fallback_search": {"required": False, "reason": "none"},
         "forbidden_loads": [],
         "warnings": [],
         "errors": [],
@@ -689,6 +775,13 @@ def aggregate_reports(fixtures: list[dict[str, Any]]) -> dict[str, Any]:
     passed = sum(1 for item in fixtures if item["overall_status"] == "passed")
     warning = sum(1 for item in fixtures if item["overall_status"] == "warning")
     failed = sum(1 for item in fixtures if item["overall_status"] == "failed")
+    mode_results = [
+        fixture[mode]
+        for fixture in fixtures
+        for mode in ("local", "codex")
+        if mode in fixture
+    ]
+    fallback_required = sum(1 for item in mode_results if item.get("fallback_search", {}).get("required"))
     return {
         "total": len(fixtures),
         "passed": passed,
@@ -699,6 +792,11 @@ def aggregate_reports(fixtures: list[dict[str, Any]]) -> dict[str, Any]:
         "checks": {
             "passed": sum(item["checks"]["passed"] for item in fixtures),
             "total": sum(item["checks"]["total"] for item in fixtures),
+        },
+        "fallback_search": {
+            "required": fallback_required,
+            "reported_routes": len(mode_results),
+            "rate": fallback_required / len(mode_results) if mode_results else 0.0,
         },
     }
 
@@ -738,8 +836,14 @@ def render_text_report(report: dict[str, Any]) -> str:
         )
         for mode in ("local", "codex"):
             if mode in fixture:
-                mode_checks = fixture[mode]["checks"]
-                lines.append(f"  {mode}: {fixture[mode]['status']} ({mode_checks['passed']}/{mode_checks['total']})")
+                mode_result = fixture[mode]
+                mode_checks = mode_result["checks"]
+                lines.append(f"  {mode}: {mode_result['status']} ({mode_checks['passed']}/{mode_checks['total']})")
+                lines.append(f"    selected_modules: {', '.join(mode_result.get('selected_modules', [])) or 'none'}")
+                lines.append(f"    generated_modules: {', '.join(mode_result.get('generated_modules', [])) or 'none'}")
+                lines.append(f"    source_targets: {', '.join(mode_result.get('source_targets', [])) or 'none'}")
+                fallback = mode_result.get("fallback_search", {})
+                lines.append(f"    fallback_search: {fallback.get('required', False)} ({fallback.get('reason', 'none')})")
         if fixture["errors"]:
             label = "Expected Errors" if fixture["overall_status"] == "passed" else "Errors"
             lines.append(f"  {label}:")
@@ -757,6 +861,7 @@ def render_text_report(report: dict[str, Any]) -> str:
             f"  warning: {aggregate['warning']}",
             f"  failed: {aggregate['failed']}",
             f"  score: {aggregate['checks']['passed']}/{aggregate['checks']['total']}",
+            f"  fallback_search: {aggregate['fallback_search']['required']}/{aggregate['fallback_search']['reported_routes']} ({aggregate['fallback_search']['rate']:.1%})",
         ]
     )
     if aggregate["failing_fixtures"]:

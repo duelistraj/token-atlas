@@ -50,8 +50,15 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - Never invent implementation details.
 - Never modify application code.
 - Generate or update only PKF/OKF knowledge unless the user explicitly asks for tooling changes.
-- Store each durable fact in one narrow authoritative document.
+- Store each durable fact in one narrow authoritative document. This governs where a fact is written, not how many docs a task reads: a cross-cutting change legitimately routes to several leaf docs, one slice each.
+- Derive flat module names from source-backed functional capabilities. Prefer capability boundaries over technical layers only when the repository proves at least two independently routable capabilities; never prescribe module names or create speculative modules.
+- During maintenance, automatically repartition coarse modules when capability ownership is unambiguous. Preserve the current structure and report ambiguity instead of guessing.
+- During `initialize`, embed the Retrieval Protocol into the generated `.ai/PKF.md`, and ensure a neutral bootstrap (a root `AGENTS.md`, or the repository's existing agent-instruction entry point) routes every task to `.ai/PKF.md`.
+- Keep all generated guidance vendor, agent, and model agnostic. Reference no specific assistant, tool, or model.
 - Keep `pkf.loads` minimal and put optional context in `pkf.related`.
+- Require every module leaf to expose machine-readable `source_symbols`; use a compact Edit Map to connect behaviors to symbols, tests, styles, and targeted locator commands.
+- Cache startup protocol and index acknowledgements for the session. Re-read them only when they changed, contradict source truth, or the task needs an uncached section.
+- Keep a normal task within one module index, one or two leaves, and the exact named symbols. Require an explicit reason for cross-cutting exceptions.
 - Do not load or generate `.ai/retrieval/` unless retrieval exports are enabled.
 - Report stale, unsupported, duplicate, or broad-loading knowledge as validation defects.
 
@@ -61,7 +68,9 @@ Every run should report:
 
 - Workflow references used.
 - Files read or changed.
+- Enforcement artifacts written during `initialize` (embedded Retrieval Protocol in `.ai/PKF.md`, neutral bootstrap).
 - Source evidence for durable facts.
 - Validation warnings or errors.
 - Token budget status when optimization or validation runs.
+- Targeted locator commands, retrieval-budget usage, and whether fallback search was required (with a reason when it was).
 - Follow-up workflows needed, if any.

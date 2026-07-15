@@ -1,0 +1,14 @@
+---
+type: schema
+title: Capability One Data
+description: Source-backed data structures.
+resource: .
+tags: [capability-one, schema]
+timestamp: 2026-07-12
+source_symbols: {}
+pkf:
+  loads: []
+  related: []
+---
+
+- TODO: No source-backed facts.

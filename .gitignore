@@ -43,6 +43,9 @@ pgdata/
 release.keystore
 customer-data/
 exports/
+!/.agents/skills/token-atlas/benchmarks/fixtures/exports/
+!/.agents/skills/token-atlas/benchmarks/fixtures/exports/repo/
+!/.agents/skills/token-atlas/benchmarks/fixtures/exports/repo/AGENTS.md
 invoices/
 
 # IDEs

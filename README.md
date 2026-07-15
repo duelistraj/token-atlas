@@ -20,7 +20,7 @@ Token Atlas is an AI context-optimization skill for coding agents. It extracts *
 
    > Use the **token-atlas** skill to initialize PKF and extract knowledge for this repo.
 
-3. The first run creates `.ai/` (runtime plus knowledge skeleton), extracts source-backed facts, optimizes routing, and validates. Re-run it later to keep knowledge in sync as code changes.
+3. The first run creates `.ai/` (runtime plus knowledge skeleton), embeds the Retrieval Protocol in `PKF.md`, adds a neutral bootstrap that points to it, extracts source-backed facts, optimizes routing, and validates. Re-run it later to keep knowledge in sync as code changes.
 
 ## Real-world examples
 
@@ -38,6 +38,11 @@ State options in plain language (`profile=…`, `retrieval_exports=…`, and so 
 
 A healthy run lets agents start from `.ai/PKF.md`, follow routing to only the modules a task needs, and stay within the startup and per-module token budgets.
 
+Leaves expose machine-readable `source_symbols` and compact Edit Maps, so a route
+ends at exact declarations, tests, styles, and targeted locator commands instead
+of merely naming a large source file. Startup guidance and indexes are cached for
+the session unless they change or contradict source truth.
+
 ## What it produces
 
 ```text
@@ -52,6 +57,13 @@ A healthy run lets agents start from `.ai/PKF.md`, follow routing to only the mo
 ```
 
 Load path: `PKF.md → MEMORY.md → ARCHITECTURE.md → knowledge/INDEX.md → knowledge/<module>/INDEX.md → required leaf docs`.
+
+Module names come from the target repository. Token Atlas prefers flat,
+independently changeable functional capabilities when source evidence supports
+more than one capability; it retains a structural boundary when the repository
+has a single capability or ownership is ambiguous. It never promotes
+placeholders or roadmap-only concepts into modules, and it does not prescribe a
+module vocabulary.
 
 ## Lifecycle and profiles
 
@@ -101,8 +113,9 @@ Token usage is measured with an exact tokenizer when available, otherwise estima
 
 | Signal | Threshold | Result |
 |--------|-----------|--------|
-| Startup path (`PKF.md` through the indexes) | above ~4,000 tokens | Warning |
-| Single module task | above ~8,000 tokens | Warning |
+| Startup path (`PKF.md` through the indexes) | above ~2,500 tokens | Warning locally; error in CI |
+| Single module leaf | above ~1,500 tokens | Warning locally; error in CI |
+| Normal task (one index, one or two leaves) | above ~4,000 tokens | Warning locally; error in CI |
 | Unrelated module loaded automatically | any occurrence | Error |
 
 Warnings are advisory locally and become blocking under `validation_strictness: ci`.
@@ -129,12 +142,20 @@ This repository maintains the skill itself and ships two surfaces:
 
 `scripts/pkf.ps1` is a thin workflow selector — it chooses documented workflows and options but does not implement extraction, validation, or export logic. `scripts/pkf_validate.py` runs deterministic structure, routing, and token checks with no model calls.
 
+This repository uses [uv](https://docs.astral.sh/uv/) for its development
+environment and lockfile:
+
+```bash
+uv sync --locked
+uv run python -m unittest tests.test_contract_consistency tests.test_two_tier_boundary tests.test_pkf_validate -v
+```
+
 ```powershell
 # Show available workflows
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 --help
 
 # Deterministic validation (no model calls)
-python scripts\pkf_validate.py --path .ai --strictness ci
+uv run python scripts\pkf_validate.py --path .ai --strictness ci
 ```
 
 Benchmarks are model-backed and can incur cost — run them only with explicit approval. See [tooling](skills/token-atlas/references/tooling.md) for the wrapper and workflow surface, and `.agents/skills/token-atlas/references/benchmark.md` for the internal benchmark harness.

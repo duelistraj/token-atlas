@@ -38,6 +38,7 @@ forbidden_loads:
 expected_warnings: []
 expected_errors: []
 token_thresholds:
-  module_task_warn_above: 8000
+  leaf_warn_above: 1500
+  normal_task_warn_above: 4000
 exit_behavior:
   ci: 0

@@ -6,7 +6,11 @@
     "fixture",
     "status",
     "selected_modules",
+    "generated_modules",
     "required_docs",
+    "source_targets",
+    "targeted_commands",
+    "fallback_search",
     "forbidden_loads",
     "warnings",
     "errors",
@@ -18,7 +22,19 @@
     "fixture": { "type": "string" },
     "status": { "type": "string", "enum": ["passed", "warning", "failed"] },
     "selected_modules": { "type": "array", "items": { "type": "string" } },
+    "generated_modules": { "type": "array", "items": { "type": "string" } },
     "required_docs": { "type": "array", "items": { "type": "string" } },
+    "source_targets": { "type": "array", "items": { "type": "string" } },
+    "targeted_commands": { "type": "array", "items": { "type": "string" } },
+    "fallback_search": {
+      "type": "object",
+      "required": ["required", "reason"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
     "forbidden_loads": {
       "type": "array",
       "items": { "type": "string" }

@@ -88,6 +88,12 @@ Typical mappings:
 
 Update only affected documents. For deleted or renamed files, update every canonical Markdown document that cites the removed or old path.
 
+When the maintenance report contains an unambiguous module repartition, create
+the new flat module skeletons before updating facts. Inventory every fact and
+manual note in the superseded module, then assign each item to exactly one
+capability and knowledge type. Retain the existing boundary if any ownership is
+ambiguous.
+
 ---
 
 ### 4. Extract Repository Knowledge
@@ -111,8 +117,20 @@ Never infer missing implementation.
 Every non-placeholder fact should include compact evidence:
 
 - Source path.
-- Symbol, route, command, config key, or test name when applicable.
+- Exact symbol, route, command, config key, or test name when applicable.
 - Status: `verified` or `TODO`.
+
+For every implementation-bearing leaf:
+
+- Populate `source_symbols` as a repository-relative path-to-symbol-list mapping.
+- Use `## Edit Map` as the primary retrieval index with columns `Behavior`,
+  `Source symbols`, `Tests`, `Styles/tokens`, and `Locator`.
+- Emit ast-grep locators only when `sg` is verified as ast-grep; otherwise emit
+  `rg -n -F -- '<symbol>' '<path>'`.
+- Keep current implementation facts, not chronological feature summaries. Put
+  durable policies in `business_rules.md` and still-relevant history in
+  `decision_log.md`.
+- Use `source_symbols: {}` and `- TODO: No source-backed facts.` for an empty leaf.
 
 Do not paste large code blocks. Summarize behavior and point to source.
 
@@ -136,6 +154,10 @@ Ensure metadata reflects the current repository.
 
 Keep `pkf.loads` limited to documents that are normally required for the specific document's task. Move optional paths to `pkf.related`.
 
+For a capability spanning multiple source paths, use the narrowest common
+existing path for `resource`. Fall back to repository root (`.`) when there is
+no narrower common path, and retain exact source paths and symbols in the body.
+
 ---
 
 ### 6. Refresh Routing
@@ -152,6 +174,10 @@ Ensure routing reflects:
 - Document removals
 - Updated loading paths
 - Keywords, file paths, commands, and task intents that should lead to the module
+
+Rewrite every affected `pkf.loads` and `pkf.related` edge. Remove a superseded
+module directory only after every durable fact and manual note has moved and no
+route or metadata reference targets it.
 
 ---
 
@@ -182,6 +208,7 @@ Update only when required:
 - Keep indexes concise and route-focused.
 - Treat `.ai/retrieval/` as generated output only; do not use it as extraction source truth.
 - Mark unverifiable documentation conflicts as validation warnings or errors.
+- Keep modules flat and derive their names from the target repository; reusable workflow text must not prescribe capability names.
 
 ---
 

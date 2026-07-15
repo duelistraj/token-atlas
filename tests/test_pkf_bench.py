@@ -1,6 +1,8 @@
 import importlib.util
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
@@ -35,6 +37,50 @@ class PkfBenchTests(unittest.TestCase):
         self.assertEqual(manifest["source_shape"]["pkf_runtime"], "missing")
         self.assertIn(".ai/PKF.md", manifest["expected_required_docs"]["generated"])
 
+    def test_expected_overlay_copies_root_bootstrap(self):
+        fixture_dir = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "fixtures" / "missing-runtime"
+        manifest = pkf_bench.parse_manifest(fixture_dir / "fixture.yaml")
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp) / "repo"
+            repo.mkdir()
+            result = pkf_bench.empty_mode_result("local")
+
+            pkf_bench.apply_expected_ai_overlay(fixture_dir, repo, manifest, result)
+
+            self.assertTrue((repo / ".ai" / "PKF.md").is_file())
+            self.assertIn(".ai/PKF.md", (repo / "AGENTS.md").read_text(encoding="utf-8"))
+
+    def test_shared_expected_overlay_replaces_coarse_runtime(self):
+        fixture_dir = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "fixtures" / "functional-boundaries-migration"
+        manifest = pkf_bench.parse_manifest(fixture_dir / "fixture.yaml")
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp) / "repo"
+            shutil.copytree(fixture_dir / "repo", repo)
+            result = pkf_bench.empty_mode_result("local")
+
+            pkf_bench.apply_expected_ai_overlay(fixture_dir, repo, manifest, result)
+            pkf_bench.verify_generated_modules(repo, manifest, result)
+
+            self.assertEqual(result["generated_modules"], ["capability-one", "capability-two"])
+            self.assertFalse((repo / ".ai" / "knowledge" / "system").exists())
+
+    def test_generated_module_contract_rejects_forbidden_inventory(self):
+        manifest = {
+            "name": "module-contract",
+            "source_shape": {"modules": ["capability-one"]},
+            "expected_generated_modules": ["capability-one"],
+            "forbidden_generated_modules": ["coarse-module"],
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            (repo / ".ai" / "knowledge" / "capability-one").mkdir(parents=True)
+            (repo / ".ai" / "knowledge" / "coarse-module").mkdir()
+            result = pkf_bench.empty_mode_result("local")
+
+            pkf_bench.verify_generated_modules(repo, manifest, result)
+
+            self.assertIn("forbidden generated module exists: coarse-module", result["errors"])
+
     def test_local_quick_suite_passes(self):
         args = Namespace(mode="local", keep_workspaces=False)
         manifests = pkf_bench.load_selected_manifests(pkf_bench.DEFAULT_FIXTURES, "quick")
@@ -44,6 +90,10 @@ class PkfBenchTests(unittest.TestCase):
         self.assertEqual(aggregate["total"], 2)
         self.assertEqual(aggregate["failed"], 0)
         self.assertGreater(aggregate["checks"]["passed"], 0)
+        self.assertEqual(aggregate["fallback_search"], {"required": 0, "reported_routes": 2, "rate": 0.0})
+        self.assertTrue(all(report["local"]["source_targets"] for report in reports))
+        self.assertTrue(all(report["local"]["targeted_commands"] for report in reports))
+        self.assertTrue(all(not report["local"]["fallback_search"]["required"] for report in reports))
 
     def test_codex_report_scoring_uses_expected_errors(self):
         manifest = pkf_bench.parse_manifest(
@@ -53,7 +103,11 @@ class PkfBenchTests(unittest.TestCase):
         codex_report = {
             "status": "failed",
             "selected_modules": ["backend"],
+            "generated_modules": ["backend"],
             "required_docs": pkf_bench.flatten_expected_docs(manifest["expected_required_docs"]),
+            "source_targets": ["src/backend/routes/legacyOrders.ts:getLegacyOrderRoute"],
+            "targeted_commands": ["rg -n -F -- 'getLegacyOrderRoute' 'src/backend/routes/legacyOrders.ts'"],
+            "fallback_search": {"required": True, "reason": "routed source evidence is stale"},
             "warnings": [],
             "errors": [
                 "Stale reference to deleted evidence path src/backend/routes/legacyOrders.ts.",

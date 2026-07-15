@@ -53,8 +53,8 @@ The runner must pass the resolved model and reasoning effort explicitly to `code
 | Suite | Purpose | Fixtures |
 |-------|---------|----------|
 | `quick` | Fast command and startup confidence. | `missing-runtime`, `simple-api` |
-| `core` | Main skill quality evals. | `missing-runtime`, `simple-api`, `schema-change`, `ui-change`, `deleted-evidence`, `broad-loads` |
-| `full` | Exhaustive evals including exports. | All core fixtures plus `exports` |
+| `core` | Main skill quality evals. | Startup, extraction, maintenance, routing, stale-evidence, broad-load, and functional-boundary fixtures. |
+| `full` | Exhaustive evals including exports. | All core fixtures plus `exports`. |
 
 Use `quick` for local smoke checks, `core` for normal development, and `full` before release or CI gating.
 
@@ -73,8 +73,10 @@ Score each fixture on these dimensions:
 | Validation | Front matter, broken references, duplicate facts, stale evidence, routing, and CI behavior are reported correctly. |
 | Simulation | Representative intents load only expected docs and no unrelated modules. |
 | Optimization | Automatic loads stay minimal, optional context stays in `pkf.related`, and token budgets are reported. |
+| Exact targeting | Required leaves resolve to exact source symbols, tests/styles when relevant, and targeted locator commands; fallback use is explicit. |
 | Exports | Retrieval exports are skipped when disabled and valid JSONL when enabled. |
 | Tooling | Wrapper commands remain thin workflow selectors and preserve documented exit codes. |
+| Module boundaries | Generated modules are flat, target-derived capabilities; coarse modules migrate only with unambiguous evidence and placeholders remain excluded. |
 
 Performance timing may be recorded, but it must not replace these correctness and retrieval-quality checks.
 
@@ -88,6 +90,7 @@ Each fixture directory must include a `README.md` with:
 - Source shape.
 - Benchmark flow.
 - Expected selected modules.
+- Expected and forbidden generated module inventories when module discovery or migration is under test.
 - Expected required docs.
 - Forbidden automatic loads.
 - Expected warnings.
@@ -96,6 +99,12 @@ Each fixture directory must include a `README.md` with:
 - Exit behavior.
 
 Fixtures may include source files, existing `.ai/` Markdown, and optional expected report snapshots. Generated outputs must be compared deterministically and must not become source truth.
+
+Module-boundary fixtures may add `expected_generated_modules` and
+`forbidden_generated_modules`. `selected_modules` remains the task-specific
+route, while `generated_modules` is the complete flat module inventory. A
+fixture may use `expected_ai_from` to share an expected-output overlay with a
+related synthetic fixture.
 
 ---
 
@@ -139,10 +148,14 @@ Status: <passed, warning, or failed>
 Score: <passed checks>/<total checks>
 Selected modules: <modules>
 Required docs: <docs>
+Generated modules: <complete inventory>
 Forbidden automatic loads: <passed or failed>
 Warnings: <expected and unexpected warnings>
 Errors: <expected and unexpected errors>
 Token impact: <threshold status>
+Source targets: <path:symbol entries>
+Targeted commands: <commands>
+Fallback search: <yes/no and reason>
 Exit behavior: <expected or unexpected>
 Evidence: <compact source and routing evidence>
 ```
@@ -166,6 +179,7 @@ Produce:
 - Token budget regressions.
 - Unexpected broad loads.
 - Unexpected stale or unsupported facts.
+- Fallback-search count and rate across reported fixture routes.
 
 ---
 
@@ -178,6 +192,7 @@ Treat these as failures:
 - Invented implementation facts.
 - Missing source evidence for durable facts.
 - Missing required OKF documents.
+- Missing expected modules, forbidden generated modules, or nested module layouts.
 - Broken `pkf.loads` or `pkf.related` references.
 - Unrelated modules loaded automatically.
 - Stale references to deleted or renamed evidence.

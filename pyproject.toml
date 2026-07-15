@@ -7,18 +7,11 @@ authors = [
 ]
 license = "MIT License"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = []
 
-
-[tool.poetry]
-package-mode = false
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[project.optional-dependencies]
-validate = ["pyyaml>=6.0.3,<7.0.0"]
-tokens = ["tiktoken>=0.7.0"]
-all = ["pyyaml>=6.0.3,<7.0.0", "tiktoken>=0.7.0"]
+[dependency-groups]
+dev = [
+    "pyyaml>=6.0.3,<7.0.0",
+    "tiktoken>=0.7.0",
+]

@@ -115,9 +115,15 @@ Use each layer for a different job:
 - Module `INDEX.md`: module-level routing by task and document.
 - Leaf OKF documents: concise source-backed facts for one knowledge type.
 
+Each module leaf must expose `source_symbols` as a repository-relative
+path-to-symbol-list mapping and use a compact Edit Map to connect behavior to
+symbols, tests, styles/tokens, and targeted locator commands.
+
 `pkf.loads` means "load automatically for this task." Keep it minimal.
 
 `pkf.related` means "useful if the task expands." Do not treat related documents as automatic context.
+
+During initialization, embed the Retrieval Protocol in `.ai/PKF.md` and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. The bootstrap routes every task through `.ai/PKF.md`; generated guidance must not name a specific vendor, agent, or model.
 
 ---
 
@@ -135,6 +141,16 @@ Change detection order:
 
 Deleted or renamed source evidence must invalidate affected facts. Retrieval exports are regenerated only when `retrieval_exports` is not `off`.
 
+### Module Boundary Maintenance
+
+Derive flat module names from the target repository's source-backed functional
+capabilities; never prescribe a module vocabulary. When an existing module
+contains at least two independently routable capabilities that satisfy the
+Module Boundary Contract in `references/initialize.md`, automatically
+repartition it during maintenance and extraction. Preserve the existing
+structure and report ambiguity when ownership is not provable. Never create a
+module from placeholder or roadmap-only evidence.
+
 ---
 ## Retrieval Simulator
 
@@ -148,7 +164,9 @@ Run the simulator:
 - During optimization to identify broad, ambiguous, or unrelated automatic loads.
 - On demand when a user asks what PKF would retrieve for a task.
 
-A simulation report must include selected module or modules, required OKF docs, optional related docs, estimated token cost, routing evidence, and warnings or errors.
+A simulation report must include selected modules, required docs, source targets,
+targeted commands, fallback-search status and reason, retrieval-budget usage,
+routing evidence, and warnings or errors.
 
 Treat unrelated modules loaded automatically through `pkf.loads` as blocking validation defects.
 
@@ -230,10 +248,13 @@ Estimate token cost for:
 
 Use an exact tokenizer when one is available locally for the target model. If no exact tokenizer is available, use a deterministic approximate estimator and label the report `approximate`; the default approximation is `ceil(character_count / 4)` for Markdown content after front matter is included.
 
-Default thresholds:
+Default budgets and thresholds:
 
-- Warn when startup context is above 4,000 estimated tokens.
-- Warn when any module task is above 8,000 estimated tokens.
+- Read startup protocol and indexes once per session; refresh only after changes,
+  contradictions, or a need for an uncached section.
+- Use one module index and one or two leaves for a normal task.
+- Gate startup above 2,500 tokens, any leaf above 1,500 tokens, and a normal task
+  route above 4,000 tokens. Warn locally and fail in CI.
 - Treat unrelated modules loaded automatically through `pkf.loads` as a blocking error.
 
 ---
@@ -263,7 +284,10 @@ Tooling must keep documented workflows authoritative. Scripts may validate argum
 - Preserve existing documentation whenever possible.
 - Never invent implementation details.
 - Never modify application code.
+- Store each durable fact in one narrow authoritative document. This governs where a fact is written, not how many documents a task reads: a cross-cutting change may route to several leaf documents, one slice each.
+- Keep capability modules flat and repository-derived; automatically migrate coarse boundaries only when evidence is unambiguous.
 - Prefer incremental maintenance and affected-document updates.
+- Migrate all legacy leaves in one pass when any leaf lacks the source-symbol/Edit Map contract.
 - Optimize for minimal AI context retrieval.
 - Keep routing deterministic and easy to validate.
 - Treat stale or unverified knowledge as a blocking issue when it could mislead an agent.
@@ -276,6 +300,7 @@ Execution succeeds only when:
 
 - Validation completes after every phase, with hard failure behavior only in `ci` strictness.
 - The PKF runtime is synchronized.
+- Initialization records the embedded Retrieval Protocol and neutral bootstrap it created or updated.
 - The OKF knowledge base reflects the repository.
 - Incremental maintenance identifies stale references and duplicate facts.
 - Optional retrieval exports are synchronized only when enabled.

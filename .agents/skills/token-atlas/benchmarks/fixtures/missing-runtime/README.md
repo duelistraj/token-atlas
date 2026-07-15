@@ -44,10 +44,9 @@ Verify startup recovery when `.ai/PKF.md` is absent.
 
 ## Token Thresholds
 
-- Startup path should be at or below the 4,000 token warning threshold, or report a warning.
+- Startup should stay at or below 2,500 tokens, each leaf at or below 1,500, and a normal task at or below 4,000.
 
 ## Exit Behavior
 
 - Advisory validation reports recovery without failing.
 - CI validation fails before recovery and passes after successful initialization.
-

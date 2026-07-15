@@ -34,6 +34,10 @@ Classify intent as one or more:
 
 Do not automatically load unrelated modules.
 
+For a normal task, select one module index and one or two leaves, then return the
+exact `source_symbols` and Edit Map locator commands. A cross-cutting task may use
+more slices only with an explicit budget exception.
+
 ## Required Docs By Task
 
 | Task type | Required OKF document |
@@ -59,6 +63,11 @@ Optional related docs: <docs not automatically loaded>
 Estimated tokens: <count>
 Estimator: <exact or approximate>
 Threshold status: <passed, warning, or error>
+Source targets: <path:symbol entries>
+Targeted commands: <sg when verified as ast-grep, otherwise exact rg commands>
+Fallback search: <yes or no>
+Fallback reason: <reason or none>
+Budget usage: <module indexes, leaves, tokens, and exception reason if any>
 Routing evidence:
 - <evidence>
 Warnings:
@@ -75,3 +84,11 @@ Report errors when:
 - Routing references missing documents.
 - The selected module cannot be reached from `knowledge/INDEX.md`.
 - `pkf.loads` automatically loads an unrelated module.
+- A task-specific route must load unrelated capability facts because the selected module mixes independently routable capabilities.
+- A leaf lacks valid source symbols or a targeted Edit Map.
+- A normal route exceeds one module index, two leaves, or 4,000 tokens without a
+  justified cross-cutting exception.
+
+Report an ambiguous module-boundary warning when the evidence suggests a split
+but does not satisfy the Module Boundary Contract. Simulation never invents or
+renames modules.

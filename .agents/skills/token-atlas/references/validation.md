@@ -64,6 +64,13 @@ ARCHITECTURE.md
 knowledge/INDEX.md
 ```
 
+Also verify that `PKF.md` contains `## Retrieval Protocol (MANDATORY)` and the
+complete protocol: the hard precondition and ordered route, the negative
+constraint against premature codebase-wide search, fallback and verification,
+and knowledge-base synchronization. Verify that a neutral root `AGENTS.md`, or
+an existing agent-instruction entry point, references `.ai/PKF.md` without
+naming a specific vendor, agent, or model.
+
 ---
 
 ### 2. OKF Structure
@@ -82,6 +89,9 @@ Every module must contain:
 - `schema.md`
 - `business_rules.md`
 - `ui.md`
+
+Module directories must be flat, directly under `.ai/knowledge/`. A nested
+module `INDEX.md` is a structural validation error.
 
 Verify shared documents:
 
@@ -120,6 +130,10 @@ Verify:
 - `pkf.loads` and `pkf.related` are lists.
 - `pkf.loads` and `pkf.related` entries resolve to existing documents.
 - `resource` paths resolve to existing repository paths or are marked `TODO`.
+- Every module leaf has a `source_symbols` path-to-symbol-list mapping; paths and
+  literal symbols resolve, and empty leaves use the standard marker.
+- Every implementation-bearing leaf has an Edit Map with behavior, symbols,
+  tests, styles/tokens, and locator columns.
 
 ---
 
@@ -158,6 +172,7 @@ Verify:
 - Shared documents contain only repository-wide knowledge.
 - Indexes route to knowledge instead of duplicating leaf document content.
 - Facts include enough source evidence to be rechecked.
+- Module names are derived from the target repository, placeholder-only concepts are not promoted, and coarse modules are reported when they mix independently routable capabilities satisfying the Module Boundary Contract.
 
 ---
 
@@ -213,6 +228,7 @@ Run required scenarios only in `ci`, `full`, `simulation: required`, or `simulat
 | Schema/model change | Root index -> module index -> `schema.md` |
 | Business logic change | Root index -> module index -> `business_rules.md` |
 | UI behavior change | Root index -> module index -> `ui.md` |
+| Cross-cutting change | Root index -> minimal set of module leaf docs via `pkf.related` |
 | Architecture understanding | Root index -> `ARCHITECTURE.md` and relevant module index |
 | Dependency/tooling update | Root index -> `dependencies.md` and affected module index |
 
@@ -232,7 +248,7 @@ Track:
 
 - Startup path: `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
 - Changed module paths in `summary` mode.
-- Each module index load, representative task load, and accidental broad `pkf.loads` chain in `full` mode.
+- Each leaf, representative one-index/two-leaf task load, and accidental broad `pkf.loads` chain in `full` mode.
 
 Estimator rules:
 
@@ -244,8 +260,9 @@ Default thresholds:
 
 | Check | Threshold | Severity |
 |------|-----------|----------|
-| Startup path | Above 4,000 estimated tokens | Warning |
-| Module task | Above 8,000 estimated tokens | Warning |
+| Startup path | Above 2,500 estimated tokens | Warning locally; error in CI |
+| Module leaf | Above 1,500 estimated tokens | Warning locally; error in CI |
+| Normal task route | Above 4,000 estimated tokens | Warning locally; error in CI |
 | Unrelated automatic module load | Any occurrence | Error |
 
 Validation must fail in `ci` strictness when unrelated modules are loaded automatically through `pkf.loads`. In advisory mode, report the same condition as a blocking error recommendation.
@@ -296,6 +313,7 @@ Check:
 - Facts with unresolved evidence are removed or marked `TODO`.
 - Duplicate authoritative facts are reported.
 - Retrieval exports are ignored when disabled and marked stale or regenerated when enabled.
+- Eligible coarse modules were automatically repartitioned without losing facts, while ambiguous candidates were retained and reported.
 
 Severity:
 
@@ -380,11 +398,11 @@ Include:
 
 - Startup path estimate for `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
 - Changed module path estimates in `summary` mode.
-- Each module index load, representative task estimate, and broad `pkf.loads` chain in `full` mode.
+- Each leaf, representative normal task estimate, and broad `pkf.loads` chain in `full` mode.
 - Threshold status for every tracked route.
 - Whether estimates are exact tokenizer counts or approximate counts.
 
-Use this section even when the estimate is approximate. Label approximations clearly. Include warnings above the 4,000-token startup threshold and 8,000-token module task threshold. Report unrelated automatic module loads as blocking errors.
+Use this section even when the estimate is approximate. Label approximations clearly. Apply the 2,500-token startup, 1,500-token leaf, and 4,000-token normal-task gates. Report unrelated automatic module loads as blocking errors.
 
 ---
 
@@ -420,4 +438,4 @@ Validation succeeds when:
 
 ## Deterministic Validator Non-Goals
 
-scripts/pkf_validate.py enforces the mechanical subset: required files, OKF front matter, path resolution, routing reachability, and token impact. Source-truth synchronization, invented-fact detection, and duplicate-authoritative-fact detection remain semantic validation responsibilities for this workflow.
+scripts/pkf_validate.py enforces the mechanical subset: required files, flat module layout, the Retrieval Protocol heading, the root bootstrap reference, OKF front matter, source-symbol presence and literal resolution, Edit Map shape, path resolution, routing reachability, and token impact. It cannot prove that a literal occurrence is the correct declaration or owner. Full source-truth synchronization, capability-boundary quality, protocol semantics, invented-fact detection, and duplicate-authoritative-fact detection remain semantic validation responsibilities for this workflow.

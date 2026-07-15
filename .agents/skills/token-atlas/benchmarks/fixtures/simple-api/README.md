@@ -44,9 +44,8 @@ Verify source-backed API extraction and route-change retrieval.
 
 ## Token Thresholds
 
-- Route-change task should be at or below the 8,000 token module-task warning threshold.
+- Each leaf should stay at or below 1,500 tokens and the normal task route at or below 4,000 tokens.
 
 ## Exit Behavior
 
 - Advisory and CI validation pass when source evidence and routing are complete.
-

@@ -31,6 +31,32 @@ Map changed paths through `ARCHITECTURE.md`, `knowledge/INDEX.md`, and module `I
 | Deleted or renamed file | every canonical doc citing the old path |
 | Tests | relevant module doc and validation notes |
 
+## Module Boundary Audit
+
+Audit the current module map against the Module Boundary Contract in
+`initialize.md`. When a module contains at least two independently routable,
+source-backed capabilities and ownership is unambiguous, include an automatic
+repartition in the maintenance impact:
+
+1. Inventory every durable fact, manual note, evidence path, and routing edge in
+   the coarse module.
+2. Map each item to a capability and knowledge type.
+3. List the new flat module skeletons, rewritten routes, and superseded module
+   directories.
+4. Defer deletion until extraction has moved every item and validation proves
+   all references resolve.
+
+If any fact has ambiguous ownership, retain the current module boundary and
+report the ambiguity. Do not infer modules from placeholders or names alone.
+
+## Leaf Contract Migration
+
+When any existing module leaf lacks `source_symbols` or a valid Edit Map, migrate
+all module leaves in the repository during the same maintenance/optimization
+cycle. This one-time whole-knowledge migration is an intentional exception to
+incremental extraction: verify every migrated symbol from source, standardize
+empty leaves, and validate before returning to incremental updates.
+
 ## Stale References
 
 For deleted or renamed evidence:
@@ -59,8 +85,12 @@ Stale references:
 - <reference or none>
 Duplicate facts:
 - <fact or none>
+Module boundary changes:
+- <automatic repartition, retained boundary, or none>
 Retrieval exports:
 - <disabled, affected records, or regenerate required>
+Leaf contract migration:
+- <complete, required, or not needed>
 Recommended workflows:
 - <extract, optimize, validate, export when enabled>
 Warnings:
@@ -75,3 +105,4 @@ Errors:
 - Treat retrieval exports as generated artifacts, never source truth.
 - Do not inspect or regenerate `.ai/retrieval/` when retrieval exports are off.
 - Report ambiguous ownership instead of guessing.
+- Automatically repartition a coarse module only when every moved fact has an unambiguous source-backed owner.

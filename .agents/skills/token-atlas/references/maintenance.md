@@ -88,6 +88,34 @@ For each stale reference:
 
 Stale references to removed files or symbols are validation defects. In `ci` strictness they are blocking errors.
 
+## Module Boundary Audit
+
+Audit the current module map against the Module Boundary Contract in
+`initialize.md`. A coarse module is eligible for automatic repartition only
+when it contains at least two independently routable capabilities and every new
+capability satisfies the contract's source-evidence threshold.
+
+For an eligible repartition:
+
+1. Inventory every durable fact, manual note, evidence path, and routing edge.
+2. Map each item to one capability and knowledge type.
+3. Record the new flat module skeletons, rewritten routes, and superseded module
+   directories in the maintenance impact.
+4. Defer deletion until extraction has moved every item and validation proves
+   all references resolve.
+
+If ownership is ambiguous, retain the current boundary and report the ambiguity.
+Do not derive module names from reusable examples, placeholders, roadmap items,
+or naming alone.
+
+## Leaf Contract Migration
+
+When any existing module leaf lacks `source_symbols` or a valid Edit Map, migrate
+all module leaves in the same maintenance/optimization cycle. This one-time full
+knowledge migration is an intentional exception to incremental extraction:
+verify every symbol, standardize empty leaves, and validate before returning to
+incremental updates.
+
 ---
 
 ## Duplicate Fact Handling
@@ -139,8 +167,12 @@ Stale references:
 - <reference or none>
 Duplicate facts:
 - <fact or none>
+Module boundary changes:
+- <automatic repartition, retained boundary, or none>
 Retrieval exports:
 - <disabled, affected records, or regenerated files>
+Leaf contract migration:
+- <complete, required, or not needed>
 Recommended workflows:
 - <extract, optimize, validate, export when enabled>
 Warnings:
@@ -161,6 +193,7 @@ Errors:
 - Do not use retrieval exports as source truth.
 - Treat removed-file and removed-symbol references as stale until proven current.
 - Keep report output deterministic and evidence-backed.
+- Automatically repartition only when every moved item has an unambiguous source-backed owner.
 
 ---
 
@@ -172,5 +205,6 @@ Maintenance succeeds when:
 - Affected modules and docs are identified or ambiguity is reported.
 - Deleted and renamed references are invalidated or marked for validation.
 - Duplicate authoritative facts are reported with severity.
+- Eligible coarse modules are repartitioned automatically; ambiguous candidates are retained and reported.
 - Optional retrieval exports are ignored when disabled and marked/regenerated when enabled.
 - Follow-up workflows are listed with the smallest affected context set.

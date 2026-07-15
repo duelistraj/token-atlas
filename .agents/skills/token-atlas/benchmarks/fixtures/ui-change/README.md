@@ -7,7 +7,8 @@ Verify UI behavior changes route to UI knowledge without pulling backend-only do
 ## Source Shape
 
 - One frontend module.
-- One UI component or screen source path.
+- One multi-symbol UI source file where only one declaration is relevant, plus a
+  test symbol and CSS token associated through the Edit Map.
 - The benchmark Git state includes a UI-related changed path.
 
 ## Benchmark Flow
@@ -27,6 +28,8 @@ Verify UI behavior changes route to UI knowledge without pulling backend-only do
 - Root knowledge index.
 - Frontend module `INDEX.md`.
 - Frontend module `ui.md`.
+- Exact target `src/frontend/CartSummary.tsx:renderCartSummary`, its test symbol,
+  CSS token, and a targeted locator command.
 
 ## Forbidden Automatic Loads
 
@@ -44,9 +47,8 @@ Verify UI behavior changes route to UI knowledge without pulling backend-only do
 
 ## Token Thresholds
 
-- UI-change task should be at or below the 8,000 token module-task warning threshold.
+- Each leaf should stay at or below 1,500 tokens and the normal task route at or below 4,000 tokens.
 
 ## Exit Behavior
 
 - Advisory and CI validation pass when routing and source evidence are complete.
-

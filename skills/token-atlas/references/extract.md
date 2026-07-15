@@ -35,7 +35,8 @@ Every durable fact must be:
 
 - Verified from source files, tests, configuration, or existing docs.
 - Stored in the narrowest authoritative document.
-- Traceable to a path, symbol, route, command, config key, or test.
+- Traceable to an exact source path and symbol, plus a route, command, config key,
+  or test where relevant.
 - Removed or marked `TODO` when no longer verifiable.
 
 Use compact evidence labels. Do not paste large source snippets.
@@ -43,11 +44,19 @@ Use compact evidence labels. Do not paste large source snippets.
 ## Procedure
 
 1. Identify affected modules and docs.
-2. Read only the smallest source set needed to verify facts.
-3. Update affected OKF documents.
-4. Refresh metadata for affected docs.
-5. Update root and module routing when modules, paths, keywords, or task routes changed.
-6. Run validation after extraction.
+2. Apply any unambiguous module repartition from the maintenance impact report: create new flat skeletons, then inventory and move facts by capability and knowledge type without duplication.
+3. Read only the smallest source set needed to verify facts. Capture declarations,
+   test symbols, and UI style selectors or tokens rather than file-only evidence.
+4. Update affected OKF documents. For every implementation-bearing leaf:
+   - Populate `source_symbols` as a path-to-symbol-list mapping.
+   - Use `## Edit Map` as the primary retrieval index with columns `Behavior`,
+     `Source symbols`, `Tests`, `Styles/tokens`, and `Locator`.
+   - Emit a targeted ast-grep locator only when `sg` is verified as ast-grep;
+     otherwise emit `rg -n -F -- '<symbol>' '<path>'`.
+5. Refresh metadata for affected docs. For a cross-path capability, use the narrowest common existing `resource` path, falling back to `.` while retaining exact evidence paths in the body.
+6. Update `ARCHITECTURE.md`, root and module routing, and every affected `pkf.loads` or `pkf.related` edge.
+7. Remove a superseded module directory only after every durable fact and manual note is accounted for and no reference targets it.
+8. Run validation after extraction.
 
 ## Rules
 
@@ -56,3 +65,9 @@ Use compact evidence labels. Do not paste large source snippets.
 - Preserve useful manual notes when they remain verifiable.
 - Do not use `.ai/retrieval/` as source input.
 - Prefer evidence-linked bullets and tables over prose.
+- Keep only current implementation facts in leaves. Put durable policies in
+  `business_rules.md`, keep only still-relevant decisions in `decision_log.md`,
+  and remove chronological feature summaries.
+- Use `source_symbols: {}` plus `- TODO: No source-backed facts.` for an empty
+  leaf; do not invent placeholder symbols.
+- Keep modules flat and derive their names from the target repository; never introduce a reusable prescribed vocabulary.

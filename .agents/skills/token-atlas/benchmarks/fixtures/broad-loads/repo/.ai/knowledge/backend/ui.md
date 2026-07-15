@@ -5,9 +5,10 @@ description: Backend UI facts for the broad-loads fixture.
 resource: .ai/knowledge/backend/ui.md
 tags: [broad-loads, backend, ui]
 timestamp: 2026-07-08
+source_symbols: {}
 pkf:
   loads: []
   related: []
 ---
 
-- TODO: Backend module has no UI surface.
+- TODO: No source-backed facts.

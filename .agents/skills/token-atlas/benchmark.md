@@ -73,6 +73,7 @@ Score each fixture on these dimensions:
 | Validation | Front matter, broken references, duplicate facts, stale evidence, routing, and CI behavior are reported correctly. |
 | Simulation | Representative intents load only expected docs and no unrelated modules. |
 | Optimization | Automatic loads stay minimal, optional context stays in `pkf.related`, and token budgets are reported. |
+| Exact targeting | Required leaves resolve to exact source symbols, tests/styles when relevant, and targeted locator commands; fallback use is explicit. |
 | Exports | Retrieval exports are skipped when disabled and valid JSONL when enabled. |
 | Tooling | Wrapper commands remain thin workflow selectors and preserve documented exit codes. |
 
@@ -143,6 +144,9 @@ Forbidden automatic loads: <passed or failed>
 Warnings: <expected and unexpected warnings>
 Errors: <expected and unexpected errors>
 Token impact: <threshold status>
+Source targets: <path:symbol entries>
+Targeted commands: <commands>
+Fallback search: <yes/no and reason>
 Exit behavior: <expected or unexpected>
 Evidence: <compact source and routing evidence>
 ```
@@ -166,6 +170,7 @@ Produce:
 - Token budget regressions.
 - Unexpected broad loads.
 - Unexpected stale or unsupported facts.
+- Fallback-search count and rate across reported fixture routes.
 
 ---
 

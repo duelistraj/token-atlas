@@ -76,11 +76,27 @@ Prefer this document shape:
 ```text
 Purpose
 When to load
-Source map
-Verified facts
+Edit Map
+Current verified facts or durable rules
 Open TODOs
 Related knowledge
 ```
+
+Associate each behavior with exact source symbols, tests, styles/tokens, and a
+targeted locator. Remove chronological feature summaries; retain history only
+when a still-relevant decision belongs in `decision_log.md`.
+
+### 3a. Optimize Module Boundaries
+
+Apply the Module Boundary Contract in `initialize.md`. Treat a module as a
+coarse boundary defect when its leaves mix at least two independently routable,
+source-backed capabilities. When ownership is unambiguous, automatically finish
+the maintenance/extraction repartition by tightening root routing, module
+indexes, and cross-capability `pkf.related` edges.
+
+Do not split because of size, a name, a placeholder, or a roadmap entry alone.
+Do not create nested modules. Preserve and report the current boundary when the
+evidence cannot assign every moved fact safely.
 
 ---
 
@@ -180,7 +196,7 @@ Track:
 
 - Startup path: `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
 - Changed module paths in `summary` mode.
-- Each module index load, representative task load, and broad `pkf.loads` chain in `full` mode.
+- Each leaf, representative one-index/two-leaf task load, and broad `pkf.loads` chain in `full` mode.
 
 For each reported entry include:
 
@@ -193,10 +209,12 @@ For each reported entry include:
 
 Use an exact tokenizer when available locally for the target model. Otherwise use the deterministic approximate estimator `ceil(character_count / 4)` and label the report as approximate.
 
-Default thresholds:
+Default budgets and thresholds:
 
-- Startup path above 4,000 estimated tokens: warning.
-- Module task above 8,000 estimated tokens: warning.
+- Normal retrieval: one module index and one or two leaves.
+- Startup path above 2,500 tokens: warning locally, error in CI.
+- Any leaf above 1,500 tokens: warning locally, error in CI.
+- Representative normal task route above 4,000 tokens: warning locally, error in CI.
 - Any unrelated module loaded automatically: blocking error.
 
 If a route exceeds a threshold, tighten indexes, split oversized documents, or move optional documents from `pkf.loads` to `pkf.related`.
@@ -217,6 +235,7 @@ If a route exceeds a threshold, tighten indexes, split oversized documents, or m
 - Treat excessive `pkf.loads` entries as optimization defects.
 - Generate summary token budget output by default; generate full token budget reports only in `ci`, `full`, or explicit `token_budget: full` mode.
 - Treat unrelated automatic module loads as blocking optimization defects.
+- Treat unresolved capability ownership as a reported ambiguity, not permission to guess.
 
 ---
 

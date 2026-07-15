@@ -14,9 +14,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install optional validation dependencies
-        run: python -m pip install PyYAML tiktoken
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install validation dependencies
+        run: uv sync --locked
       - name: Run non-benchmark unit tests
-        run: python -m unittest tests.test_contract_consistency tests.test_two_tier_boundary tests.test_pkf_validate -v
+        run: uv run python -m unittest tests.test_contract_consistency tests.test_two_tier_boundary tests.test_pkf_validate -v
       - name: Validate fixture PKF trees
-        run: python scripts/pkf_validate.py --path .agents/skills/token-atlas/benchmarks/fixtures/schema-change/repo/.ai --strictness ci
+        run: uv run python scripts/pkf_validate.py --path .agents/skills/token-atlas/benchmarks/fixtures/schema-change/repo/.ai --strictness ci

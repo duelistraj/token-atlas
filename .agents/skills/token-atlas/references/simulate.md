@@ -91,6 +91,10 @@ If multiple modules match, keep all plausible candidates but mark ambiguity.
 
 Do not load unrelated modules automatically.
 
+For a normal task, select one module index and one or two leaves, then return the
+exact `source_symbols` and Edit Map locator commands. Require an explicit budget
+exception for additional cross-cutting capability slices.
+
 ---
 
 ### 3. Select Required Documents
@@ -132,10 +136,12 @@ ceil(character_count / 4)
 
 Report estimator type and threshold status.
 
-Apply default thresholds:
+Apply default budgets and thresholds:
 
-- Startup path above 4,000 estimated tokens: warning.
-- Module task above 8,000 estimated tokens: warning.
+- One module index and one or two leaves for a normal task.
+- Startup path above 2,500 tokens: warning locally, error in CI.
+- Any leaf above 1,500 tokens: warning locally, error in CI.
+- Representative normal task route above 4,000 tokens: warning locally, error in CI.
 - Any unrelated module loaded automatically: error.
 
 ---
@@ -163,6 +169,7 @@ Warn when:
 - Required task type cannot be classified.
 - Optional related documents look broad or stale.
 - Token estimates cross warning thresholds.
+- Evidence suggests a capability split but does not satisfy the Module Boundary Contract.
 
 Error when:
 
@@ -170,8 +177,12 @@ Error when:
 - Required documents are missing.
 - Routing references a missing document.
 - The simulation cannot reach a selected module from `knowledge/INDEX.md`.
+- A task-specific route must load unrelated capability facts because one module mixes independently routable capabilities.
+- A leaf lacks valid source symbols or a targeted Edit Map.
+- A normal route exceeds the retrieval budget without a justified cross-cutting exception.
 
 Treat errors as validation defects.
+Simulation never invents or renames modules.
 
 ---
 
@@ -206,6 +217,11 @@ Optional related docs: <docs not automatically loaded>
 Estimated tokens: <count>
 Estimator: <exact or approximate>
 Threshold status: <passed, warning, or error>
+Source targets: <path:symbol entries>
+Targeted commands: <sg when verified as ast-grep, otherwise exact rg commands>
+Fallback search: <yes or no>
+Fallback reason: <reason or none>
+Budget usage: <module indexes, leaves, tokens, and exception reason if any>
 Routing evidence:
 - <evidence item>
 Warnings:

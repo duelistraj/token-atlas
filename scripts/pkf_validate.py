@@ -15,19 +15,28 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from pkf_contract import (  # noqa: E402
+    EDIT_MAP_COLUMNS,
+    EDIT_MAP_HEADING,
+    EMPTY_LEAF_MARKER,
     EXIT_CODES,
+    LEAF_MODULE_DOCS,
+    LEAF_SOURCE_SYMBOLS_FIELD,
     REQUIRED_FRONT_MATTER,
     REQUIRED_MODULE_DOCS,
     REQUIRED_RUNTIME_DOCS,
+    RETRIEVAL_BUDGET,
     SHARED_DOCS,
     TOKEN_THRESHOLDS,
     VALIDATION_STRICTNESS,
 )
-from pkf_lib import PkfParseError, listify, read_front_matter, rel  # noqa: E402
+from pkf_lib import PkfParseError, listify, markdown_body, read_front_matter, rel  # noqa: E402
 from pkf_tokens import count_tokens  # noqa: E402
 
 
 ALLOWED_FORMATS = ("text", "json")
+RETRIEVAL_PROTOCOL_HEADING = "## Retrieval Protocol (MANDATORY)"
+BOOTSTRAP_FILE = "AGENTS.md"
+BOOTSTRAP_REFERENCE = ".ai/PKF.md"
 
 
 @dataclass
@@ -119,9 +128,13 @@ def validate_pkf(path: Path, strictness: str = "advisory", model: str = "gpt-5.5
         return report
 
     check_required_docs(ai_dir, repo_root, report)
+    check_retrieval_protocol(ai_dir, repo_root, report)
+    check_neutral_bootstrap(repo_root, report)
+    check_flat_module_layout(ai_dir, repo_root, report)
     modules = discover_modules(ai_dir)
     check_module_docs(ai_dir, repo_root, modules, report)
     front_matter = check_front_matter(ai_dir, repo_root, report)
+    check_leaf_contracts(ai_dir, repo_root, modules, front_matter, report)
     check_references(repo_root, front_matter, report)
     check_reachability(ai_dir, repo_root, modules, front_matter, report)
     check_unrelated_loads(repo_root, front_matter, report)
@@ -146,11 +159,52 @@ def check_required_docs(ai_dir: Path, repo_root: Path, report: ValidationReport)
         check_file(ai_dir / "knowledge" / doc, repo_root, report, f"shared doc exists: .ai/knowledge/{doc}")
 
 
+def check_retrieval_protocol(ai_dir: Path, repo_root: Path, report: ValidationReport) -> None:
+    pkf = ai_dir / "PKF.md"
+    if not pkf.is_file():
+        return
+    if any(line.strip() == RETRIEVAL_PROTOCOL_HEADING for line in pkf.read_text(encoding="utf-8").splitlines()):
+        passed(report, "PKF.md embeds the Retrieval Protocol heading")
+    else:
+        error(report, rel(pkf, repo_root), f"missing required heading: {RETRIEVAL_PROTOCOL_HEADING}")
+
+
+def check_neutral_bootstrap(repo_root: Path, report: ValidationReport) -> None:
+    bootstrap = repo_root / BOOTSTRAP_FILE
+    if not bootstrap.is_file():
+        error(report, BOOTSTRAP_FILE, f"missing root bootstrap referencing {BOOTSTRAP_REFERENCE}")
+        return
+    if BOOTSTRAP_REFERENCE in bootstrap.read_text(encoding="utf-8"):
+        passed(report, f"root bootstrap references {BOOTSTRAP_REFERENCE}")
+    else:
+        error(report, BOOTSTRAP_FILE, f"missing reference to {BOOTSTRAP_REFERENCE}")
+
+
 def discover_modules(ai_dir: Path) -> list[str]:
     knowledge = ai_dir / "knowledge"
     if not knowledge.is_dir():
         return []
     return sorted(item.name for item in knowledge.iterdir() if item.is_dir() and item.name != "retrieval")
+
+
+def check_flat_module_layout(ai_dir: Path, repo_root: Path, report: ValidationReport) -> None:
+    knowledge = ai_dir / "knowledge"
+    if not knowledge.is_dir():
+        return
+    nested_indexes = [
+        path
+        for path in sorted(knowledge.rglob("INDEX.md"))
+        if len(path.relative_to(knowledge).parts) > 2
+    ]
+    if not nested_indexes:
+        passed(report, "module indexes use a flat knowledge layout")
+        return
+    for path in nested_indexes:
+        error(
+            report,
+            rel(path, repo_root),
+            "nested module index is unsupported; use a flat module directory directly under .ai/knowledge",
+        )
 
 
 def check_module_docs(ai_dir: Path, repo_root: Path, modules: list[str], report: ValidationReport) -> None:
@@ -188,6 +242,103 @@ def check_front_matter(ai_dir: Path, repo_root: Path, report: ValidationReport) 
             else:
                 passed(report, f"pkf.{key} list: {display}")
     return metadata
+
+
+def check_leaf_contracts(
+    ai_dir: Path,
+    repo_root: Path,
+    modules: list[str],
+    metadata: dict[Path, dict[str, Any]],
+    report: ValidationReport,
+) -> None:
+    for module in modules:
+        for doc in LEAF_MODULE_DOCS:
+            leaf = ai_dir / "knowledge" / module / doc
+            if not leaf.is_file():
+                continue
+            display = rel(leaf, repo_root)
+            meta = metadata.get(leaf, {})
+            if LEAF_SOURCE_SYMBOLS_FIELD not in meta:
+                error(report, display, f"missing leaf front matter field: {LEAF_SOURCE_SYMBOLS_FIELD}")
+                continue
+            source_symbols = meta.get(LEAF_SOURCE_SYMBOLS_FIELD)
+            if not isinstance(source_symbols, dict):
+                error(report, display, f"{LEAF_SOURCE_SYMBOLS_FIELD} must be a mapping of source paths to symbol lists")
+                continue
+            if not source_symbols:
+                if EMPTY_LEAF_MARKER in markdown_body(leaf):
+                    passed(report, f"standard empty leaf: {display}")
+                else:
+                    error(report, display, f"empty {LEAF_SOURCE_SYMBOLS_FIELD} requires marker: {EMPTY_LEAF_MARKER}")
+                continue
+
+            validate_source_symbols(leaf, repo_root, source_symbols, report)
+            validate_edit_map(leaf, repo_root, report)
+
+
+def validate_source_symbols(
+    leaf: Path,
+    repo_root: Path,
+    source_symbols: dict[Any, Any],
+    report: ValidationReport,
+) -> None:
+    display = rel(leaf, repo_root)
+    for raw_path, raw_symbols in source_symbols.items():
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            error(report, display, "source_symbols contains an empty or non-string path")
+            continue
+        source_ref = raw_path.strip()
+        source_token = Path(source_ref)
+        if source_token.is_absolute() or ".." in source_token.parts:
+            error(report, display, f"source_symbols path must be repository-relative without '..': {source_ref}")
+            continue
+        source = repo_root / source_ref
+        try:
+            resolved = source.resolve()
+            resolved.relative_to(repo_root.resolve())
+        except (OSError, ValueError):
+            error(report, display, f"source_symbols path escapes repository: {source_ref}")
+            continue
+        if not source.is_file():
+            error(
+                report,
+                display,
+                f"stale reference to deleted evidence; source_symbols path does not resolve: {source_ref}",
+            )
+            continue
+        if not isinstance(raw_symbols, list) or not raw_symbols:
+            error(report, display, f"source_symbols entry must be a non-empty list: {source_ref}")
+            continue
+        source_text = source.read_text(encoding="utf-8", errors="replace")
+        for raw_symbol in raw_symbols:
+            if not isinstance(raw_symbol, str) or not raw_symbol.strip():
+                error(report, display, f"source_symbols contains an empty or non-string symbol: {source_ref}")
+                continue
+            symbol = raw_symbol.strip()
+            if symbol not in source_text:
+                error(report, display, f"source symbol does not resolve: {source_ref}:{symbol}")
+            else:
+                passed(report, f"source symbol resolves: {source_ref}:{symbol}")
+
+
+def validate_edit_map(leaf: Path, repo_root: Path, report: ValidationReport) -> None:
+    display = rel(leaf, repo_root)
+    body = markdown_body(leaf)
+    lines = body.splitlines()
+    heading_index = next((index for index, line in enumerate(lines) if line.strip() == EDIT_MAP_HEADING), None)
+    if heading_index is None:
+        error(report, display, f"missing required heading: {EDIT_MAP_HEADING}")
+        return
+    header = next((line for line in lines[heading_index + 1 :] if line.lstrip().startswith("|")), "")
+    missing = [column for column in EDIT_MAP_COLUMNS if column.lower() not in header.lower()]
+    if missing:
+        error(report, display, f"Edit Map header missing columns: {', '.join(missing)}")
+        return
+    passed(report, f"Edit Map columns: {display}")
+    if not any("rg -n -F --" in line or "sg --pattern" in line for line in lines[heading_index + 1 :]):
+        error(report, display, "Edit Map has no targeted rg or ast-grep locator command")
+    else:
+        passed(report, f"Edit Map locator: {display}")
 
 
 def check_references(repo_root: Path, metadata: dict[Path, dict[str, Any]], report: ValidationReport) -> None:
@@ -253,6 +404,18 @@ def check_unrelated_loads(repo_root: Path, metadata: dict[Path, dict[str, Any]],
             target_module = module_for_token(str(target))
             if target_module is not None and target_module != source_module:
                 error(report, rel(md, repo_root), f"unrelated module loaded automatically through pkf.loads: {target}")
+        if md.name == "INDEX.md":
+            leaf_loads = [
+                str(target)
+                for target in listify(pkf.get("loads"))
+                if module_for_token(str(target)) == source_module and Path(str(target)).name in LEAF_MODULE_DOCS
+            ]
+            if len(leaf_loads) > RETRIEVAL_BUDGET["leaf_docs"]:
+                error(
+                    report,
+                    rel(md, repo_root),
+                    f"normal retrieval budget exceeded: {len(leaf_loads)} automatic leaves; maximum is {RETRIEVAL_BUDGET['leaf_docs']}",
+                )
 
 
 def add_token_impact(report: ValidationReport, ai_dir: Path, model: str) -> None:
@@ -261,6 +424,16 @@ def add_token_impact(report: ValidationReport, ai_dir: Path, model: str) -> None
 
     for module in discover_modules(ai_dir):
         module_index = ai_dir / "knowledge" / module / "INDEX.md"
+        leaves = [ai_dir / "knowledge" / module / doc for doc in LEAF_MODULE_DOCS]
+        for leaf in leaves:
+            add_route_tokens(
+                report,
+                f"leaf:{module}/{leaf.name}",
+                [leaf],
+                TOKEN_THRESHOLDS["leaf"],
+                model,
+            )
+
         route_files = [module_index]
         if module_index.is_file():
             try:
@@ -271,17 +444,38 @@ def add_token_impact(report: ValidationReport, ai_dir: Path, model: str) -> None
             if isinstance(pkf, dict):
                 for target in listify(pkf.get("loads")):
                     route_files.append(ai_dir.parent / str(target))
-        add_route_tokens(report, f"module:{module}", route_files, TOKEN_THRESHOLDS["module"], model)
+        largest_leaves = sorted(
+            (leaf for leaf in leaves if leaf.is_file()),
+            key=lambda path: path.stat().st_size,
+            reverse=True,
+        )[:2]
+        route_files.extend(largest_leaves)
+        add_route_tokens(report, f"task:{module}", deduplicate_paths(route_files), TOKEN_THRESHOLDS["task"], model)
 
 
 def add_route_tokens(report: ValidationReport, route: str, files: list[Path], threshold: int, model: str) -> None:
     existing = [path for path in files if path.is_file()]
     text = "\n".join(path.read_text(encoding="utf-8") for path in existing)
     tokens, estimator = count_tokens(text, model)
-    status = "warning" if tokens > threshold else "passed"
+    status = "error" if tokens > threshold and report.strictness == "ci" else "warning" if tokens > threshold else "passed"
     report.token_impact.append(TokenEntry(route=route, tokens=tokens, estimator=estimator, threshold=threshold, status=status))
-    if status == "warning":
-        warn(report, route, f"token count {tokens} exceeds threshold {threshold}")
+    if status in {"warning", "error"}:
+        message = f"token count {tokens} exceeds threshold {threshold}"
+        if status == "error":
+            error(report, route, message)
+        else:
+            warn(report, route, message)
+
+
+def deduplicate_paths(paths: list[Path]) -> list[Path]:
+    seen: set[Path] = set()
+    result: list[Path] = []
+    for path in paths:
+        normalized = path.resolve()
+        if normalized not in seen:
+            seen.add(normalized)
+            result.append(path)
+    return result
 
 
 def module_for_path(path: Path, repo_root: Path) -> str | None:

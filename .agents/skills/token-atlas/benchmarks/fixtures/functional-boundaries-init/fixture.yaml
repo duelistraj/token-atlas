@@ -1,0 +1,33 @@
+name: functional-boundaries-init
+suites: [core, full]
+goal: Verify generic functional module discovery during initialization.
+repo_root: repo
+language: typescript
+workflow: [initialize, extract, simulate, validation]
+intent: Change capability-one workflow behavior
+source_shape:
+  pkf_runtime: missing
+  modules: [capability-one, capability-two]
+  source_roots: [src/layer-one, src/layer-two]
+changed_paths: []
+deleted_paths: []
+expected_modules: [capability-one]
+expected_generated_modules: [capability-one, capability-two]
+forbidden_generated_modules: [layer-one, layer-two, future-capability]
+expected_required_docs:
+  - .ai/PKF.md
+  - .ai/MEMORY.md
+  - .ai/ARCHITECTURE.md
+  - .ai/knowledge/INDEX.md
+  - .ai/knowledge/capability-one/INDEX.md
+  - .ai/knowledge/capability-one/business_rules.md
+forbidden_loads: [.ai/knowledge/capability-two/, .ai/retrieval/]
+expected_warnings: []
+expected_errors: []
+token_thresholds:
+  startup_path_warn_above: 2500
+  leaf_warn_above: 1500
+  normal_task_warn_above: 4000
+exit_behavior:
+  advisory: 0
+  ci: 0

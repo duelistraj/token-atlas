@@ -19,3 +19,5 @@ Each fixture contains:
 | `deleted-evidence` | Stale source evidence detection. |
 | `broad-loads` | Detection of unrelated automatic loads. |
 | `exports` | Retrieval export mode and JSONL validation. |
+| `functional-boundaries-init` | Generic flat capability discovery without technical-layer or placeholder modules. |
+| `functional-boundaries-migration` | Automatic migration from an unambiguously coarse module. |
