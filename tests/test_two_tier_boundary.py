@@ -15,6 +15,7 @@ class TwoTierBoundaryTests(unittest.TestCase):
             "references/export.md",
             "references/extract.md",
             "references/initialize.md",
+            "references/closeout.md",
             "references/maintenance.md",
             "references/optimize.md",
             "references/simulate.md",
@@ -38,7 +39,7 @@ class TwoTierBoundaryTests(unittest.TestCase):
         self.assertIn("references/benchmark.md", files)
         self.assertTrue(any(path.startswith("benchmarks/fixtures/") for path in files))
         self.assertIn("agents/openai.yaml", files)
-        self.assertIn("allow_implicit_invocation: false", (internal / "agents" / "openai.yaml").read_text(encoding="utf-8"))
+        self.assertIn("allow_implicit_invocation: true", (internal / "agents" / "openai.yaml").read_text(encoding="utf-8"))
 
         front_matter = (internal / "SKILL.md").read_text(encoding="utf-8").split("---", 2)[1]
         self.assertIn("name: token-atlas", front_matter)

@@ -31,6 +31,10 @@ Update only through the documented workflows:
 
 Do not directly edit application code.
 
+For routine automatic end-of-turn work, use `closeout.md` first. Continue with
+this full workflow only when that gate identifies an exceptional maintenance
+case.
+
 ---
 
 ## Change Detection
@@ -51,6 +55,16 @@ Detect:
 - Changed symbols, routes, schemas, commands, config keys, and tests when detectable from changed files.
 
 When both staged and unstaged changes exist, report both sets and prefer staged changes for CI-oriented maintenance.
+
+During adaptive closeout, compare against the session's last acknowledged
+change set and inspect only new changes. Do not persist that acknowledgement in
+the repository.
+
+## Runtime Migration
+
+When an existing `.ai/PKF.md` lacks `pkf.closeout`, add
+`pkf.closeout: adaptive`, embed the Closeout Protocol, and augment the neutral
+bootstrap in the same maintenance cycle. Preserve an explicit `off` value.
 
 ---
 
@@ -173,6 +187,8 @@ Retrieval exports:
 - <disabled, affected records, or regenerated files>
 Leaf contract migration:
 - <complete, required, or not needed>
+Closeout migration:
+- <complete, required, disabled, or not needed>
 Recommended workflows:
 - <extract, optimize, validate, export when enabled>
 Warnings:
@@ -194,6 +210,7 @@ Errors:
 - Treat removed-file and removed-symbol references as stale until proven current.
 - Keep report output deterministic and evidence-backed.
 - Automatically repartition only when every moved item has an unambiguous source-backed owner.
+- Never recursively run adaptive closeout because maintenance changed `.ai/`.
 
 ---
 

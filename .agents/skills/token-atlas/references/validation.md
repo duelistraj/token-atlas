@@ -67,9 +67,11 @@ knowledge/INDEX.md
 Also verify that `PKF.md` contains `## Retrieval Protocol (MANDATORY)` and the
 complete protocol: the hard precondition and ordered route, the negative
 constraint against premature codebase-wide search, fallback and verification,
-and knowledge-base synchronization. Verify that a neutral root `AGENTS.md`, or
-an existing agent-instruction entry point, references `.ai/PKF.md` without
-naming a specific vendor, agent, or model.
+and knowledge-base synchronization. Verify that `pkf.closeout` is `adaptive` or
+`off`, `PKF.md` contains `## Closeout Protocol (MANDATORY)` with adaptive gating
+and recursion prevention, and a neutral root `AGENTS.md`, or an existing
+agent-instruction entry point, references retrieval and closeout in `.ai/PKF.md`
+without naming a specific vendor, agent, or model.
 
 ---
 
@@ -438,4 +440,4 @@ Validation succeeds when:
 
 ## Deterministic Validator Non-Goals
 
-scripts/pkf_validate.py enforces the mechanical subset: required files, flat module layout, the Retrieval Protocol heading, the root bootstrap reference, OKF front matter, source-symbol presence and literal resolution, Edit Map shape, path resolution, routing reachability, and token impact. It cannot prove that a literal occurrence is the correct declaration or owner. Full source-truth synchronization, capability-boundary quality, protocol semantics, invented-fact detection, and duplicate-authoritative-fact detection remain semantic validation responsibilities for this workflow.
+scripts/pkf_validate.py enforces the mechanical subset: required files, flat module layout, both mandatory protocol headings, a valid closeout mode, both root bootstrap references, OKF front matter, source-symbol presence and literal resolution, Edit Map shape, path resolution, routing reachability, and token impact. It cannot prove that a literal occurrence is the correct declaration or owner. Full source-truth synchronization, capability-boundary quality, protocol semantics, invented-fact detection, and duplicate-authoritative-fact detection remain semantic validation responsibilities for this workflow.

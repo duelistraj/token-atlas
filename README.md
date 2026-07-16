@@ -3,7 +3,8 @@
 Token Atlas is an AI context-optimization skill for coding agents. It extracts **verified** repository knowledge into a compact `.ai/` knowledge base, so agents load the *smallest* reliable context for each task instead of the whole repo.
 
 - Repository source is truth; `.ai/` Markdown is canonical AI knowledge; retrieval exports are derived.
-- Runs on demand or incrementally — no daemons, watchers, or global hooks.
+- Initializes on demand, then maintains incrementally through an adaptive
+  end-of-turn protocol — no daemons, watchers, or global hooks.
 - Portable: copy one folder into any repo and invoke it by name.
 
 ## Quick start (for end users)
@@ -16,11 +17,15 @@ Token Atlas is an AI context-optimization skill for coding agents. It extracts *
 
    Copy only `skills/token-atlas/` (`SKILL.md`, `references/`, `agents/`). You do not need `scripts/`, `tests/`, or the benchmark fixtures.
 
-2. Ask your agent for the skill by name — it does not auto-activate:
+2. Ask your agent for the skill by name for the initial setup:
 
    > Use the **token-atlas** skill to initialize PKF and extract knowledge for this repo.
 
-3. The first run creates `.ai/` (runtime plus knowledge skeleton), embeds the Retrieval Protocol in `PKF.md`, adds a neutral bootstrap that points to it, extracts source-backed facts, optimizes routing, and validates. Re-run it later to keep knowledge in sync as code changes.
+3. The first run creates `.ai/` (runtime plus knowledge skeleton), embeds the
+   Retrieval and Closeout Protocols in `PKF.md`, adds a neutral bootstrap,
+   extracts source-backed facts, optimizes routing, and validates. Subsequent
+   turns run an adaptive closeout automatically: unchanged turns are no-ops,
+   while relevant code changes update only affected knowledge.
 
 ## Real-world examples
 
@@ -42,6 +47,11 @@ Leaves expose machine-readable `source_symbols` and compact Edit Maps, so a rout
 ends at exact declarations, tests, styles, and targeted locator commands instead
 of merely naming a large source file. Startup guidance and indexes are cached for
 the session unless they change or contradict source truth.
+
+Initialization sets `pkf.closeout: adaptive`. Set it to
+`pkf.closeout: "off"` in `.ai/PKF.md` to opt out. Hosts that support implicit
+skill invocation may load Token Atlas automatically; other hosts execute the
+embedded, vendor-neutral protocol from the repository instructions.
 
 ## What it produces
 
@@ -67,14 +77,19 @@ module vocabulary.
 
 ## Lifecycle and profiles
 
-A run initializes on first use or maintains on later runs, then extracts, optimizes, and validates. Simulation and exports are optional.
+A run initializes on first use. Later user turns pass through a lightweight
+closeout gate; only relevant changes continue into incremental extraction,
+affected-route optimization, and advisory validation. Simulation and exports
+remain optional.
 
 ```mermaid
 flowchart LR
     Start([Start]) --> Exists{".ai/ exists?"}
     Exists -- no --> Initialize
-    Exists -- yes --> Maintain
+    Exists -- yes --> Closeout{Changed?}
     Initialize --> Extract
+    Closeout -- no --> Done
+    Closeout -- yes --> Maintain
     Maintain --> Extract
     Extract --> Optimize --> Validate --> Done([In sync])
     Validate -. optional .-> Simulate
@@ -84,6 +99,7 @@ flowchart LR
 | Phase | Purpose |
 |-------|---------|
 | Initialize | Create the `.ai/` runtime and OKF skeleton (first run). |
+| Closeout | Gate every turn and no-op when the acknowledged change set is unchanged. |
 | Maintain | Map changed, renamed, and deleted files to affected docs. |
 | Extract | Add only source-backed facts to the narrowest document. |
 | Optimize | Tighten routing, remove duplication, and shrink automatic loads. |

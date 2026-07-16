@@ -6,6 +6,9 @@ Reduce context cost, remove duplicate knowledge, and make PKF routing determinis
 
 Do not extract new facts in this workflow.
 
+During adaptive closeout, optimize only affected routes that exceeded a budget,
+duplicated a fact, loaded unrelated context, or required fallback search.
+
 ## Optimize Indexes
 
 Root `knowledge/INDEX.md` should:

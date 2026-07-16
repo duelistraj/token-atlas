@@ -1,6 +1,6 @@
 ---
 name: token-atlas
-description: Generate and maintain this repository's PKF runtime and OKF-compatible knowledge base on demand or incrementally. Use when Codex needs to initialize, extract, validate, or optimize `.ai/` knowledge files for the token-atlas repository while preserving source-code truth and avoiding application-code changes.
+description: Develop and validate Token Atlas PKF/OKF workflows and fixtures, including automatic adaptive end-of-turn closeout behavior. Use when maintaining the token-atlas skill's public/internal packages, initialization protocols, validators, fixtures, or local benchmarks; never run Token Atlas against its own maintenance repository.
 ---
 
 # Token Atlas
@@ -81,7 +81,8 @@ If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
 Otherwise:
 
-- Execute `references/maintenance.md` to detect changed paths, stale references, duplicate facts, and affected docs
+- For an automatic end-of-turn request, execute `references/closeout.md` first and stop on a no-op
+- Execute `references/maintenance.md` to detect changed paths, stale references, duplicate facts, and affected docs when closeout identifies an exceptional case
 - Execute `references/extract.md` using **Incremental Extraction**
 - Validate
 - Execute `references/optimize.md`
@@ -123,7 +124,7 @@ symbols, tests, styles/tokens, and targeted locator commands.
 
 `pkf.related` means "useful if the task expands." Do not treat related documents as automatic context.
 
-During initialization, embed the Retrieval Protocol in `.ai/PKF.md` and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. The bootstrap routes every task through `.ai/PKF.md`; generated guidance must not name a specific vendor, agent, or model.
+During initialization, set `pkf.closeout: adaptive`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. The bootstrap routes and closes out every task through `.ai/PKF.md`; generated guidance must not name a specific vendor, agent, or model.
 
 ---
 
@@ -267,6 +268,7 @@ Commands are thin workflow selectors:
 
 - `pkf init` -> `references/initialize.md`
 - `pkf maintain` -> `references/maintenance.md`
+- automatic turn closeout -> `references/closeout.md`
 - `pkf extract` -> `references/extract.md`
 - `pkf optimize` -> `references/optimize.md`
 - `pkf validate` -> `references/validation.md`
@@ -300,7 +302,7 @@ Execution succeeds only when:
 
 - Validation completes after every phase, with hard failure behavior only in `ci` strictness.
 - The PKF runtime is synchronized.
-- Initialization records the embedded Retrieval Protocol and neutral bootstrap it created or updated.
+- Initialization records both embedded mandatory protocols, the adaptive closeout mode, and the neutral bootstrap it created or updated.
 - The OKF knowledge base reflects the repository.
 - Incremental maintenance identifies stale references and duplicate facts.
 - Optional retrieval exports are synchronized only when enabled.

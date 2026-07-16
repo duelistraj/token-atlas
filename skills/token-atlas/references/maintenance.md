@@ -6,6 +6,10 @@ Detect repository changes and determine the smallest PKF/OKF knowledge set that 
 
 Do not directly edit application code.
 
+For routine automatic end-of-turn work, use `closeout.md` first. Continue with
+this full workflow only when that gate identifies an exceptional maintenance
+case.
+
 ## Change Detection
 
 Prefer this order:
@@ -15,6 +19,16 @@ Prefer this order:
 3. Full repository scan fallback when Git data is unavailable or inconclusive.
 
 Report staged and unstaged changes separately when both exist. Prefer staged changes for CI-oriented maintenance.
+
+During adaptive closeout, compare against the session's last acknowledged
+change set and inspect only new changes. Do not persist that acknowledgement in
+the repository.
+
+## Runtime Migration
+
+When an existing `.ai/PKF.md` lacks `pkf.closeout`, add
+`pkf.closeout: adaptive`, embed the Closeout Protocol, and augment the neutral
+bootstrap in the same maintenance cycle. Preserve an explicit `off` value.
 
 ## Impact Mapping
 
@@ -91,6 +105,8 @@ Retrieval exports:
 - <disabled, affected records, or regenerate required>
 Leaf contract migration:
 - <complete, required, or not needed>
+Closeout migration:
+- <complete, required, disabled, or not needed>
 Recommended workflows:
 - <extract, optimize, validate, export when enabled>
 Warnings:
@@ -106,3 +122,4 @@ Errors:
 - Do not inspect or regenerate `.ai/retrieval/` when retrieval exports are off.
 - Report ambiguous ownership instead of guessing.
 - Automatically repartition a coarse module only when every moved fact has an unambiguous source-backed owner.
+- Never recursively run adaptive closeout because maintenance changed `.ai/`.

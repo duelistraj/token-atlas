@@ -8,6 +8,9 @@ Improve routing, reduce context size, eliminate duplication, and ensure AI agent
 
 Do not extract new repository knowledge.
 
+During adaptive closeout, optimize only affected routes that exceeded a budget,
+duplicated a fact, loaded unrelated context, or required fallback search.
+
 ---
 
 ## Inputs

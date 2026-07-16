@@ -19,11 +19,11 @@ Create or update:
 
 ```text
 <repo root>
-|-- AGENTS.md                 # neutral bootstrap: routes every task to .ai/PKF.md
+|-- AGENTS.md                 # neutral bootstrap: routes and closes out every task
 |                             # (augment an existing agent-instruction entry
 |                             #  point instead, if the repo already has one)
 `-- .ai/
-    |-- PKF.md                # embeds the Retrieval Protocol (mandatory routing)
+    |-- PKF.md                # embeds mandatory retrieval and closeout protocols
     |-- MEMORY.md
     |-- ARCHITECTURE.md
     `-- knowledge/
@@ -67,8 +67,8 @@ module names.
 ## Procedure
 
 1. Discover project name, technologies, source roots, config roots, test roots, docs, and functional capabilities. Build a capability-to-source ownership map using the Module Boundary Contract before choosing module names.
-2. Create or repair `PKF.md`, `MEMORY.md`, and `ARCHITECTURE.md`. Embed the Retrieval Protocol (template below) into `PKF.md` so routing enforcement travels with the repository.
-3. Ensure a neutral bootstrap points every task at `.ai/PKF.md`: create a root `AGENTS.md` (template below), or, if the repository already has an agent-instruction entry point, augment it with the same bootstrap text. Keep this vendor, agent, and model agnostic — name no specific assistant, tool, or model.
+2. Create or repair `PKF.md`, `MEMORY.md`, and `ARCHITECTURE.md`. Embed the Retrieval Protocol and Closeout Protocol (templates below) into `PKF.md` so routing and synchronization enforcement travel with the repository. Set `pkf.closeout: adaptive` in the `PKF.md` front matter by default; accept `pkf.closeout: "off"` as an explicit opt-out (quote `off` so YAML parsers do not treat it as boolean false).
+3. Ensure a neutral bootstrap points every task at both protocols in `.ai/PKF.md`: create a root `AGENTS.md` (template below), or, if the repository already has an agent-instruction entry point, augment it with the same bootstrap text. Keep this vendor, agent, and model agnostic — name no specific assistant, tool, or model.
 4. Create root shared knowledge docs and one module skeleton per detected module.
 5. Add OKF front matter to every generated Markdown file:
 
@@ -101,8 +101,20 @@ source_symbols:
 For a leaf with no source-backed facts, use `source_symbols: {}` and the exact
 body marker `- TODO: No source-backed facts.`.
 
+For `.ai/PKF.md` only, add the closeout mode under the existing `pkf` mapping:
+
+```yaml
+pkf:
+  loads:
+    - .ai/MEMORY.md
+    - .ai/ARCHITECTURE.md
+    - .ai/knowledge/INDEX.md
+  related: []
+  closeout: adaptive
+```
+
 6. Populate only structure-backed facts, routing placeholders, and explicit TODOs.
-7. Validate the initialized structure before extraction, including that `PKF.md` contains the Retrieval Protocol and that the bootstrap references `.ai/PKF.md`.
+7. Validate the initialized structure before extraction, including the closeout mode, both mandatory protocols, and both bootstrap references.
 
 ## Retrieval Protocol Template
 
@@ -183,6 +195,60 @@ cross-cutting task may exceed the document count only when the trace explains wh
 and each capability slice stays minimal.
 ````
 
+## Closeout Protocol Template
+
+Embed this section verbatim after the Retrieval Protocol. It provides portable
+end-of-turn enforcement even when a host cannot implicitly load Token Atlas.
+
+````markdown
+## Closeout Protocol (MANDATORY)
+
+Run PKF closeout exactly once before the final response to every user turn. Use
+Token Atlas when it is available; otherwise execute this embedded protocol
+directly. When `pkf.closeout` is `off`, report `disabled` and stop.
+
+### Adaptive gate
+
+1. Reuse the session's last acknowledged repository change set, including
+   staged, unstaged, and untracked paths plus enough diff identity to notice a
+   later edit to the same path. When Git is unavailable, use the files changed
+   during the turn.
+2. Compare the end-of-turn state with that acknowledgement.
+3. Return `no-op` when no repository content changed, the current change set was
+   already acknowledged and synchronized, or only `.ai/` changed during the
+   closeout itself.
+4. Otherwise route only new or changed paths through cached indexes and update
+   the smallest affected PKF leaves.
+
+Keep the acknowledgement in session context; do not create a repository log.
+
+### Incremental synchronization
+
+- Keep changed durable facts, `source_symbols`, Edit Maps, tests, styles/tokens,
+  and locator commands synchronized with source truth.
+- Repair deletes and renames, and update indexes only when ownership or routing
+  changed.
+- Optimize only affected routes that exceed a token budget, duplicate facts,
+  load unrelated context, or required fallback search.
+- Run affected-slice advisory validation after changing `.ai/` knowledge.
+- Use full maintenance, extraction, optimization, or validation only for module
+  boundary changes, legacy migrations, unresolved drift, broad-load repair, or
+  CI execution.
+
+### Safety and recursion
+
+- Never modify application code during closeout.
+- Preserve pre-existing user changes.
+- Never invoke closeout again because closeout changed `.ai/`.
+- If synchronization cannot finish, name the stale leaves instead of guessing.
+
+Report one compact line:
+
+```
+PKF closeout: <no-op|updated|stale|disabled|blocked> — <affected docs or reason>
+```
+````
+
 ## Bootstrap Template
 
 Write this to a root `AGENTS.md`, or merge it into the repository's existing agent-instruction entry point. Keep it vendor, agent, and model agnostic.
@@ -198,6 +264,11 @@ edit, follow the **Retrieval Protocol in `.ai/PKF.md`**: route
 `PKF -> knowledge/INDEX -> module INDEX -> the minimal set of leaf docs -> source
 symbols`, and do not run codebase-wide search until that route proves
 insufficient. This applies to every task, not just the first.
+
+Before the final response to every user turn, follow the **Closeout Protocol in
+`.ai/PKF.md`** exactly once. Use Token Atlas when available; otherwise execute
+the embedded protocol directly. Do not rerun closeout because closeout changed
+`.ai/`.
 ````
 
 ## Rules
@@ -206,14 +277,14 @@ insufficient. This applies to every task, not just the first.
 - Never inspect implementation internals for API, schema, business-rule, or UI facts in this phase.
 - Keep indexes as routing surfaces, not knowledge dumps.
 - Make startup route: `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
-- `PKF.md` must embed the Retrieval Protocol; a neutral bootstrap must point every task at `.ai/PKF.md`.
+- `PKF.md` must embed both mandatory protocols; a neutral bootstrap must point every task at retrieval and closeout in `.ai/PKF.md`.
 - Keep all generated guidance vendor, agent, and model agnostic. Reference no specific assistant, tool, or model.
 - Leave unknown values empty or marked `TODO`.
 
 ## Success Criteria
 
-- `.ai/PKF.md` exists, defines startup behavior, and embeds the Retrieval Protocol (hard precondition, negative constraint, fallback/verification, and knowledge-base sync).
-- A neutral bootstrap (root `AGENTS.md` or an augmented existing entry point) references `.ai/PKF.md` and names no vendor, agent, or model.
+- `.ai/PKF.md` exists, defines startup behavior, sets a valid `pkf.closeout` mode, and embeds both mandatory protocols.
+- A neutral bootstrap (root `AGENTS.md` or an augmented existing entry point) references retrieval and closeout in `.ai/PKF.md` and names no vendor, agent, or model.
 - Required runtime and shared docs exist.
 - Every detected module has the required OKF skeleton docs.
 - Every module leaf has a valid `source_symbols` mapping or the standardized

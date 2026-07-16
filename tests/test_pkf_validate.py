@@ -87,6 +87,42 @@ class PkfValidateTests(unittest.TestCase):
         self.assertEqual(report.exit_code, 1)
         self.assertTrue(any("Retrieval Protocol" in finding.issue for finding in report.errors))
 
+    def test_missing_closeout_protocol_is_ci_blocking(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("## Closeout Protocol (MANDATORY)\n", ""), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("Closeout Protocol" in finding.issue for finding in report.errors))
+
+    def test_missing_closeout_mode_is_ci_blocking(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("  closeout: adaptive\n", ""), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("pkf.closeout must be one of" in finding.issue for finding in report.errors))
+
+    def test_invalid_closeout_mode_is_ci_blocking(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("closeout: adaptive", "closeout: always"), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("pkf.closeout must be one of" in finding.issue for finding in report.errors))
+
+    def test_closeout_off_is_valid_opt_out(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("closeout: adaptive", 'closeout: "off"'), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 0)
+        self.assertTrue(any("PKF closeout mode is valid: off" in item for item in report.passed))
+
     def test_bootstrap_must_reference_pkf(self):
         with self.copy_ai() as ai:
             bootstrap = ai.parent / "AGENTS.md"
@@ -103,6 +139,15 @@ class PkfValidateTests(unittest.TestCase):
 
         self.assertEqual(report.exit_code, 1)
         self.assertTrue(any(finding.file == "AGENTS.md" and "missing root bootstrap" in finding.issue for finding in report.errors))
+
+    def test_bootstrap_must_reference_closeout_protocol(self):
+        with self.copy_ai() as ai:
+            bootstrap = ai.parent / "AGENTS.md"
+            bootstrap.write_text(bootstrap.read_text(encoding="utf-8").replace("Closeout Protocol", "End protocol"), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any(finding.file == "AGENTS.md" and "Closeout Protocol" in finding.issue for finding in report.errors))
 
     def test_malformed_front_matter_exits_one_in_ci(self):
         with self.copy_ai() as ai:
@@ -233,8 +278,12 @@ class PkfValidateTests(unittest.TestCase):
             self.template_block(public, "## Bootstrap Template"),
             self.template_block(internal, "## Bootstrap Template"),
         )
+        self.assertEqual(
+            self.template_block(public, "## Closeout Protocol Template"),
+            self.template_block(internal, "## Closeout Protocol Template"),
+        )
         skill = INTERNAL_SKILL.read_text(encoding="utf-8")
-        self.assertIn("embed the Retrieval Protocol", skill)
+        self.assertIn("embed the Retrieval and Closeout Protocols", skill)
         self.assertIn("neutral bootstrap", skill)
 
     def test_seeded_fixture_runtimes_include_bootstrap_contract(self):
@@ -242,9 +291,12 @@ class PkfValidateTests(unittest.TestCase):
             if ".ai" not in pkf.parts:
                 continue
             self.assertIn("## Retrieval Protocol (MANDATORY)", pkf.read_text(encoding="utf-8"), pkf)
+            self.assertIn("## Closeout Protocol (MANDATORY)", pkf.read_text(encoding="utf-8"), pkf)
+            self.assertEqual(read_front_matter(pkf)["pkf"]["closeout"], "adaptive", pkf)
             bootstrap = pkf.parent.parent / "AGENTS.md"
             self.assertTrue(bootstrap.is_file(), f"missing bootstrap for {pkf}")
             self.assertIn(".ai/PKF.md", bootstrap.read_text(encoding="utf-8"), bootstrap)
+            self.assertIn("Closeout Protocol", bootstrap.read_text(encoding="utf-8"), bootstrap)
 
     def copy_ai(self):
         temp = tempfile.TemporaryDirectory()

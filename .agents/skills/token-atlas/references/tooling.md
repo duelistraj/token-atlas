@@ -14,6 +14,7 @@ Tooling must not become a second source of truth. Commands select profiles, opti
 |---------|----------|
 | `pkf init` | `initialize.md` |
 | `pkf maintain` | `maintenance.md` |
+| automatic end-of-turn closeout | `closeout.md` |
 | `pkf extract` | `extract.md` |
 | `pkf optimize` | `optimize.md` |
 | `pkf validate` | `validation.md` |
@@ -194,4 +195,3 @@ Tooling succeeds when:
 - `export` is a no-op when `retrieval_exports: off`.
 - `bench` maps to `benchmark.md` and validates benchmark suite/output options without implementing scoring in the wrapper.
 - README examples show help, default, CI, simulation, retrieval export, and benchmark usage.
-

@@ -12,6 +12,7 @@ Public Token Atlas does not require a bundled wrapper. If a target repo provides
 |---------|----------|
 | `pkf init` | `initialize.md` |
 | `pkf maintain` | `maintenance.md` |
+| automatic end-of-turn closeout | `closeout.md` |
 | `pkf extract` | `extract.md` |
 | `pkf optimize` | `optimize.md` |
 | `pkf validate` | `validation.md` |

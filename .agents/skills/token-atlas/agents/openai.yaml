@@ -1,7 +1,7 @@
 interface:
   display_name: "Token Atlas"
-  short_description: "Maintain PKF and OKF repository knowledge"
-  default_prompt: "Use $token-atlas to initialize, maintain, validate, optimize, or simulate PKF/OKF repository knowledge."
+  short_description: "Maintain PKF with adaptive turn closeout"
+  default_prompt: "Use $token-atlas to initialize PKF and keep it synchronized with adaptive end-of-turn closeout."
 
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

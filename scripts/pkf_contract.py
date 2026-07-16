@@ -21,6 +21,10 @@ RETRIEVAL_BUDGET = {
     "leaf_docs": 2,
 }
 
+CLOSEOUT_DEFAULT = "adaptive"
+CLOSEOUT_MODES = ("adaptive", "off")
+CLOSEOUT_PROTOCOL_HEADING = "## Closeout Protocol (MANDATORY)"
+
 REQUIRED_RUNTIME_DOCS = (
     "PKF.md",
     "MEMORY.md",

@@ -32,7 +32,8 @@ Validate:
 - Module names are target-repository-derived, placeholders are not promoted to modules, and coarse boundaries are reported when they mix independently routable capabilities satisfying the Module Boundary Contract.
 - Routing starts from `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
 - `PKF.md` embeds the Retrieval Protocol: the hard precondition and ordered route, the negative constraint against premature codebase-wide search, fallback/verification, and knowledge-base sync.
-- A neutral bootstrap (a root `AGENTS.md`, or the repository's existing agent-instruction entry point) references `.ai/PKF.md`, and no generated guidance names a specific vendor, agent, or model.
+- `PKF.md` sets `pkf.closeout` to `adaptive` or `off` and embeds the mandatory Closeout Protocol with adaptive gating, session acknowledgement, incremental sync, and recursion prevention.
+- A neutral bootstrap (a root `AGENTS.md`, or the repository's existing agent-instruction entry point) references retrieval and closeout in `.ai/PKF.md`, and no generated guidance names a specific vendor, agent, or model.
 - Simulation output is present when enabled.
 - Token budget output is present at the selected detail level.
 - Startup, leaf, and representative normal task routes respect the 2,500, 1,500,
@@ -77,4 +78,4 @@ Errors should include file, issue, recommended fix, source evidence or missing e
 
 ## Deterministic Validator Non-Goals
 
-scripts/pkf_validate.py enforces the mechanical subset: required files, flat module layout, the Retrieval Protocol heading, the root bootstrap reference, OKF front matter, source-symbol presence and literal resolution, Edit Map shape, path resolution, routing reachability, and token impact. It cannot prove that a literal occurrence is the correct declaration or owner. Full source-truth synchronization, capability-boundary quality, protocol semantics, invented-fact detection, and duplicate-authoritative-fact detection remain semantic validation responsibilities for this workflow.
+scripts/pkf_validate.py enforces the mechanical subset: required files, flat module layout, both mandatory protocol headings, a valid closeout mode, both root bootstrap references, OKF front matter, source-symbol presence and literal resolution, Edit Map shape, path resolution, routing reachability, and token impact. It cannot prove that a literal occurrence is the correct declaration or owner. Full source-truth synchronization, capability-boundary quality, protocol semantics, invented-fact detection, and duplicate-authoritative-fact detection remain semantic validation responsibilities for this workflow.

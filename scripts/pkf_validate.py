@@ -15,6 +15,8 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from pkf_contract import (  # noqa: E402
+    CLOSEOUT_MODES,
+    CLOSEOUT_PROTOCOL_HEADING,
     EDIT_MAP_COLUMNS,
     EDIT_MAP_HEADING,
     EMPTY_LEAF_MARKER,
@@ -37,6 +39,7 @@ ALLOWED_FORMATS = ("text", "json")
 RETRIEVAL_PROTOCOL_HEADING = "## Retrieval Protocol (MANDATORY)"
 BOOTSTRAP_FILE = "AGENTS.md"
 BOOTSTRAP_REFERENCE = ".ai/PKF.md"
+BOOTSTRAP_CLOSEOUT_REFERENCE = "Closeout Protocol"
 
 
 @dataclass
@@ -128,12 +131,13 @@ def validate_pkf(path: Path, strictness: str = "advisory", model: str = "gpt-5.5
         return report
 
     check_required_docs(ai_dir, repo_root, report)
-    check_retrieval_protocol(ai_dir, repo_root, report)
+    check_runtime_protocols(ai_dir, repo_root, report)
     check_neutral_bootstrap(repo_root, report)
     check_flat_module_layout(ai_dir, repo_root, report)
     modules = discover_modules(ai_dir)
     check_module_docs(ai_dir, repo_root, modules, report)
     front_matter = check_front_matter(ai_dir, repo_root, report)
+    check_closeout_config(ai_dir, repo_root, front_matter, report)
     check_leaf_contracts(ai_dir, repo_root, modules, front_matter, report)
     check_references(repo_root, front_matter, report)
     check_reachability(ai_dir, repo_root, modules, front_matter, report)
@@ -159,14 +163,19 @@ def check_required_docs(ai_dir: Path, repo_root: Path, report: ValidationReport)
         check_file(ai_dir / "knowledge" / doc, repo_root, report, f"shared doc exists: .ai/knowledge/{doc}")
 
 
-def check_retrieval_protocol(ai_dir: Path, repo_root: Path, report: ValidationReport) -> None:
+def check_runtime_protocols(ai_dir: Path, repo_root: Path, report: ValidationReport) -> None:
     pkf = ai_dir / "PKF.md"
     if not pkf.is_file():
         return
-    if any(line.strip() == RETRIEVAL_PROTOCOL_HEADING for line in pkf.read_text(encoding="utf-8").splitlines()):
-        passed(report, "PKF.md embeds the Retrieval Protocol heading")
-    else:
-        error(report, rel(pkf, repo_root), f"missing required heading: {RETRIEVAL_PROTOCOL_HEADING}")
+    headings = {line.strip() for line in pkf.read_text(encoding="utf-8").splitlines()}
+    for heading, label in (
+        (RETRIEVAL_PROTOCOL_HEADING, "Retrieval Protocol"),
+        (CLOSEOUT_PROTOCOL_HEADING, "Closeout Protocol"),
+    ):
+        if heading in headings:
+            passed(report, f"PKF.md embeds the {label} heading")
+        else:
+            error(report, rel(pkf, repo_root), f"missing required heading: {heading}")
 
 
 def check_neutral_bootstrap(repo_root: Path, report: ValidationReport) -> None:
@@ -174,10 +183,35 @@ def check_neutral_bootstrap(repo_root: Path, report: ValidationReport) -> None:
     if not bootstrap.is_file():
         error(report, BOOTSTRAP_FILE, f"missing root bootstrap referencing {BOOTSTRAP_REFERENCE}")
         return
-    if BOOTSTRAP_REFERENCE in bootstrap.read_text(encoding="utf-8"):
+    text = bootstrap.read_text(encoding="utf-8")
+    if BOOTSTRAP_REFERENCE in text:
         passed(report, f"root bootstrap references {BOOTSTRAP_REFERENCE}")
     else:
         error(report, BOOTSTRAP_FILE, f"missing reference to {BOOTSTRAP_REFERENCE}")
+    if BOOTSTRAP_CLOSEOUT_REFERENCE in text:
+        passed(report, f"root bootstrap references {BOOTSTRAP_CLOSEOUT_REFERENCE}")
+    else:
+        error(report, BOOTSTRAP_FILE, f"missing reference to {BOOTSTRAP_CLOSEOUT_REFERENCE}")
+
+
+def check_closeout_config(
+    ai_dir: Path,
+    repo_root: Path,
+    metadata: dict[Path, dict[str, Any]],
+    report: ValidationReport,
+) -> None:
+    pkf_path = ai_dir / "PKF.md"
+    if not pkf_path.is_file() or pkf_path not in metadata:
+        return
+    runtime = metadata[pkf_path].get("pkf")
+    if not isinstance(runtime, dict):
+        return
+    mode = runtime.get("closeout")
+    if mode not in CLOSEOUT_MODES:
+        allowed = ", ".join(CLOSEOUT_MODES)
+        error(report, rel(pkf_path, repo_root), f"pkf.closeout must be one of: {allowed}")
+        return
+    passed(report, f"PKF closeout mode is valid: {mode}")
 
 
 def discover_modules(ai_dir: Path) -> list[str]:

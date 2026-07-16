@@ -11,6 +11,9 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from pkf_contract import (
+    CLOSEOUT_DEFAULT,
+    CLOSEOUT_MODES,
+    CLOSEOUT_PROTOCOL_HEADING,
     ESTIMATOR_FORMULA,
     LEAF_SOURCE_SYMBOLS_FIELD,
     REQUIRED_FRONT_MATTER,
@@ -27,6 +30,9 @@ class ContractConsistencyTests(unittest.TestCase):
             self.assertIn(f"{threshold:,}", corpus)
         self.assertIn(ESTIMATOR_FORMULA, corpus)
         self.assertIn(LEAF_SOURCE_SYMBOLS_FIELD, corpus)
+        self.assertIn(CLOSEOUT_PROTOCOL_HEADING, corpus)
+        self.assertIn(f"closeout: {CLOSEOUT_DEFAULT}", corpus)
+        self.assertEqual(CLOSEOUT_MODES, ("adaptive", "off"))
         self.assertIn(f"one or two leaf", corpus.lower())
         self.assertEqual(RETRIEVAL_BUDGET, {"module_indexes": 1, "leaf_docs": 2})
         for field in REQUIRED_FRONT_MATTER:
@@ -48,6 +54,24 @@ class ContractConsistencyTests(unittest.TestCase):
         self.assertIn("`<module>`", public_contract)
         self.assertIn("`<capability>`", public_contract)
         self.assertRegex(public_contract, r"never prescribe target-repo\s+module names")
+
+    def test_public_and_internal_closeout_workflows_match(self):
+        public = (ROOT / "skills" / "token-atlas" / "references" / "closeout.md").read_text(encoding="utf-8")
+        internal = (ROOT / ".agents" / "skills" / "token-atlas" / "references" / "closeout.md").read_text(encoding="utf-8")
+
+        self.assertEqual(public, internal)
+        self.assertIn("Run exactly once before the final response", public)
+        self.assertIn("Do not persist a change-set ledger", public)
+        self.assertIn("Do not invoke closeout again", public)
+        normalized = re.sub(r"\s+", " ", public)
+        self.assertIn("staged, unstaged, and untracked paths", normalized)
+        self.assertIn("Update only leaves whose durable facts changed", public)
+        self.assertIn("only `.ai/` changed", public)
+
+    def test_skill_packages_allow_implicit_closeout_invocation(self):
+        for package in (ROOT / "skills" / "token-atlas", ROOT / ".agents" / "skills" / "token-atlas"):
+            metadata = (package / "agents" / "openai.yaml").read_text(encoding="utf-8")
+            self.assertIn("allow_implicit_invocation: true", metadata)
 
     def read_corpus(self) -> str:
         roots = [
