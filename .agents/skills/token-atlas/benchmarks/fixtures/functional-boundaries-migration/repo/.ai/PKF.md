@@ -6,6 +6,7 @@ resource: .
 tags: [pkf]
 timestamp: 2026-07-12
 pkf:
+  runtime_version: 1
   loads: [.ai/MEMORY.md, .ai/ARCHITECTURE.md, .ai/knowledge/INDEX.md]
   related: []
   closeout: adaptive
@@ -17,8 +18,8 @@ pkf:
 ### Hard precondition
 
 Before code search, read this file, `.ai/knowledge/INDEX.md`, the selected module
-index, and only the required leaves. Do not search the codebase broadly until
-that route proves insufficient.
+index, and only the required leaves. **Negative constraint:** do not search the
+codebase broadly until that route proves insufficient.
 
 ### Fallback and verification
 
@@ -35,6 +36,17 @@ commands, budget usage, and whether fallback search was required.
 
 ## Closeout Protocol (MANDATORY)
 
-Run adaptive PKF closeout exactly once before every final response. Reuse the
-session change-set acknowledgement, update only affected knowledge, and do not
-recurse on `.ai/`-only changes.
+### Adaptive gate
+
+Compare a deterministic session baseline with the final repository state. Keep
+the acknowledgement in session context.
+
+### Incremental synchronization
+
+Update and validate only affected knowledge.
+
+### Safety and recursion
+
+Never invoke closeout again for `.ai/`-only closeout changes.
+
+`PKF closeout: <status> — <reason>`

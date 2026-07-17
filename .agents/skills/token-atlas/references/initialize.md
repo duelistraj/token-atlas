@@ -105,6 +105,7 @@ If `.ai/` already exists but `PKF.md` is absent, preserve existing `.ai/` conten
 
 `PKF.md` must define:
 
+- Runtime contract version `pkf.runtime_version: 1`.
 - Startup sequence.
 - Startup recovery when `.ai/PKF.md` is missing.
 - Source-of-truth rules.
@@ -181,6 +182,7 @@ For `.ai/PKF.md` only, add the closeout mode under the existing `pkf` mapping:
 
 ```yaml
 pkf:
+  runtime_version: 1
   loads:
     - .ai/MEMORY.md
     - .ai/ARCHITECTURE.md
@@ -360,11 +362,13 @@ directly. When `pkf.closeout` is `off`, report `disabled` and stop.
 
 ### Adaptive gate
 
-1. Reuse the session's last acknowledged repository change set, including
-   staged, unstaged, and untracked paths plus enough diff identity to notice a
-   later edit to the same path. When Git is unavailable, use the files changed
-   during the turn.
-2. Compare the end-of-turn state with that acknowledgement.
+1. Before the first task mutation in a session, capture a baseline snapshot with
+   normalized repository-relative paths, staged and unstaged diff identity,
+   both endpoints of renames, and content identity for untracked files. The
+   identity must change when the same path is edited again.
+2. Reuse the last successfully acknowledged snapshot, or the baseline when no
+   closeout has completed, and compare it with the end-of-turn state. When Git
+   is unavailable, use files changed during the turn with equivalent identity.
 3. Return `no-op` when no repository content changed, the current change set was
    already acknowledged and synchronized, or only `.ai/` changed during the
    closeout itself.
@@ -372,6 +376,9 @@ directly. When `pkf.closeout` is `off`, report `disabled` and stop.
    the smallest affected PKF leaves.
 
 Keep the acknowledgement in session context; do not create a repository log.
+If no baseline exists, synchronize only paths known to have changed during the
+turn and report ambiguous pre-existing dirty paths as `stale` rather than
+claiming them as synchronized.
 
 ### Incremental synchronization
 
@@ -398,6 +405,10 @@ Report one compact line:
 ```
 PKF closeout: <no-op|updated|stale|disabled|blocked> — <affected docs or reason>
 ```
+
+Update the session acknowledgement only after synchronization and affected-slice
+validation finish successfully. Never acknowledge an ambiguous or failed
+snapshot as synchronized.
 ````
 
 ## Bootstrap Template

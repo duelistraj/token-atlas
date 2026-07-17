@@ -1,8 +1,16 @@
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PUBLIC_SCRIPT_NAMES = (
+    "pkf_contract.py",
+    "pkf_lib.py",
+    "pkf_tokens.py",
+    "pkf_validate.py",
+)
 
 
 class TwoTierBoundaryTests(unittest.TestCase):
@@ -21,6 +29,10 @@ class TwoTierBoundaryTests(unittest.TestCase):
             "references/simulate.md",
             "references/tooling.md",
             "references/validation.md",
+            "scripts/pkf_contract.py",
+            "scripts/pkf_lib.py",
+            "scripts/pkf_tokens.py",
+            "scripts/pkf_validate.py",
         }
 
         self.assertEqual(actual, expected)
@@ -31,6 +43,31 @@ class TwoTierBoundaryTests(unittest.TestCase):
 
         for token in ("codex", "bench", "benchmark", "gpt-5", "pkf.ps1"):
             self.assertNotIn(token, text)
+
+    def test_public_validator_modules_match_canonical_scripts(self):
+        public = ROOT / "skills" / "token-atlas" / "scripts"
+        canonical = ROOT / "scripts"
+
+        for name in PUBLIC_SCRIPT_NAMES:
+            self.assertEqual(
+                (public / name).read_bytes(),
+                (canonical / name).read_bytes(),
+                name,
+            )
+
+    def test_public_validator_runs_without_site_packages(self):
+        validator = ROOT / "skills" / "token-atlas" / "scripts" / "pkf_validate.py"
+        fixture = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "fixtures" / "schema-change" / "repo"
+
+        completed = subprocess.run(
+            [sys.executable, "-S", str(validator), "--path", str(fixture), "--strictness", "ci", "--format", "json"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn('"status": "passed"', completed.stdout)
 
     def test_internal_tier_carries_benchmark_surface_and_shared_policy(self):
         internal = ROOT / ".agents" / "skills" / "token-atlas"

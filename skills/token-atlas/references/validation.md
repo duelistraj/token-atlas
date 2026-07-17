@@ -16,14 +16,16 @@ Only report findings unless the user asks for fixes.
 Validate:
 
 - `PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, and `knowledge/INDEX.md` exist.
+- `PKF.md` sets `pkf.runtime_version: 1`; missing or older runtimes require migration, and newer versions are reported as unsupported rather than downgraded.
 - Every detected module has `INDEX.md`, `api.md`, `schema.md`, `business_rules.md`, and `ui.md`.
 - Every module is a flat directory directly under `.ai/knowledge/`; nested module indexes are invalid.
 - Shared docs exist: `glossary.md`, `dependencies.md`, `decision_log.md`.
 - Every participating `.ai/**/*.md` document has valid OKF front matter.
 - Every module leaf has a `source_symbols` path-to-symbol-list mapping; each path
   resolves, each symbol occurs in that source, and empty leaves use the standard marker.
-- Every implementation-bearing leaf has an Edit Map with behavior, symbols,
-  tests, styles/tokens, and targeted locator columns.
+- Every implementation-bearing leaf has an Edit Map with specific behavior,
+  declared source symbols, tests, styles/tokens, and a targeted locator per row;
+  placeholder behavior labels and omitted declared symbols are defects.
 - `pkf.loads` and `pkf.related` are lists and resolve to existing docs.
 - `resource` paths resolve or are marked `TODO`.
 - APIs, schemas, business rules, UI facts, commands, dependencies, and architecture match source truth.
@@ -78,4 +80,12 @@ Errors should include file, issue, recommended fix, source evidence or missing e
 
 ## Deterministic Validator Non-Goals
 
-scripts/pkf_validate.py enforces the mechanical subset: required files, flat module layout, both mandatory protocol headings, a valid closeout mode, both root bootstrap references, OKF front matter, source-symbol presence and literal resolution, Edit Map shape, path resolution, routing reachability, and token impact. It cannot prove that a literal occurrence is the correct declaration or owner. Full source-truth synchronization, capability-boundary quality, protocol semantics, invented-fact detection, and duplicate-authoritative-fact detection remain semantic validation responsibilities for this workflow.
+The bundled `scripts/pkf_validate.py` enforces the mechanical subset: runtime
+version, required files, flat module layout, mandatory protocol clauses, a valid
+closeout mode, both root bootstrap references, OKF front matter, source-symbol
+presence and literal resolution, Edit Map specificity and evidence consistency,
+path resolution, routing reachability, affected-slice selection, and token
+impact. It cannot prove that a literal occurrence is the correct declaration or
+owner. Full source-truth synchronization, capability-boundary quality, invented-
+fact detection, and duplicate-authoritative-fact detection remain semantic
+validation responsibilities for this workflow.

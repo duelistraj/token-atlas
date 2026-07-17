@@ -6,6 +6,7 @@ resource: .
 tags: [pkf]
 timestamp: 2026-07-12
 pkf:
+  runtime_version: 1
   loads: [.ai/MEMORY.md, .ai/ARCHITECTURE.md, .ai/knowledge/INDEX.md]
   related: []
   closeout: adaptive

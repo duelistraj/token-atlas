@@ -10,7 +10,7 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from pkf_validate import validate_pkf
+from pkf_validate import UsageError, validate_pkf
 from pkf_lib import parse_yaml_block, read_front_matter
 
 
@@ -42,6 +42,16 @@ class PkfValidateTests(unittest.TestCase):
         self.assertEqual(report.exit_code, 1)
         self.assertTrue(any("broken pkf.related" in finding.issue for finding in report.errors))
 
+    def test_document_relative_pkf_references_resolve(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace(".ai/MEMORY.md", "MEMORY.md"), encoding="utf-8")
+            index = ai / "knowledge" / "backend" / "INDEX.md"
+            index.write_text(index.read_text(encoding="utf-8").replace(".ai/knowledge/backend/api.md", "api.md"), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertFalse(any("broken pkf" in finding.issue for finding in report.errors))
+
     def test_missing_module_doc_exits_one_in_ci(self):
         with self.copy_ai() as ai:
             (ai / "knowledge" / "backend" / "api.md").unlink()
@@ -59,6 +69,17 @@ class PkfValidateTests(unittest.TestCase):
 
         self.assertEqual(report.exit_code, 1)
         self.assertTrue(any("nested module index" in finding.issue for finding in report.errors))
+
+    def test_root_index_relative_module_route_is_reachable(self):
+        with self.copy_ai() as ai:
+            root_index = ai / "knowledge" / "INDEX.md"
+            root_index.write_text(
+                root_index.read_text(encoding="utf-8").replace(".ai/knowledge/backend/INDEX.md", "backend/INDEX.md"),
+                encoding="utf-8",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertFalse(any("module not reachable" in finding.issue for finding in report.errors))
 
     def test_nested_module_index_is_reported_but_advisory_exits_zero(self):
         with self.copy_ai() as ai:
@@ -105,6 +126,24 @@ class PkfValidateTests(unittest.TestCase):
         self.assertEqual(report.exit_code, 1)
         self.assertTrue(any("pkf.closeout must be one of" in finding.issue for finding in report.errors))
 
+    def test_missing_runtime_version_requires_migration(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("  runtime_version: 1\n", ""), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("missing pkf.runtime_version" in finding.issue for finding in report.errors))
+
+    def test_future_runtime_version_is_not_downgraded(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 1", "runtime_version: 2"), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("newer than supported" in finding.issue for finding in report.errors))
+
     def test_invalid_closeout_mode_is_ci_blocking(self):
         with self.copy_ai() as ai:
             pkf = ai / "PKF.md"
@@ -131,6 +170,15 @@ class PkfValidateTests(unittest.TestCase):
 
         self.assertEqual(report.exit_code, 1)
         self.assertTrue(any(finding.file == "AGENTS.md" and ".ai/PKF.md" in finding.issue for finding in report.errors))
+
+    def test_missing_required_protocol_clause_is_ci_blocking(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("### Safety and recursion", "### Safety"), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("missing required closeout protocol clause" in finding.issue for finding in report.errors))
 
     def test_missing_bootstrap_is_ci_blocking(self):
         with self.copy_ai() as ai:
@@ -234,6 +282,31 @@ class PkfValidateTests(unittest.TestCase):
 
         self.assertTrue(any("no targeted rg or ast-grep locator" in finding.issue for finding in report.errors))
 
+    def test_edit_map_rejects_generic_behavior(self):
+        with self.copy_ai() as ai:
+            leaf = ai / "knowledge" / "backend" / "schema.md"
+            text = leaf.read_text(encoding="utf-8").replace("| Schema |", "| Documented capability behavior |")
+            leaf.write_text(text, encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertTrue(any("generic or placeholder" in finding.issue for finding in report.errors))
+
+    def test_edit_map_must_cover_declared_symbols(self):
+        with self.copy_ai() as ai:
+            leaf = ai / "knowledge" / "backend" / "schema.md"
+            text = leaf.read_text(encoding="utf-8").replace("CustomerRecord", "UnlistedRecord")
+            leaf.write_text(text, encoding="utf-8")
+            source = ai.parent / "src" / "backend" / "models" / "customer.ts"
+            source.write_text(source.read_text(encoding="utf-8") + "\nconst UnlistedRecord = true;\n", encoding="utf-8")
+            text = leaf.read_text(encoding="utf-8").replace(
+                "`src/backend/models/customer.ts:UnlistedRecord`",
+                "schema declaration",
+            ).replace("'UnlistedRecord'", "'OtherRecord'")
+            leaf.write_text(text, encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertTrue(any("omits declared source symbols" in finding.issue for finding in report.errors))
+
     def test_empty_leaf_requires_standard_marker(self):
         with self.copy_ai() as ai:
             leaf = ai / "knowledge" / "backend" / "ui.md"
@@ -266,6 +339,30 @@ class PkfValidateTests(unittest.TestCase):
 
         self.assertTrue(any("normal retrieval budget exceeded" in finding.issue for finding in report.errors))
 
+    def test_changed_path_limits_leaf_contract_validation(self):
+        with self.copy_ai() as ai:
+            schema = ai / "knowledge" / "backend" / "schema.md"
+            schema.write_text(schema.read_text(encoding="utf-8").replace("CustomerRecord", "MissingRecord"), encoding="utf-8")
+            report = validate_pkf(
+                ai,
+                strictness="ci",
+                changed_paths=("src/backend/routes/customers.ts",),
+            )
+
+        self.assertFalse(any("MissingRecord" in finding.issue for finding in report.errors))
+        self.assertTrue(any("listCustomersRoute" in item for item in report.passed))
+
+    def test_unmapped_changed_path_warns(self):
+        with self.copy_ai() as ai:
+            report = validate_pkf(ai, changed_paths=("docs/unknown.md",))
+
+        self.assertTrue(any(finding.file == "docs/unknown.md" for finding in report.warnings))
+
+    def test_changed_path_must_be_repository_relative(self):
+        with self.copy_ai() as ai:
+            with self.assertRaises(UsageError):
+                validate_pkf(ai, changed_paths=("../outside.py",))
+
     def test_internal_initialize_uses_public_protocol_templates(self):
         public = PUBLIC_INITIALIZE.read_text(encoding="utf-8")
         internal = INTERNAL_INITIALIZE.read_text(encoding="utf-8")
@@ -292,6 +389,7 @@ class PkfValidateTests(unittest.TestCase):
                 continue
             self.assertIn("## Retrieval Protocol (MANDATORY)", pkf.read_text(encoding="utf-8"), pkf)
             self.assertIn("## Closeout Protocol (MANDATORY)", pkf.read_text(encoding="utf-8"), pkf)
+            self.assertEqual(read_front_matter(pkf)["pkf"]["runtime_version"], 1, pkf)
             self.assertEqual(read_front_matter(pkf)["pkf"]["closeout"], "adaptive", pkf)
             bootstrap = pkf.parent.parent / "AGENTS.md"
             self.assertTrue(bootstrap.is_file(), f"missing bootstrap for {pkf}")

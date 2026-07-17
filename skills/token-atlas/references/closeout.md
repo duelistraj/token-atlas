@@ -11,16 +11,24 @@ changed.
 Run exactly once before the final response when `.ai/PKF.md` sets
 `pkf.closeout: adaptive`.
 
-1. Reuse the session's last acknowledged repository change set. Include staged,
-   unstaged, and untracked paths plus enough diff identity to detect another edit
-   to the same path. When Git is unavailable, use the files changed during the
-   turn.
-2. Compare the end-of-turn state with that acknowledgement.
+1. Before the first task mutation in a session, capture a baseline snapshot. Use
+   normalized repository-relative paths, staged and unstaged diff identity,
+   both endpoints of renames, and content identity for untracked files. The
+   identity must change when the same path is edited again. Keep this snapshot
+   only in session context.
+2. Reuse the last successfully acknowledged snapshot, or the baseline when no
+   closeout has completed, and compare it with the end-of-turn state. When Git
+   is unavailable, use the files changed during the turn with equivalent content
+   identity.
 3. Return `no-op` when no repository content changed, the change set is already
    acknowledged and synchronized, or only `.ai/` changed because of closeout.
 4. Otherwise, route only the new or changed paths through the cached knowledge
    and module indexes. Do not reread cached startup documents unless they changed
    or contradict source truth.
+
+If no baseline was captured, synchronize only paths known to have changed during
+the current turn. Do not claim ambiguous pre-existing dirty paths; report the
+affected knowledge as `stale` when their synchronization cannot be established.
 
 Do not persist a change-set ledger in the repository. Keep the acknowledgement
 in session context.
@@ -55,4 +63,6 @@ Emit one compact line before the final response summary:
 PKF closeout: <no-op|updated|stale|disabled|blocked> — <affected docs or reason>
 ```
 
-Update the session acknowledgement only after the closeout result is known.
+Update the session acknowledgement only after synchronization and affected-slice
+validation finish and the closeout result is known. Never acknowledge a failed or
+ambiguous snapshot as synchronized.

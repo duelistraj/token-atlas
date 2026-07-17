@@ -64,6 +64,9 @@ ARCHITECTURE.md
 knowledge/INDEX.md
 ```
 
+Verify `PKF.md` sets `pkf.runtime_version: 1`. Missing or older versions require
+migration; report an unknown newer version as unsupported and never downgrade it.
+
 Also verify that `PKF.md` contains `## Retrieval Protocol (MANDATORY)` and the
 complete protocol: the hard precondition and ordered route, the negative
 constraint against premature codebase-wide search, fallback and verification,
@@ -134,8 +137,10 @@ Verify:
 - `resource` paths resolve to existing repository paths or are marked `TODO`.
 - Every module leaf has a `source_symbols` path-to-symbol-list mapping; paths and
   literal symbols resolve, and empty leaves use the standard marker.
-- Every implementation-bearing leaf has an Edit Map with behavior, symbols,
-  tests, styles/tokens, and locator columns.
+- Every implementation-bearing leaf has an Edit Map with specific behavior,
+  declared source symbols, tests, styles/tokens, and a targeted locator per row.
+  Placeholder behavior labels and declared symbols omitted from the table are
+  validation defects.
 
 ---
 
@@ -440,4 +445,13 @@ Validation succeeds when:
 
 ## Deterministic Validator Non-Goals
 
-scripts/pkf_validate.py enforces the mechanical subset: required files, flat module layout, both mandatory protocol headings, a valid closeout mode, both root bootstrap references, OKF front matter, source-symbol presence and literal resolution, Edit Map shape, path resolution, routing reachability, and token impact. It cannot prove that a literal occurrence is the correct declaration or owner. Full source-truth synchronization, capability-boundary quality, protocol semantics, invented-fact detection, and duplicate-authoritative-fact detection remain semantic validation responsibilities for this workflow.
+The canonical `scripts/pkf_validate.py`, also copied into the public package,
+enforces the mechanical subset: runtime version, required files, flat module
+layout, mandatory protocol clauses, a valid closeout mode, both root bootstrap
+references, OKF front matter, source-symbol presence and literal resolution,
+Edit Map specificity and evidence consistency, path resolution, routing
+reachability, affected-slice selection, and token impact. It cannot prove that a
+literal occurrence is the correct declaration or owner. Full source-truth
+synchronization, capability-boundary quality, invented-fact detection, and
+duplicate-authoritative-fact detection remain semantic validation
+responsibilities for this workflow.

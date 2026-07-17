@@ -57,8 +57,8 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - Derive flat module names from source-backed functional capabilities. Prefer capability boundaries over technical layers only when the repository proves at least two independently routable capabilities; never prescribe module names or create speculative modules.
 - During maintenance, automatically repartition coarse modules when capability ownership is unambiguous. Preserve the current structure and report ambiguity instead of guessing.
 - During `initialize`, embed the Retrieval Protocol into the generated `.ai/PKF.md`, and ensure a neutral bootstrap (a root `AGENTS.md`, or the repository's existing agent-instruction entry point) routes every task to `.ai/PKF.md`.
-- Default the runtime to `pkf.closeout: adaptive`. Permit the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
-- Run closeout exactly once before the final response to each user turn. Treat an unchanged acknowledged change set or an `.ai/`-only change as a no-op, and never recursively close out a closeout.
+- Default the runtime to `pkf.runtime_version: 1` and `pkf.closeout: adaptive`. Permit the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
+- Capture a deterministic session baseline before task mutations. Run closeout exactly once before the final response, detect later edits to the same path, acknowledge only successfully validated snapshots, and never recursively close out a closeout.
 - Keep all generated guidance vendor, agent, and model agnostic. Reference no specific assistant, tool, or model.
 - Keep `pkf.loads` minimal and put optional context in `pkf.related`.
 - Require every module leaf to expose machine-readable `source_symbols`; use a compact Edit Map to connect behaviors to symbols, tests, styles, and targeted locator commands.
@@ -66,6 +66,7 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - Keep a normal task within one module index, one or two leaves, and the exact named symbols. Require an explicit reason for cross-cutting exceptions.
 - Do not load or generate `.ai/retrieval/` unless retrieval exports are enabled.
 - Report stale, unsupported, duplicate, or broad-loading knowledge as validation defects.
+- Prefer the bundled dependency-light validator for mechanical checks; keep source-truth and duplicate-authority judgments in the semantic validation workflow.
 
 ## Output Expectations
 

@@ -18,6 +18,8 @@ from pkf_contract import (
     LEAF_SOURCE_SYMBOLS_FIELD,
     REQUIRED_FRONT_MATTER,
     RETRIEVAL_BUDGET,
+    RUNTIME_VERSION,
+    RUNTIME_VERSION_FIELD,
     TOKEN_THRESHOLDS,
 )
 
@@ -32,6 +34,7 @@ class ContractConsistencyTests(unittest.TestCase):
         self.assertIn(LEAF_SOURCE_SYMBOLS_FIELD, corpus)
         self.assertIn(CLOSEOUT_PROTOCOL_HEADING, corpus)
         self.assertIn(f"closeout: {CLOSEOUT_DEFAULT}", corpus)
+        self.assertIn(f"{RUNTIME_VERSION_FIELD}: {RUNTIME_VERSION}", corpus)
         self.assertEqual(CLOSEOUT_MODES, ("adaptive", "off"))
         self.assertIn(f"one or two leaf", corpus.lower())
         self.assertEqual(RETRIEVAL_BUDGET, {"module_indexes": 1, "leaf_docs": 2})
@@ -64,7 +67,11 @@ class ContractConsistencyTests(unittest.TestCase):
         self.assertIn("Do not persist a change-set ledger", public)
         self.assertIn("Do not invoke closeout again", public)
         normalized = re.sub(r"\s+", " ", public)
-        self.assertIn("staged, unstaged, and untracked paths", normalized)
+        self.assertIn("Before the first task mutation in a session, capture a baseline snapshot", normalized)
+        self.assertIn("both endpoints of renames", normalized)
+        self.assertIn("content identity for untracked files", normalized)
+        self.assertIn("identity must change when the same path is edited again", normalized)
+        self.assertIn("Never acknowledge a failed or\nambiguous snapshot", public)
         self.assertIn("Update only leaves whose durable facts changed", public)
         self.assertIn("only `.ai/` changed", public)
 

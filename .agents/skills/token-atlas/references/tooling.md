@@ -6,6 +6,11 @@ Define small developer commands that wrap the documented PKF workflows.
 
 Tooling must not become a second source of truth. Commands select profiles, options, and workflows, then report what the PKF skill should execute.
 
+The canonical dependency-light validator modules live in the repository root
+`scripts/` directory. Release copies under `skills/token-atlas/scripts/` must
+remain byte-for-byte identical. The public package does not include the local
+PowerShell or benchmark runners.
+
 ---
 
 ## Command Surface

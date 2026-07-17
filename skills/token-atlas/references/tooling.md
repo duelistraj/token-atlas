@@ -2,9 +2,35 @@
 
 ## Purpose
 
-Define optional local command wrappers for repeatable developer and CI requests.
+Define the bundled deterministic validator and optional local command wrappers
+for repeatable developer and CI requests.
 
-Public Token Atlas does not require a bundled wrapper. If a target repo provides one, it should be a thin workflow selector and must not become a second source of truth.
+Public Token Atlas bundles a dependency-light Python validator under `scripts/`.
+It does not bundle a workflow wrapper. If a target repo provides one, it should
+remain a thin selector and must not become a second source of truth.
+
+## Bundled Validator
+
+From the target repository, resolve the installed skill root and run:
+
+```bash
+python <skill-root>/scripts/pkf_validate.py --path .ai --strictness advisory
+python <skill-root>/scripts/pkf_validate.py --path .ai --strictness ci --format json
+```
+
+For closeout or incremental maintenance, repeat `--changed-path` for each
+repository-relative changed path. Runtime, bootstrap, structure, and routing
+checks still run globally; leaf-contract and module token checks are limited to
+the matched implementation slice.
+
+```bash
+python <skill-root>/scripts/pkf_validate.py --path .ai \
+  --changed-path frontend/src/pages/NotesPage.tsx
+```
+
+The validator requires only Python 3.12 or newer. It uses the documented
+approximate estimator by default. `--model <name>` enables optional exact token
+counting only when a compatible tokenizer is installed.
 
 ## Recommended Commands
 
@@ -15,7 +41,7 @@ Public Token Atlas does not require a bundled wrapper. If a target repo provides
 | automatic end-of-turn closeout | `closeout.md` |
 | `pkf extract` | `extract.md` |
 | `pkf optimize` | `optimize.md` |
-| `pkf validate` | `validation.md` |
+| `pkf validate` | bundled validator, then semantic `validation.md` |
 | `pkf export` | `export.md` |
 | `pkf simulate` | `simulate.md` |
 | `pkf help` | wrapper help |

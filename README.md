@@ -15,7 +15,9 @@ Token Atlas is an AI context-optimization skill for coding agents. It extracts *
    cp -r skills/token-atlas <your-repo>/.agents/skills/token-atlas
    ```
 
-   Copy only `skills/token-atlas/` (`SKILL.md`, `references/`, `agents/`). You do not need `scripts/`, `tests/`, or the benchmark fixtures.
+   Copy only `skills/token-atlas/` (`SKILL.md`, `references/`, `agents/`, and the
+   dependency-light validator under `scripts/`). You do not need the repository
+   root maintainer scripts, tests, or benchmark fixtures.
 
 2. Ask your agent for the skill by name for the initial setup:
 
@@ -48,7 +50,7 @@ ends at exact declarations, tests, styles, and targeted locator commands instead
 of merely naming a large source file. Startup guidance and indexes are cached for
 the session unless they change or contradict source truth.
 
-Initialization sets `pkf.closeout: adaptive`. Set it to
+Initialization sets `pkf.runtime_version: 1` and `pkf.closeout: adaptive`. Set it to
 `pkf.closeout: "off"` in `.ai/PKF.md` to opt out. Hosts that support implicit
 skill invocation may load Token Atlas automatically; other hosts execute the
 embedded, vendor-neutral protocol from the repository instructions.
@@ -139,7 +141,9 @@ Warnings are advisory locally and become blocking under `validation_strictness: 
 ## Other useful features
 
 - **Retrieval simulation** — preview which modules and docs a task would load, with a token estimate, before you start.
-- **Deterministic validation** — structure, routing, reference, and token-budget checks with `--format json` for CI and no model calls.
+- **Deterministic validation** — the public package includes structure, runtime,
+  routing, source-symbol/Edit Map, affected-slice, and token-budget checks with
+  `--format json` for CI and no model calls.
 - **Optional retrieval exports** — generate RAG (`documents.jsonl`, `claims.jsonl`) or GraphRAG (`entities`, `relationships`, `claims`) artifacts from canonical Markdown.
 - **Advisory or CI strictness** — the same checks read as recommendations locally and fail the build in CI.
 
@@ -149,14 +153,14 @@ This repository maintains the skill itself and ships two surfaces:
 
 | Path | Purpose |
 |------|---------|
-| `skills/token-atlas/` | Public, activation-light package to copy into other projects. |
+| `skills/token-atlas/` | Public package with skill guidance and a dependency-light validator. |
 | `.agents/skills/token-atlas/` | Internal development and benchmark copy. |
 
 > This is the skill-maintenance repo. Do not run Token Atlas against it; the internal copy is for development and benchmarking only.
 
 ## Maintainer tooling
 
-`scripts/pkf.ps1` is a thin workflow selector — it chooses documented workflows and options but does not implement extraction, validation, or export logic. `scripts/pkf_validate.py` runs deterministic structure, routing, and token checks with no model calls.
+`scripts/pkf.ps1` is a thin workflow selector — it chooses documented workflows and options but does not implement extraction, validation, or export logic. The canonical `scripts/pkf_validate.py` and its three helpers run deterministic checks with no model calls; byte-identical release copies live in `skills/token-atlas/scripts/`.
 
 This repository uses [uv](https://docs.astral.sh/uv/) for its development
 environment and lockfile:
@@ -173,6 +177,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 --help
 # Deterministic validation (no model calls)
 uv run python scripts\pkf_validate.py --path .ai --strictness ci
 ```
+
+An installed public package can validate its target repository directly:
+
+```bash
+python <skill-root>/scripts/pkf_validate.py --path .ai --strictness advisory
+python <skill-root>/scripts/pkf_validate.py --path .ai --strictness ci --format json
+python <skill-root>/scripts/pkf_validate.py --path .ai --changed-path src/example.py
+```
+
+The portable approximate token estimator is the default. Pass `--model` only to
+request optional exact counting when a compatible tokenizer is installed.
 
 Benchmarks are model-backed and can incur cost — run them only with explicit approval. See [tooling](skills/token-atlas/references/tooling.md) for the wrapper and workflow surface, and `.agents/skills/token-atlas/references/benchmark.md` for the internal benchmark harness.
 

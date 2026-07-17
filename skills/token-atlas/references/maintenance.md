@@ -26,9 +26,12 @@ the repository.
 
 ## Runtime Migration
 
-When an existing `.ai/PKF.md` lacks `pkf.closeout`, add
-`pkf.closeout: adaptive`, embed the Closeout Protocol, and augment the neutral
-bootstrap in the same maintenance cycle. Preserve an explicit `off` value.
+The current runtime contract is `pkf.runtime_version: 1`. When an existing
+`.ai/PKF.md` has no runtime version or an older version, migrate it in the same
+maintenance cycle: add the current version, repair both mandatory protocols, and
+augment the neutral bootstrap. Add `pkf.closeout: adaptive` when closeout is
+missing, but preserve an explicit `off` value. Never downgrade or rewrite an
+unknown newer runtime; report it as unsupported instead.
 
 ## Impact Mapping
 

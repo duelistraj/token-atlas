@@ -6,6 +6,7 @@ resource: .ai/PKF.md
 tags: [simple-api, runtime]
 timestamp: 2026-07-08
 pkf:
+  runtime_version: 1
   loads:
     - .ai/MEMORY.md
     - .ai/ARCHITECTURE.md

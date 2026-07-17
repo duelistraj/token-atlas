@@ -124,7 +124,7 @@ symbols, tests, styles/tokens, and targeted locator commands.
 
 `pkf.related` means "useful if the task expands." Do not treat related documents as automatic context.
 
-During initialization, set `pkf.closeout: adaptive`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. The bootstrap routes and closes out every task through `.ai/PKF.md`; generated guidance must not name a specific vendor, agent, or model.
+During initialization, set `pkf.runtime_version: 1` and `pkf.closeout: adaptive`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Capture the closeout baseline before task mutations and acknowledge only successfully validated snapshots. The bootstrap routes and closes out every task through `.ai/PKF.md`; generated guidance must not name a specific vendor, agent, or model.
 
 ---
 
