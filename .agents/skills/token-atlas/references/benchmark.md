@@ -98,6 +98,40 @@ python scripts/pkf_activation_eval.py --repetitions 3 --model gpt-5.5 --model-re
 This eval is internal maintainer tooling and must not be copied into the public
 skill package.
 
+### Real Repository Lifecycle Eval
+
+Use the maintainer-only `scripts/pkf_savings_eval.py` to compare full Token
+Atlas lifecycle cost with a no-PKF baseline on a pinned external repository.
+Run it only with explicit approval because every repetition makes nine model
+calls, including a fresh initialization. The default target commit is Tether
+Brain `5c458df3c737f0af2a2193186d98af90c45163f0`; the runner requires a local
+checkout containing that commit and exports the Git tree into isolated
+workspaces. It never targets the Token Atlas maintenance repository.
+
+Both arms start from the same source-only export. The no-PKF arm keeps neutral
+repository guidance, while the PKF arm installs the current public skill,
+initializes and strictly validates `.ai/`, runs identical read-only and mutation
+tasks, and validates closeout. Pin the model and reasoning explicitly and
+inspect the call matrix before execution:
+
+```text
+python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3 --dry-run
+python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3 --report-json .agents/skills/token-atlas/benchmarks/results/pkf-vs-no-pkf-gpt-5.6-luna-high-2026-07-17.json --report-markdown BENCHMARKS.md
+```
+
+Publish total, cached, non-cached, and output tokens separately. Report
+correctness, strict validation, focused tests, latency, initialization cost,
+mutation premium, and both total-input and non-cached-input break-even. A
+negative saving is a valid finding; never add a minimum-savings pass gate.
+Sanitize local paths, credentials, source contents, and raw traces. Pin both the
+target commit and public-skill digest so future skill revisions can rerun the
+same application baseline.
+
+This lifecycle eval is internal maintainer tooling and must not be copied into
+the public skill package. Human-readable findings live in root
+`BENCHMARKS.md`; sanitized machine-readable reports live under
+`benchmarks/results/`.
+
 ---
 
 ## Fixture Contract

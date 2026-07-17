@@ -192,7 +192,11 @@ Exports are backend-neutral generated artifacts under `.ai/retrieval/`. They may
 
 Use `references/benchmark.md` when a user or CI process requests skill benchmarking.
 
-Benchmarking measures fixture-based skill quality, not just runtime speed. It must run against isolated fixture repositories under `benchmarks/fixtures/`, never against the token-atlas skill-maintenance repository itself.
+Benchmarking measures fixture-based skill quality, not just runtime speed. Run
+normal suites against isolated fixture repositories under `benchmarks/fixtures/`.
+When explicitly approved, the real-repository lifecycle eval may instead export
+a pinned external target into isolated workspaces to measure PKF-versus-no-PKF
+cost. Never target the token-atlas skill-maintenance repository itself.
 
 After changing trigger or closeout semantics, run the focused activation-gate
 eval documented in `references/benchmark.md` in addition to the relevant

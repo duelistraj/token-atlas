@@ -140,6 +140,10 @@ Token usage is measured with an exact tokenizer when available, otherwise estima
 
 Warnings are advisory locally and become blocking under `validation_strictness: ci`.
 
+See [the published benchmarks](BENCHMARKS.md) for the pinned real-repository
+PKF-versus-no-PKF lifecycle evaluation, including setup cost, cached and
+non-cached input, mutation overhead, correctness gates, and limitations.
+
 ## Other useful features
 
 - **Retrieval simulation** — preview which modules and docs a task would load, with a token estimate, before you start.
