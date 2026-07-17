@@ -80,6 +80,24 @@ Score each fixture on these dimensions:
 
 Performance timing may be recorded, but it must not replace these correctness and retrieval-quality checks.
 
+### Activation Gate Eval
+
+Use the maintainer-only `scripts/pkf_activation_eval.py` after changing skill
+trigger or closeout semantics. It runs frozen runtime-v1 and current runtime-v2
+read-only cases with identical prompts, records Codex JSONL token usage, and
+requires v2 to avoid skill/reference access and status output. Its v2 mutation
+control must still synchronize source, test evidence, and PKF knowledge.
+
+Run three repetitions with the pinned model and low reasoning, the smallest
+effort compatible with the host's advertised tool set:
+
+```text
+python scripts/pkf_activation_eval.py --repetitions 3 --model gpt-5.5 --model-reasoning-effort low --format json
+```
+
+This eval is internal maintainer tooling and must not be copied into the public
+skill package.
+
 ---
 
 ## Fixture Contract

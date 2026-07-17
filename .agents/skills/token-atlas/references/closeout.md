@@ -2,14 +2,24 @@
 
 ## Purpose
 
-Keep an initialized PKF synchronized automatically at the end of each user turn
-without paying the cost of a full maintenance cycle when nothing relevant
-changed.
+Keep an initialized PKF synchronized after intentional repository mutations
+without loading the skill or closeout workflow on read-only turns.
 
 ## Gate
 
-Run exactly once before the final response when `.ai/PKF.md` sets
-`pkf.closeout: adaptive`.
+When `.ai/PKF.md` sets `pkf.closeout: adaptive`, first apply the mutation
+gate:
+
+- If the current turn made no intentional repository content mutation, stop
+  silently. Do not load this reference, capture a baseline, inspect Git, run
+  validation, or emit a closeout status.
+- If the turn intentionally changed a tracked file or created a non-ignored
+  repository file as task output, run closeout exactly once before the final
+  response.
+
+Ignored caches, build outputs, and temporary files do not trigger closeout.
+Explicit Token Atlas workflows remain explicit invocations and own their
+validation without recursively invoking closeout.
 
 1. Before the first task mutation in a session, capture a baseline snapshot. Use
    normalized repository-relative paths, staged and unstaged diff identity,
@@ -20,8 +30,9 @@ Run exactly once before the final response when `.ai/PKF.md` sets
    closeout has completed, and compare it with the end-of-turn state. When Git
    is unavailable, use the files changed during the turn with equivalent content
    identity.
-3. Return `no-op` when no repository content changed, the change set is already
-   acknowledged and synchronized, or only `.ai/` changed because of closeout.
+3. Return `no-op` when the applicable mutation was reverted, the change set is
+   already acknowledged and synchronized, or only `.ai/` changed because of
+   closeout.
 4. Otherwise, route only the new or changed paths through the cached knowledge
    and module indexes. Do not reread cached startup documents unless they changed
    or contradict source truth.
@@ -57,7 +68,8 @@ in session context.
 
 ## Report
 
-Emit one compact line before the final response summary:
+When the mutation gate runs, emit one compact line before the final response
+summary. Emit nothing for a read-only bypass.
 
 ```text
 PKF closeout: <no-op|updated|stale|disabled|blocked> — <affected docs or reason>

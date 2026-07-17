@@ -16,7 +16,7 @@ Only report findings unless the user asks for fixes.
 Validate:
 
 - `PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, and `knowledge/INDEX.md` exist.
-- `PKF.md` sets `pkf.runtime_version: 1`; missing or older runtimes require migration, and newer versions are reported as unsupported rather than downgraded.
+- `PKF.md` sets `pkf.runtime_version: 2`; missing or older runtimes require migration, and newer versions are reported as unsupported rather than downgraded.
 - Every detected module has `INDEX.md`, `api.md`, `schema.md`, `business_rules.md`, and `ui.md`.
 - Every module is a flat directory directly under `.ai/knowledge/`; nested module indexes are invalid.
 - Shared docs exist: `glossary.md`, `dependencies.md`, `decision_log.md`.
@@ -34,7 +34,7 @@ Validate:
 - Module names are target-repository-derived, placeholders are not promoted to modules, and coarse boundaries are reported when they mix independently routable capabilities satisfying the Module Boundary Contract.
 - Routing starts from `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
 - `PKF.md` embeds the Retrieval Protocol: the hard precondition and ordered route, the negative constraint against premature codebase-wide search, fallback/verification, and knowledge-base sync.
-- `PKF.md` sets `pkf.closeout` to `adaptive` or `off` and embeds the mandatory Closeout Protocol with adaptive gating, session acknowledgement, incremental sync, and recursion prevention.
+- `PKF.md` sets `pkf.closeout` to `adaptive` or `off` and embeds the mandatory Closeout Protocol with a silent read-only bypass, intentional-mutation gate, session acknowledgement, incremental sync, and recursion prevention.
 - A neutral bootstrap (a root `AGENTS.md`, or the repository's existing agent-instruction entry point) references retrieval and closeout in `.ai/PKF.md`, and no generated guidance names a specific vendor, agent, or model.
 - Simulation output is present when enabled.
 - Token budget output is present at the selected detail level.

@@ -19,7 +19,7 @@ PowerShell or benchmark runners.
 |---------|----------|
 | `pkf init` | `initialize.md` |
 | `pkf maintain` | `maintenance.md` |
-| automatic end-of-turn closeout | `closeout.md` |
+| mutation-triggered closeout | `closeout.md` |
 | `pkf extract` | `extract.md` |
 | `pkf optimize` | `optimize.md` |
 | `pkf validate` | `validation.md` |

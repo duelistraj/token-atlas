@@ -64,14 +64,15 @@ ARCHITECTURE.md
 knowledge/INDEX.md
 ```
 
-Verify `PKF.md` sets `pkf.runtime_version: 1`. Missing or older versions require
+Verify `PKF.md` sets `pkf.runtime_version: 2`. Missing or older versions require
 migration; report an unknown newer version as unsupported and never downgrade it.
 
 Also verify that `PKF.md` contains `## Retrieval Protocol (MANDATORY)` and the
 complete protocol: the hard precondition and ordered route, the negative
 constraint against premature codebase-wide search, fallback and verification,
 and knowledge-base synchronization. Verify that `pkf.closeout` is `adaptive` or
-`off`, `PKF.md` contains `## Closeout Protocol (MANDATORY)` with adaptive gating
+`off`, `PKF.md` contains `## Closeout Protocol (MANDATORY)` with a silent
+read-only bypass and intentional-mutation gating
 and recursion prevention, and a neutral root `AGENTS.md`, or an existing
 agent-instruction entry point, references retrieval and closeout in `.ai/PKF.md`
 without naming a specific vendor, agent, or model.

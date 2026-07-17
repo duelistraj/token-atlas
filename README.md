@@ -26,8 +26,8 @@ Token Atlas is an AI context-optimization skill for coding agents. It extracts *
 3. The first run creates `.ai/` (runtime plus knowledge skeleton), embeds the
    Retrieval and Closeout Protocols in `PKF.md`, adds a neutral bootstrap,
    extracts source-backed facts, optimizes routing, and validates. Subsequent
-   turns run an adaptive closeout automatically: unchanged turns are no-ops,
-   while relevant code changes update only affected knowledge.
+   repository-changing turns run adaptive closeout automatically, while
+   read-only turns bypass the skill and closeout workflow entirely.
 
 ## Real-world examples
 
@@ -50,7 +50,7 @@ ends at exact declarations, tests, styles, and targeted locator commands instead
 of merely naming a large source file. Startup guidance and indexes are cached for
 the session unless they change or contradict source truth.
 
-Initialization sets `pkf.runtime_version: 1` and `pkf.closeout: adaptive`. Set it to
+Initialization sets `pkf.runtime_version: 2` and `pkf.closeout: adaptive`. Set it to
 `pkf.closeout: "off"` in `.ai/PKF.md` to opt out. Hosts that support implicit
 skill invocation may load Token Atlas automatically; other hosts execute the
 embedded, vendor-neutral protocol from the repository instructions.
@@ -79,16 +79,18 @@ module vocabulary.
 
 ## Lifecycle and profiles
 
-A run initializes on first use. Later user turns pass through a lightweight
-closeout gate; only relevant changes continue into incremental extraction,
-affected-route optimization, and advisory validation. Simulation and exports
-remain optional.
+A run initializes on first use. Later intentional repository mutations pass
+through a lightweight closeout gate; read-only turns do not activate Token
+Atlas. Only relevant changes continue into incremental extraction,
+affected-route optimization, and advisory validation.
 
 ```mermaid
 flowchart LR
     Start([Start]) --> Exists{".ai/ exists?"}
     Exists -- no --> Initialize
-    Exists -- yes --> Closeout{Changed?}
+    Exists -- yes --> Mutated{Repository mutation?}
+    Mutated -- no --> Done
+    Mutated -- yes --> Closeout{Knowledge affected?}
     Initialize --> Extract
     Closeout -- no --> Done
     Closeout -- yes --> Maintain
@@ -101,7 +103,7 @@ flowchart LR
 | Phase | Purpose |
 |-------|---------|
 | Initialize | Create the `.ai/` runtime and OKF skeleton (first run). |
-| Closeout | Gate every turn and no-op when the acknowledged change set is unchanged. |
+| Closeout | Gate intentional repository mutations and bypass read-only turns silently. |
 | Maintain | Map changed, renamed, and deleted files to affected docs. |
 | Extract | Add only source-backed facts to the narrowest document. |
 | Optimize | Tighten routing, remove duplication, and shrink automatic loads. |

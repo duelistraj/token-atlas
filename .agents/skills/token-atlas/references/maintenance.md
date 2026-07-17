@@ -31,9 +31,9 @@ Update only through the documented workflows:
 
 Do not directly edit application code.
 
-For routine automatic end-of-turn work, use `closeout.md` first. Continue with
-this full workflow only when that gate identifies an exceptional maintenance
-case.
+For routine mutation-triggered closeout, use `closeout.md` first. Continue
+with this full workflow only when that gate identifies an exceptional
+maintenance case.
 
 ---
 
@@ -62,11 +62,13 @@ the repository.
 
 ## Runtime Migration
 
-The current runtime contract is `pkf.runtime_version: 1`. When an existing
+The current runtime contract is `pkf.runtime_version: 2`. When an existing
 `.ai/PKF.md` has no runtime version or an older version, migrate it in the same
-maintenance cycle: add the current version, repair both mandatory protocols, and
-augment the neutral bootstrap. Add `pkf.closeout: adaptive` when closeout is
-missing, but preserve an explicit `off` value. Never downgrade or rewrite an
+maintenance cycle. A version 1 migration must replace every-turn closeout
+wording in both the embedded protocol and neutral bootstrap with the silent
+read-only bypass and intentional-mutation gate, then set version 2. Add
+`pkf.closeout: adaptive` when closeout is missing, preserve an explicit `off`
+value, and validate before acknowledgment. Never downgrade or rewrite an
 unknown newer runtime; report it as unsupported instead.
 
 ---

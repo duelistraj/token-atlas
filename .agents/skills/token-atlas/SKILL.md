@@ -1,6 +1,6 @@
 ---
 name: token-atlas
-description: Develop and validate Token Atlas PKF/OKF workflows and fixtures, including automatic adaptive end-of-turn closeout behavior. Use when maintaining the token-atlas skill's public/internal packages, initialization protocols, validators, fixtures, or local benchmarks; never run Token Atlas against its own maintenance repository.
+description: Develop and validate Token Atlas PKF/OKF workflows and fixtures, including mutation-gated adaptive closeout behavior. Use when maintaining the token-atlas skill's public/internal packages, initialization protocols, validators, fixtures, or local benchmarks; never run Token Atlas against its own maintenance repository.
 ---
 
 # Token Atlas
@@ -81,7 +81,7 @@ If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
 Otherwise:
 
-- For an automatic end-of-turn request, execute `references/closeout.md` first and stop on a no-op
+- After an intentional repository mutation, execute `references/closeout.md` first and stop on a no-op
 - Execute `references/maintenance.md` to detect changed paths, stale references, duplicate facts, and affected docs when closeout identifies an exceptional case
 - Execute `references/extract.md` using **Incremental Extraction**
 - Validate
@@ -124,7 +124,7 @@ symbols, tests, styles/tokens, and targeted locator commands.
 
 `pkf.related` means "useful if the task expands." Do not treat related documents as automatic context.
 
-During initialization, set `pkf.runtime_version: 1` and `pkf.closeout: adaptive`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Capture the closeout baseline before task mutations and acknowledge only successfully validated snapshots. The bootstrap routes and closes out every task through `.ai/PKF.md`; generated guidance must not name a specific vendor, agent, or model.
+During initialization, set `pkf.runtime_version: 2` and `pkf.closeout: adaptive`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Read-only turns bypass closeout silently. Capture the baseline before intentional repository mutations and acknowledge only successfully validated snapshots. The bootstrap routes every task through `.ai/PKF.md` and mutation-gates closeout; generated guidance must not name a specific vendor, agent, or model.
 
 ---
 
@@ -193,6 +193,10 @@ Exports are backend-neutral generated artifacts under `.ai/retrieval/`. They may
 Use `references/benchmark.md` when a user or CI process requests skill benchmarking.
 
 Benchmarking measures fixture-based skill quality, not just runtime speed. It must run against isolated fixture repositories under `benchmarks/fixtures/`, never against the token-atlas skill-maintenance repository itself.
+
+After changing trigger or closeout semantics, run the focused activation-gate
+eval documented in `references/benchmark.md` in addition to the relevant
+fixture suite.
 
 Benchmark suites:
 
@@ -268,7 +272,7 @@ Commands are thin workflow selectors:
 
 - `pkf init` -> `references/initialize.md`
 - `pkf maintain` -> `references/maintenance.md`
-- automatic turn closeout -> `references/closeout.md`
+- mutation-triggered closeout -> `references/closeout.md`
 - `pkf extract` -> `references/extract.md`
 - `pkf optimize` -> `references/optimize.md`
 - `pkf validate` -> `references/validation.md`

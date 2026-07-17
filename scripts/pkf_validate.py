@@ -27,6 +27,7 @@ from pkf_contract import (  # noqa: E402
     GENERIC_EDIT_MAP_BEHAVIORS,
     LEAF_MODULE_DOCS,
     LEAF_SOURCE_SYMBOLS_FIELD,
+    LEGACY_CLOSEOUT_PHRASES,
     REQUIRED_FRONT_MATTER,
     REQUIRED_MODULE_DOCS,
     REQUIRED_RUNTIME_DOCS,
@@ -47,6 +48,8 @@ RETRIEVAL_PROTOCOL_HEADING = "## Retrieval Protocol (MANDATORY)"
 BOOTSTRAP_FILE = "AGENTS.md"
 BOOTSTRAP_REFERENCE = ".ai/PKF.md"
 BOOTSTRAP_CLOSEOUT_REFERENCE = "Closeout Protocol"
+BOOTSTRAP_MUTATION_GATE = "After an intentional repository mutation"
+BOOTSTRAP_READ_ONLY_BYPASS = "Read-only turns bypass closeout silently"
 
 
 @dataclass
@@ -241,6 +244,10 @@ def check_runtime_protocols(ai_dir: Path, repo_root: Path, report: ValidationRep
                 passed(report, f"PKF.md embeds {protocol} protocol clause: {requirement}")
             else:
                 error(report, rel(pkf, repo_root), f"missing required {protocol} protocol clause: {requirement}")
+    closeout_text = text.split(CLOSEOUT_PROTOCOL_HEADING, 1)[-1].lower()
+    for phrase in LEGACY_CLOSEOUT_PHRASES:
+        if phrase in closeout_text:
+            error(report, rel(pkf, repo_root), f"legacy every-turn closeout wording is unsupported: {phrase}")
 
 
 def check_neutral_bootstrap(repo_root: Path, report: ValidationReport) -> None:
@@ -249,6 +256,7 @@ def check_neutral_bootstrap(repo_root: Path, report: ValidationReport) -> None:
         error(report, BOOTSTRAP_FILE, f"missing root bootstrap referencing {BOOTSTRAP_REFERENCE}")
         return
     text = bootstrap.read_text(encoding="utf-8")
+    normalized_text = " ".join(text.split())
     if BOOTSTRAP_REFERENCE in text:
         passed(report, f"root bootstrap references {BOOTSTRAP_REFERENCE}")
     else:
@@ -257,6 +265,18 @@ def check_neutral_bootstrap(repo_root: Path, report: ValidationReport) -> None:
         passed(report, f"root bootstrap references {BOOTSTRAP_CLOSEOUT_REFERENCE}")
     else:
         error(report, BOOTSTRAP_FILE, f"missing reference to {BOOTSTRAP_CLOSEOUT_REFERENCE}")
+    if BOOTSTRAP_MUTATION_GATE in normalized_text:
+        passed(report, "root bootstrap mutation-gates closeout")
+    else:
+        error(report, BOOTSTRAP_FILE, "closeout bootstrap must be gated by a repository mutation")
+    if BOOTSTRAP_READ_ONLY_BYPASS in normalized_text:
+        passed(report, "root bootstrap silently bypasses read-only closeout")
+    else:
+        error(report, BOOTSTRAP_FILE, "closeout bootstrap must silently bypass read-only turns")
+    lowered = text.lower()
+    for phrase in LEGACY_CLOSEOUT_PHRASES:
+        if phrase in lowered:
+            error(report, BOOTSTRAP_FILE, f"legacy every-turn closeout wording is unsupported: {phrase}")
 
 
 def check_runtime_config(

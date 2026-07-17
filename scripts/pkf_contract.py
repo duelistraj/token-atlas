@@ -10,7 +10,7 @@ from __future__ import annotations
 REQUIRED_FRONT_MATTER = {"type", "title", "description", "resource", "tags", "timestamp", "pkf"}
 
 RUNTIME_VERSION_FIELD = "runtime_version"
-RUNTIME_VERSION = 1
+RUNTIME_VERSION = 2
 
 TOKEN_THRESHOLDS = {
     "startup": 2500,
@@ -27,6 +27,7 @@ RETRIEVAL_BUDGET = {
 CLOSEOUT_DEFAULT = "adaptive"
 CLOSEOUT_MODES = ("adaptive", "off")
 CLOSEOUT_PROTOCOL_HEADING = "## Closeout Protocol (MANDATORY)"
+LEGACY_CLOSEOUT_PHRASES = ("every user turn", "every final response")
 PROTOCOL_REQUIREMENTS = {
     "retrieval": (
         "### Hard precondition",
@@ -36,6 +37,8 @@ PROTOCOL_REQUIREMENTS = {
     ),
     "closeout": (
         "### Adaptive gate",
+        "If the current turn made no intentional repository content mutation",
+        "stop silently",
         "Keep the acknowledgement in session context",
         "### Incremental synchronization",
         "### Safety and recursion",

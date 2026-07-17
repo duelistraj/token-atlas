@@ -6,7 +6,7 @@ resource: .
 tags: [pkf]
 timestamp: 2026-07-12
 pkf:
-  runtime_version: 1
+  runtime_version: 2
   loads: [.ai/MEMORY.md, .ai/ARCHITECTURE.md, .ai/knowledge/INDEX.md]
   related: []
   closeout: adaptive
@@ -38,7 +38,8 @@ commands, budget usage, and whether fallback search was required.
 
 ### Adaptive gate
 
-Compare a deterministic session baseline with the final repository state. Keep
+If the current turn made no intentional repository content mutation, stop silently.
+After an intentional repository mutation, compare a deterministic session baseline with the final repository state. Keep
 the acknowledgement in session context.
 
 ### Incremental synchronization

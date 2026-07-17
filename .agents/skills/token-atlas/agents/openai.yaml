@@ -1,7 +1,7 @@
 interface:
   display_name: "Token Atlas"
-  short_description: "Maintain PKF with adaptive turn closeout"
-  default_prompt: "Use $token-atlas to initialize PKF and keep it synchronized with adaptive end-of-turn closeout."
+  short_description: "Maintain PKF after repository changes"
+  default_prompt: "Use $token-atlas to initialize PKF and keep it synchronized after repository changes."
 
 policy:
   allow_implicit_invocation: true

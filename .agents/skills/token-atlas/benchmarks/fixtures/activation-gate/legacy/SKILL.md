@@ -1,6 +1,6 @@
 ---
 name: token-atlas
-description: Generate and maintain repository-specific PKF runtime and OKF knowledge bases on demand or incrementally in target repositories. Use when explicitly asked to initialize, extract, maintain, optimize, validate, simulate, or export PKF/OKF knowledge, and after an intentional repository mutation when an initialized repository's `.ai/PKF.md` requires adaptive Token Atlas closeout. Do not trigger for read-only turns or implicitly initialize unrelated repositories.
+description: Generate and maintain repository-specific PKF runtime and OKF knowledge bases on demand or incrementally in target repositories. Use when explicitly asked to initialize, extract, maintain, optimize, validate, simulate, or export PKF/OKF knowledge, and when an initialized repository's `.ai/PKF.md` or agent instructions require the automatic adaptive Token Atlas closeout after a user turn. Do not implicitly initialize unrelated repositories.
 ---
 
 # Token Atlas
@@ -25,7 +25,7 @@ Use the smallest needed reference set:
 |------|------|
 | Create missing PKF runtime and OKF skeleton | `references/initialize.md` |
 | Detect changed, renamed, deleted, stale, or duplicate knowledge | `references/maintenance.md` |
-| Close out an intentional repository mutation | `references/closeout.md` |
+| Run the automatic end-of-turn adaptive gate | `references/closeout.md` |
 | Populate source-backed facts | `references/extract.md` |
 | Tighten routing, deduplicate facts, and reduce context cost | `references/optimize.md` |
 | Validate structure, sync, routing, token budget, and exports | `references/validation.md` |
@@ -57,8 +57,8 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - Derive flat module names from source-backed functional capabilities. Prefer capability boundaries over technical layers only when the repository proves at least two independently routable capabilities; never prescribe module names or create speculative modules.
 - During maintenance, automatically repartition coarse modules when capability ownership is unambiguous. Preserve the current structure and report ambiguity instead of guessing.
 - During `initialize`, embed the Retrieval Protocol into the generated `.ai/PKF.md`, and ensure a neutral bootstrap (a root `AGENTS.md`, or the repository's existing agent-instruction entry point) routes every task to `.ai/PKF.md`.
-- Default the runtime to `pkf.runtime_version: 2` and `pkf.closeout: adaptive`. Permit the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
-- Bypass closeout silently on read-only turns. Before an intentional repository mutation, capture a deterministic session baseline; afterward run closeout exactly once, detect later edits to the same path, acknowledge only successfully validated snapshots, and never recursively close out a closeout.
+- Default the runtime to `pkf.runtime_version: 1` and `pkf.closeout: adaptive`. Permit the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
+- Capture a deterministic session baseline before task mutations. Run closeout exactly once before the final response, detect later edits to the same path, acknowledge only successfully validated snapshots, and never recursively close out a closeout.
 - Keep all generated guidance vendor, agent, and model agnostic. Reference no specific assistant, tool, or model.
 - Keep `pkf.loads` minimal and put optional context in `pkf.related`.
 - Require every module leaf to expose machine-readable `source_symbols`; use a compact Edit Map to connect behaviors to symbols, tests, styles, and targeted locator commands.

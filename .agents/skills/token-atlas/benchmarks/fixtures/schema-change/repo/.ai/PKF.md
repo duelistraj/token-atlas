@@ -6,7 +6,7 @@ resource: .ai/PKF.md
 tags: [schema-change, runtime]
 timestamp: 2026-07-08
 pkf:
-  runtime_version: 1
+  runtime_version: 2
   loads:
     - .ai/MEMORY.md
     - .ai/ARCHITECTURE.md
@@ -39,7 +39,8 @@ Update the authoritative leaf after source changes or report it as stale.
 
 ### Adaptive gate
 
-Compare a deterministic session baseline with the final repository state. Keep
+If the current turn made no intentional repository content mutation, stop silently.
+After an intentional repository mutation, compare a deterministic session baseline with the final repository state. Keep
 the acknowledgement in session context.
 
 ### Incremental synchronization

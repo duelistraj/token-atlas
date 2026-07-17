@@ -19,7 +19,7 @@ Create or update:
 
 ```text
 <repo root>
-|-- AGENTS.md                 # neutral bootstrap: routes and closes out every task
+|-- AGENTS.md                 # neutral bootstrap: routes tasks and mutation-gates closeout
 |                             # (augment an existing agent-instruction entry
 |                             #  point instead, if the repo already has one)
 `-- .ai/
@@ -67,7 +67,7 @@ module names.
 ## Procedure
 
 1. Discover project name, technologies, source roots, config roots, test roots, docs, and functional capabilities. Build a capability-to-source ownership map using the Module Boundary Contract before choosing module names.
-2. Create or repair `PKF.md`, `MEMORY.md`, and `ARCHITECTURE.md`. Embed the Retrieval Protocol and Closeout Protocol (templates below) into `PKF.md` so routing and synchronization enforcement travel with the repository. Set `pkf.runtime_version: 1` and `pkf.closeout: adaptive` in the `PKF.md` front matter by default; accept `pkf.closeout: "off"` as an explicit opt-out (quote `off` so YAML parsers do not treat it as boolean false).
+2. Create or repair `PKF.md`, `MEMORY.md`, and `ARCHITECTURE.md`. Embed the Retrieval Protocol and Closeout Protocol (templates below) into `PKF.md` so routing and synchronization enforcement travel with the repository. Set `pkf.runtime_version: 2` and `pkf.closeout: adaptive` in the `PKF.md` front matter by default; accept `pkf.closeout: "off"` as an explicit opt-out (quote `off` so YAML parsers do not treat it as boolean false).
 3. Ensure a neutral bootstrap points every task at both protocols in `.ai/PKF.md`: create a root `AGENTS.md` (template below), or, if the repository already has an agent-instruction entry point, augment it with the same bootstrap text. Keep this vendor, agent, and model agnostic — name no specific assistant, tool, or model.
 4. Create root shared knowledge docs and one module skeleton per detected module.
 5. Add OKF front matter to every generated Markdown file:
@@ -105,7 +105,7 @@ For `.ai/PKF.md` only, add the closeout mode under the existing `pkf` mapping:
 
 ```yaml
 pkf:
-  runtime_version: 1
+  runtime_version: 2
   loads:
     - .ai/MEMORY.md
     - .ai/ARCHITECTURE.md
@@ -204,9 +204,21 @@ end-of-turn enforcement even when a host cannot implicitly load Token Atlas.
 ````markdown
 ## Closeout Protocol (MANDATORY)
 
-Run PKF closeout exactly once before the final response to every user turn. Use
-Token Atlas when it is available; otherwise execute this embedded protocol
-directly. When `pkf.closeout` is `off`, report `disabled` and stop.
+Apply this gate before loading Token Atlas or executing the rest of this
+protocol:
+
+- If the current turn made no intentional repository content mutation, stop
+  silently. Do not capture a baseline, inspect Git, validate, or emit a closeout
+  status.
+- If the turn intentionally changed a tracked file or created a non-ignored
+  repository file as task output, run PKF closeout exactly once before the
+  final response. Use Token Atlas when available; otherwise execute this
+  embedded protocol directly.
+
+Ignored caches, build outputs, and temporary files do not trigger closeout.
+Explicit Token Atlas workflows own their validation and do not recursively
+invoke closeout. When `pkf.closeout` is `off` and the mutation gate applies,
+report `disabled` and stop.
 
 ### Adaptive gate
 
@@ -217,9 +229,9 @@ directly. When `pkf.closeout` is `off`, report `disabled` and stop.
 2. Reuse the last successfully acknowledged snapshot, or the baseline when no
    closeout has completed, and compare it with the end-of-turn state. When Git
    is unavailable, use files changed during the turn with equivalent identity.
-3. Return `no-op` when no repository content changed, the current change set was
-   already acknowledged and synchronized, or only `.ai/` changed during the
-   closeout itself.
+3. Return `no-op` when the applicable mutation was reverted, the current
+   change set was already acknowledged and synchronized, or only `.ai/`
+   changed during the closeout itself.
 4. Otherwise route only new or changed paths through cached indexes and update
    the smallest affected PKF leaves.
 
@@ -248,7 +260,8 @@ claiming them as synchronized.
 - Never invoke closeout again because closeout changed `.ai/`.
 - If synchronization cannot finish, name the stale leaves instead of guessing.
 
-Report one compact line:
+When the mutation gate runs, report one compact line. Emit nothing for a
+read-only bypass:
 
 ```
 PKF closeout: <no-op|updated|stale|disabled|blocked> — <affected docs or reason>
@@ -275,9 +288,10 @@ edit, follow the **Retrieval Protocol in `.ai/PKF.md`**: route
 symbols`, and do not run codebase-wide search until that route proves
 insufficient. This applies to every task, not just the first.
 
-Before the final response to every user turn, follow the **Closeout Protocol in
-`.ai/PKF.md`** exactly once. Use Token Atlas when available; otherwise execute
-the embedded protocol directly. Do not rerun closeout because closeout changed
+After an intentional repository mutation, follow the **Closeout Protocol in
+`.ai/PKF.md`** exactly once before the final response. Read-only turns bypass
+closeout silently. Use Token Atlas when available; otherwise execute the
+embedded protocol directly. Do not rerun closeout because closeout changed
 `.ai/`.
 ````
 
@@ -293,7 +307,7 @@ the embedded protocol directly. Do not rerun closeout because closeout changed
 
 ## Success Criteria
 
-- `.ai/PKF.md` exists, defines startup behavior, sets `pkf.runtime_version: 1`, sets a valid `pkf.closeout` mode, and embeds both mandatory protocols.
+- `.ai/PKF.md` exists, defines startup behavior, sets `pkf.runtime_version: 2`, sets a valid `pkf.closeout` mode, and embeds both mandatory protocols.
 - A neutral bootstrap (root `AGENTS.md` or an augmented existing entry point) references retrieval and closeout in `.ai/PKF.md` and names no vendor, agent, or model.
 - Required runtime and shared docs exist.
 - Every detected module has the required OKF skeleton docs.

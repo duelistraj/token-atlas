@@ -129,7 +129,7 @@ class PkfValidateTests(unittest.TestCase):
     def test_missing_runtime_version_requires_migration(self):
         with self.copy_ai() as ai:
             pkf = ai / "PKF.md"
-            pkf.write_text(pkf.read_text(encoding="utf-8").replace("  runtime_version: 1\n", ""), encoding="utf-8")
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("  runtime_version: 2\n", ""), encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
         self.assertEqual(report.exit_code, 1)
@@ -138,11 +138,20 @@ class PkfValidateTests(unittest.TestCase):
     def test_future_runtime_version_is_not_downgraded(self):
         with self.copy_ai() as ai:
             pkf = ai / "PKF.md"
-            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 1", "runtime_version: 2"), encoding="utf-8")
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 2", "runtime_version: 3"), encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
         self.assertEqual(report.exit_code, 1)
         self.assertTrue(any("newer than supported" in finding.issue for finding in report.errors))
+
+    def test_runtime_version_one_requires_mutation_gate_migration(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 2", "runtime_version: 1"), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("must be 2; found 1" in finding.issue for finding in report.errors))
 
     def test_invalid_closeout_mode_is_ci_blocking(self):
         with self.copy_ai() as ai:
@@ -180,6 +189,19 @@ class PkfValidateTests(unittest.TestCase):
         self.assertEqual(report.exit_code, 1)
         self.assertTrue(any("missing required closeout protocol clause" in finding.issue for finding in report.errors))
 
+    def test_legacy_every_turn_closeout_protocol_is_ci_blocking(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(
+                pkf.read_text(encoding="utf-8")
+                + "\nRun closeout before every final response.\n",
+                encoding="utf-8",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("legacy every-turn closeout wording" in finding.issue for finding in report.errors))
+
     def test_missing_bootstrap_is_ci_blocking(self):
         with self.copy_ai() as ai:
             (ai.parent / "AGENTS.md").unlink()
@@ -196,6 +218,60 @@ class PkfValidateTests(unittest.TestCase):
 
         self.assertEqual(report.exit_code, 1)
         self.assertTrue(any(finding.file == "AGENTS.md" and "Closeout Protocol" in finding.issue for finding in report.errors))
+
+    def test_bootstrap_must_mutation_gate_closeout(self):
+        with self.copy_ai() as ai:
+            bootstrap = ai.parent / "AGENTS.md"
+            bootstrap.write_text(
+                bootstrap.read_text(encoding="utf-8").replace("intentional repository mutation", "ordinary turn"),
+                encoding="utf-8",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("gated by a repository mutation" in finding.issue for finding in report.errors))
+
+    def test_bootstrap_must_silently_bypass_read_only_turns(self):
+        with self.copy_ai() as ai:
+            bootstrap = ai.parent / "AGENTS.md"
+            bootstrap.write_text(
+                bootstrap.read_text(encoding="utf-8").replace(
+                    "Read-only turns bypass closeout silently",
+                    "Read-only turns run closeout",
+                ),
+                encoding="utf-8",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("silently bypass read-only turns" in finding.issue for finding in report.errors))
+
+    def test_bootstrap_mutation_gate_allows_markdown_line_wrapping(self):
+        with self.copy_ai() as ai:
+            bootstrap = ai.parent / "AGENTS.md"
+            bootstrap.write_text(
+                bootstrap.read_text(encoding="utf-8").replace(
+                    "Read-only turns bypass closeout silently",
+                    "Read-only turns bypass\ncloseout silently",
+                ),
+                encoding="utf-8",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 0)
+
+    def test_bootstrap_rejects_legacy_every_turn_wording(self):
+        with self.copy_ai() as ai:
+            bootstrap = ai.parent / "AGENTS.md"
+            bootstrap.write_text(
+                bootstrap.read_text(encoding="utf-8")
+                + "\nBefore every final response, run closeout.\n",
+                encoding="utf-8",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("legacy every-turn closeout wording" in finding.issue for finding in report.errors))
 
     def test_malformed_front_matter_exits_one_in_ci(self):
         with self.copy_ai() as ai:
@@ -389,12 +465,13 @@ class PkfValidateTests(unittest.TestCase):
                 continue
             self.assertIn("## Retrieval Protocol (MANDATORY)", pkf.read_text(encoding="utf-8"), pkf)
             self.assertIn("## Closeout Protocol (MANDATORY)", pkf.read_text(encoding="utf-8"), pkf)
-            self.assertEqual(read_front_matter(pkf)["pkf"]["runtime_version"], 1, pkf)
+            self.assertEqual(read_front_matter(pkf)["pkf"]["runtime_version"], 2, pkf)
             self.assertEqual(read_front_matter(pkf)["pkf"]["closeout"], "adaptive", pkf)
             bootstrap = pkf.parent.parent / "AGENTS.md"
             self.assertTrue(bootstrap.is_file(), f"missing bootstrap for {pkf}")
             self.assertIn(".ai/PKF.md", bootstrap.read_text(encoding="utf-8"), bootstrap)
             self.assertIn("Closeout Protocol", bootstrap.read_text(encoding="utf-8"), bootstrap)
+            self.assertIn("repository mutation", bootstrap.read_text(encoding="utf-8").lower(), bootstrap)
 
     def copy_ai(self):
         temp = tempfile.TemporaryDirectory()

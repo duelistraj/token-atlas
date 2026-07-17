@@ -24,7 +24,7 @@ Create or update:
 
 ```text
 <repo root>
-|-- AGENTS.md                 # neutral bootstrap: routes and closes out every task
+|-- AGENTS.md                 # neutral bootstrap: routes tasks and mutation-gates closeout
 |                             # (or augment an existing instruction entry point)
 `-- .ai/
     |-- PKF.md                # embeds mandatory retrieval and closeout protocols
@@ -105,13 +105,13 @@ If `.ai/` already exists but `PKF.md` is absent, preserve existing `.ai/` conten
 
 `PKF.md` must define:
 
-- Runtime contract version `pkf.runtime_version: 1`.
+- Runtime contract version `pkf.runtime_version: 2`.
 - Startup sequence.
 - Startup recovery when `.ai/PKF.md` is missing.
 - Source-of-truth rules.
 - Extraction, optimization, and validation gates.
 - The difference between `pkf.loads` and `pkf.related`.
-- Adaptive end-of-turn closeout with `pkf.closeout: adaptive` by default and
+- Mutation-gated adaptive closeout with `pkf.closeout: adaptive` by default and
   `pkf.closeout: "off"` as an explicit opt-out. Quote `off` so YAML parsers do
   not treat it as boolean false.
 - Execution profiles and defaults: `core`, `ci`, `retrieval`, `full`.
@@ -182,7 +182,7 @@ For `.ai/PKF.md` only, add the closeout mode under the existing `pkf` mapping:
 
 ```yaml
 pkf:
-  runtime_version: 1
+  runtime_version: 2
   loads:
     - .ai/MEMORY.md
     - .ai/ARCHITECTURE.md
@@ -356,9 +356,21 @@ end-of-turn enforcement even when a host cannot implicitly load Token Atlas.
 ````markdown
 ## Closeout Protocol (MANDATORY)
 
-Run PKF closeout exactly once before the final response to every user turn. Use
-Token Atlas when it is available; otherwise execute this embedded protocol
-directly. When `pkf.closeout` is `off`, report `disabled` and stop.
+Apply this gate before loading Token Atlas or executing the rest of this
+protocol:
+
+- If the current turn made no intentional repository content mutation, stop
+  silently. Do not capture a baseline, inspect Git, validate, or emit a closeout
+  status.
+- If the turn intentionally changed a tracked file or created a non-ignored
+  repository file as task output, run PKF closeout exactly once before the
+  final response. Use Token Atlas when available; otherwise execute this
+  embedded protocol directly.
+
+Ignored caches, build outputs, and temporary files do not trigger closeout.
+Explicit Token Atlas workflows own their validation and do not recursively
+invoke closeout. When `pkf.closeout` is `off` and the mutation gate applies,
+report `disabled` and stop.
 
 ### Adaptive gate
 
@@ -369,9 +381,9 @@ directly. When `pkf.closeout` is `off`, report `disabled` and stop.
 2. Reuse the last successfully acknowledged snapshot, or the baseline when no
    closeout has completed, and compare it with the end-of-turn state. When Git
    is unavailable, use files changed during the turn with equivalent identity.
-3. Return `no-op` when no repository content changed, the current change set was
-   already acknowledged and synchronized, or only `.ai/` changed during the
-   closeout itself.
+3. Return `no-op` when the applicable mutation was reverted, the current
+   change set was already acknowledged and synchronized, or only `.ai/`
+   changed during the closeout itself.
 4. Otherwise route only new or changed paths through cached indexes and update
    the smallest affected PKF leaves.
 
@@ -400,7 +412,8 @@ claiming them as synchronized.
 - Never invoke closeout again because closeout changed `.ai/`.
 - If synchronization cannot finish, name the stale leaves instead of guessing.
 
-Report one compact line:
+When the mutation gate runs, report one compact line. Emit nothing for a
+read-only bypass:
 
 ```
 PKF closeout: <no-op|updated|stale|disabled|blocked> — <affected docs or reason>
@@ -425,9 +438,10 @@ edit, follow the **Retrieval Protocol in `.ai/PKF.md`**: route
 symbols`, and do not run codebase-wide search until that route proves
 insufficient. This applies to every task, not just the first.
 
-Before the final response to every user turn, follow the **Closeout Protocol in
-`.ai/PKF.md`** exactly once. Use Token Atlas when available; otherwise execute
-the embedded protocol directly. Do not rerun closeout because closeout changed
+After an intentional repository mutation, follow the **Closeout Protocol in
+`.ai/PKF.md`** exactly once before the final response. Read-only turns bypass
+closeout silently. Use Token Atlas when available; otherwise execute the
+embedded protocol directly. Do not rerun closeout because closeout changed
 `.ai/`.
 ````
 

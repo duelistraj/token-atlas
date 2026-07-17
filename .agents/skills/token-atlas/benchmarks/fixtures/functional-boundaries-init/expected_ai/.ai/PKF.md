@@ -6,7 +6,7 @@ resource: .
 tags: [pkf]
 timestamp: 2026-07-12
 pkf:
-  runtime_version: 1
+  runtime_version: 2
   loads: [.ai/MEMORY.md, .ai/ARCHITECTURE.md, .ai/knowledge/INDEX.md]
   related: []
   closeout: adaptive
@@ -22,6 +22,19 @@ commands, budget usage, and whether fallback search was required.
 
 ## Closeout Protocol (MANDATORY)
 
-Run adaptive PKF closeout exactly once before every final response. Reuse the
-session change-set acknowledgement, update only affected knowledge, and do not
-recurse on `.ai/`-only changes.
+### Adaptive gate
+
+If the current turn made no intentional repository content mutation, stop silently.
+After an intentional repository mutation, reuse the session change-set
+acknowledgement and update only affected knowledge. Keep the acknowledgement in
+session context.
+
+### Incremental synchronization
+
+Update and validate only affected knowledge.
+
+### Safety and recursion
+
+Never invoke closeout again for `.ai/`-only changes.
+
+`PKF closeout: <status> — <reason>`

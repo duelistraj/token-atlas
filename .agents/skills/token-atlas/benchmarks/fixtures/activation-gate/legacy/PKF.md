@@ -1,12 +1,12 @@
 ---
 type: runtime
 title: PKF Runtime
-description: Startup contract for the deleted-evidence fixture.
+description: Startup contract for the schema-change fixture.
 resource: .ai/PKF.md
-tags: [deleted-evidence, runtime]
+tags: [schema-change, runtime]
 timestamp: 2026-07-08
 pkf:
-  runtime_version: 2
+  runtime_version: 1
   loads:
     - .ai/MEMORY.md
     - .ai/ARCHITECTURE.md
@@ -39,8 +39,7 @@ Update the authoritative leaf after source changes or report it as stale.
 
 ### Adaptive gate
 
-If the current turn made no intentional repository content mutation, stop silently.
-After an intentional repository mutation, compare a deterministic session baseline with the final repository state. Keep
+Compare a deterministic session baseline with the final repository state. Keep
 the acknowledgement in session context.
 
 ### Incremental synchronization

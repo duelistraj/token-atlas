@@ -16,6 +16,7 @@ from pkf_contract import (
     CLOSEOUT_PROTOCOL_HEADING,
     ESTIMATOR_FORMULA,
     LEAF_SOURCE_SYMBOLS_FIELD,
+    LEGACY_CLOSEOUT_PHRASES,
     REQUIRED_FRONT_MATTER,
     RETRIEVAL_BUDGET,
     RUNTIME_VERSION,
@@ -36,6 +37,7 @@ class ContractConsistencyTests(unittest.TestCase):
         self.assertIn(f"closeout: {CLOSEOUT_DEFAULT}", corpus)
         self.assertIn(f"{RUNTIME_VERSION_FIELD}: {RUNTIME_VERSION}", corpus)
         self.assertEqual(CLOSEOUT_MODES, ("adaptive", "off"))
+        self.assertEqual(LEGACY_CLOSEOUT_PHRASES, ("every user turn", "every final response"))
         self.assertIn(f"one or two leaf", corpus.lower())
         self.assertEqual(RETRIEVAL_BUDGET, {"module_indexes": 1, "leaf_docs": 2})
         for field in REQUIRED_FRONT_MATTER:
@@ -63,10 +65,13 @@ class ContractConsistencyTests(unittest.TestCase):
         internal = (ROOT / ".agents" / "skills" / "token-atlas" / "references" / "closeout.md").read_text(encoding="utf-8")
 
         self.assertEqual(public, internal)
-        self.assertIn("Run exactly once before the final response", public)
         self.assertIn("Do not persist a change-set ledger", public)
         self.assertIn("Do not invoke closeout again", public)
         normalized = re.sub(r"\s+", " ", public)
+        self.assertIn("run closeout exactly once before the final response", normalized)
+        self.assertIn("If the current turn made no intentional repository content mutation, stop silently", normalized)
+        self.assertIn("Do not load this reference", normalized)
+        self.assertIn("Emit nothing for a read-only bypass", normalized)
         self.assertIn("Before the first task mutation in a session, capture a baseline snapshot", normalized)
         self.assertIn("both endpoints of renames", normalized)
         self.assertIn("content identity for untracked files", normalized)
@@ -74,6 +79,8 @@ class ContractConsistencyTests(unittest.TestCase):
         self.assertIn("Never acknowledge a failed or\nambiguous snapshot", public)
         self.assertIn("Update only leaves whose durable facts changed", public)
         self.assertIn("only `.ai/` changed", public)
+        self.assertNotIn("every user turn", public.lower())
+        self.assertNotIn("every final response", public.lower())
 
     def test_skill_packages_allow_implicit_closeout_invocation(self):
         for package in (ROOT / "skills" / "token-atlas", ROOT / ".agents" / "skills" / "token-atlas"):
