@@ -149,7 +149,9 @@ Warnings are advisory locally and become blocking under `validation_strictness: 
 See [the published benchmarks](BENCHMARKS.md) for pinned real-repository
 measurements. The current harness separates generic source discovery, the local
 probe policy, PKF retrieval, mutation lifecycle, and isolated closeout instead
-of attributing all differences to PKF reads.
+of attributing all differences to PKF reads. Canonical run bundles live under
+`benchmarks/artifacts/<run-id>/`: sanitized public reports are versioned, while
+exact traces and PKF snapshots remain in a gitignored local-only subtree.
 
 ## Other useful features
 

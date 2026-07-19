@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "run_id": "pkf-vs-no-pkf-gpt-5.6-luna-high-runtime-v3-1pass-2026-07-19",
+  "status": "legacy_complete",
+  "artifact_mode": "public",
+  "artifacts": [
+    {
+      "path": "public/report.json",
+      "sha256": "aa40a128aad80f0364304d82a6281e40f78384b9ef70844ab16718ae94a6af2f",
+      "visibility": "public"
+    },
+    {
+      "path": "public/report.md",
+      "sha256": "225891b5c05effe0dbb4160b3b4524c9feab655d5a4d3b4c91975694929f9bed",
+      "visibility": "public"
+    }
+  ],
+  "unavailable_artifacts": [
+    "raw traces",
+    "exact PKF snapshots",
+    "structured answers",
+    "schemas and stderr",
+    "source and PKF diffs",
+    "route-helper outputs",
+    "validation outputs"
+  ],
+  "note": "Migrated from legacy report locations. Missing historical artifacts were not reconstructed."
+}

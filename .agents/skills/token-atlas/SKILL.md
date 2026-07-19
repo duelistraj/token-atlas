@@ -71,14 +71,15 @@ Do not generate or load retrieval exports unless `retrieval_exports` is not `off
 If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
 - Execute `references/initialize.md`
-- Execute `references/extract.md` using **Hybrid Extraction** for shared knowledge, routing, and public entry points
+- Execute `references/extract.md` using **Hybrid Extraction** for shared knowledge,
+  routing, public behavior, and source-backed cross-capability contracts
 - Mark deferred leaves `pkf.materialization: pending`
 - Validate once after hybrid extraction
 - Execute `references/optimize.md` only when validation reports a routing,
   duplication, or token-budget defect; revalidate only the affected slice if it
   changes knowledge
-- Execute `references/simulate.md` during initialization only when `simulation`
-  is explicitly `required` or `all`
+- Execute `references/simulate.md` during initialization according to the
+  selected option; the default `changed` scope covers newly materialized routes
 - Execute `references/export.md` only when `retrieval_exports` is not `off`
 
 Otherwise, after an intentional mutation with durable knowledge impact:

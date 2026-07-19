@@ -1,5 +1,27 @@
 # Token Atlas Benchmarks
 
+## Published one-pass preflight
+
+The complete adaptive-attribution `all` suite was run once against Tether Brain
+commit `5c458df3c737f0af2a2193186d98af90c45163f0` with `gpt-5.6-luna` at high
+reasoning. This is a published directional preflight, not a replicated result
+and not the normal benchmark standard.
+
+Status: **preliminary**<br>
+Quality: **passed** (`13/13` calls, no blocking errors)<br>
+Performance: **preliminary advisory missed**<br>
+Recorded: `2026-07-19T17:01:30+00:00`
+
+Full report: [`report.md`](benchmarks/artifacts/token-atlas-adaptive-attribution-gpt-5.6-luna-high-all-one-pass-preflight-2026-07-19/public/report.md)<br>
+Raw sanitized result: [`report.json`](benchmarks/artifacts/token-atlas-adaptive-attribution-gpt-5.6-luna-high-all-one-pass-preflight-2026-07-19/public/report.json)<br>
+Artifact manifest: [`manifest.json`](benchmarks/artifacts/token-atlas-adaptive-attribution-gpt-5.6-luna-high-all-one-pass-preflight-2026-07-19/manifest.json)
+
+The local bypass and initialization targets improved, but cross-capability PKF
+retrieval used 57.3% more non-cached input and eight more tool calls than the
+probe-only arm. Isolated closeout passed validation but consumed 49,135
+non-cached input tokens and 15 tool calls. These findings should be investigated
+before starting a fresh three-repetition benchmark.
+
 ## PKF vs no PKF lifecycle benchmark
 
 This benchmark compares Token Atlas with a source-only baseline on the real Tether Brain repository at commit `5c458df3c737f0af2a2193186d98af90c45163f0`. The repository was private when measured; no source, credentials, raw traces, or local paths are published here. The pinned commit can be independently checked once the project is public.
@@ -9,7 +31,8 @@ Recorded: `2026-07-17T14:44:14+00:00`<br>
 Model: `gpt-5.6-luna` at `high` reasoning<br>
 Repetitions: `3` (`27` calls)
 
-Raw sanitized result: [`pkf-vs-no-pkf-gpt-5.6-luna-high-2026-07-17.json`](.agents/skills/token-atlas/benchmarks/results/pkf-vs-no-pkf-gpt-5.6-luna-high-2026-07-17.json)
+Raw sanitized result: [`report.json`](benchmarks/artifacts/pkf-vs-no-pkf-gpt-5.6-luna-high-2026-07-17/public/report.json)<br>
+Artifact manifest: [`manifest.json`](benchmarks/artifacts/pkf-vs-no-pkf-gpt-5.6-luna-high-2026-07-17/manifest.json)
 
 ### Method
 
@@ -61,3 +84,19 @@ The strict benchmark status is failed because 4 Boards answers missed the expect
 - repetition 2 pkf/boards_add_task: incorrect structured answer
 - repetition 2 no_pkf/boards_add_task: incorrect structured answer
 - repetition 3 no_pkf/boards_add_task: incorrect structured answer
+
+## Artifact archive
+
+All future runs use `benchmarks/artifacts/<run-id>/`. Public sanitized reports
+and a manifest are versioned. With the default `full` artifact mode, exact PKF
+snapshots, sanitized raw traces, answers, schemas, stderr, diffs, route output,
+and validation evidence are retained under a gitignored, local-only `private/`
+subtree. Authentication, Codex home directories, full target workspaces, Git
+metadata, and dependency trees are never copied.
+
+- [Original three-repetition lifecycle result](benchmarks/artifacts/pkf-vs-no-pkf-gpt-5.6-luna-high-2026-07-17/manifest.json)
+- [Runtime-v3 one-pass result](benchmarks/artifacts/pkf-vs-no-pkf-gpt-5.6-luna-high-runtime-v3-1pass-2026-07-19/manifest.json)
+- [Adaptive-attribution one-pass preflight](benchmarks/artifacts/token-atlas-adaptive-attribution-gpt-5.6-luna-high-all-one-pass-preflight-2026-07-19/manifest.json)
+
+Historical private artifacts were not retained and are explicitly marked
+unavailable in their manifests; they have not been fabricated during migration.

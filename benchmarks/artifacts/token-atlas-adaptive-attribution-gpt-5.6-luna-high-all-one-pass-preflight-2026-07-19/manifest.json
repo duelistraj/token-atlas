@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "run_id": "token-atlas-adaptive-attribution-gpt-5.6-luna-high-all-one-pass-preflight-2026-07-19",
+  "status": "legacy_complete",
+  "artifact_mode": "public",
+  "artifacts": [
+    {
+      "path": "public/report.json",
+      "sha256": "1215ef22da1b639a10904bb38ef263053453353331ce5f0e9ea1fd2930854c84",
+      "visibility": "public"
+    },
+    {
+      "path": "public/report.md",
+      "sha256": "e261f44a43d632a3d5939850e7dbd7ae3a0333e5f8f717a1bac5302c2add5f6a",
+      "visibility": "public"
+    }
+  ],
+  "unavailable_artifacts": [
+    "raw traces",
+    "exact PKF snapshots",
+    "structured answers",
+    "schemas and stderr",
+    "source and PKF diffs",
+    "route-helper outputs",
+    "validation outputs"
+  ],
+  "note": "Migrated from legacy report locations. Missing historical artifacts were not reconstructed."
+}

@@ -74,7 +74,9 @@ The helper returns mapped leaves, pending state, unmatched paths, index fallback
 and the required validation scope without exposing leaf contents to model
 context. A valid `partial` or `unmapped` result is not a tooling failure.
 
-- For `mapped`, read and synchronize only the returned leaves.
+- For `mapped`, read and synchronize only returned leaves whose
+  `pkf.materialization` is `complete`. Do not read the skill, this reference,
+  startup documents, or indexes.
 - For `partial`, synchronize mapped leaves and read the root index only for the
   unmatched slice.
 - For `unmapped`, read the root index and escalate to exceptional maintenance if
@@ -84,17 +86,19 @@ context. A valid `partial` or `unmapped` result is not a tooling failure.
 
 ## Incremental Sync
 
-- Route turn-owned changed paths with `pkf_route.py`. Read a root or module
-  index only for a new or unmapped path; never replay the startup chain.
+- Route turn-owned changed paths with `pkf_route.py`. Preserve its compact JSON
+  result as closeout evidence. Read a root or module index only for a new,
+  pending, or unmapped path; never replay the startup chain.
 - Update only leaves whose durable facts changed. Keep `source_symbols`, Edit
   Maps, tests, styles/tokens, and locator commands exact.
-- Materialize an affected `pkf.materialization: pending` leaf and mark it
-  `complete` after source-backed extraction succeeds.
+- Treat an affected `pkf.materialization: pending` leaf as exceptional
+  maintenance: load the extraction guidance, materialize it from source, and
+  mark it `complete`. This is not the routine mapped fast path.
 - Remove or repair evidence made stale by deletes and renames.
 - Update an index only when ownership or routing changed.
 - Optimize only an affected route that exceeds a token budget, duplicates a
   fact, loads unrelated context, or required fallback search.
-- Run affected-slice advisory validation with summary detail after changing PKF
+- Run exactly one affected-slice advisory validation with summary detail after changing PKF
   knowledge. The bundled validator invocation is:
 
   `python <token-atlas-skill>/scripts/pkf_validate.py --path . --strictness advisory --scope affected --detail summary --changed-path <path>`
@@ -104,6 +108,11 @@ context. A valid `partial` or `unmapped` result is not a tooling failure.
 - Read the full maintenance, extraction, optimization, or validation reference
   only for an exceptional case: a module-boundary change, legacy leaf migration,
   unresolved drift, broad-load repair, or CI execution.
+
+A routine mapped closeout therefore consists of one route-helper invocation,
+the returned complete leaves, the smallest semantic edits, and one affected
+validation. It must not load Token Atlas workflow instructions or perform
+fallback repository discovery.
 
 ## Safety
 

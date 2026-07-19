@@ -94,11 +94,14 @@ module names.
 After scaffolding:
 
 1. Populate only verified repository commands, shared architecture, dependencies,
-   routing, and public entry-point facts.
-2. Materialize at most one primary public-entry leaf per capability by default.
-   A second leaf is allowed only when the same public surface exposes a distinct
-   contract required for correct routing.
-3. Leave all other leaves with `pkf.materialization: pending`,
+   routing, and public behavior facts.
+2. Materialize the source-backed leaves needed to represent each capability's
+   public behavior and the contracts that connect it to other capabilities.
+   Prefer the smallest set that lets representative cross-capability questions
+   route directly to exact symbols; do not impose a fixed per-capability leaf
+   cap.
+3. Leave unrelated implementation details and genuinely deferred surfaces with
+   `pkf.materialization: pending`,
    `source_symbols: {}`, and the exact body marker
    `- TODO: Pending source extraction.`.
 4. Every materialized leaf must map repository-relative paths to exact symbols
@@ -119,10 +122,11 @@ extraction, run one final validation at the selected strictness.
 Run affected validation again only if a subsequent optimization changes PKF
 files. In the default core profile:
 
-- Optimize only when validation reports a broad route, duplicated authority, or
-  token-budget defect.
-- Skip initialization-time simulation unless it was explicitly requested as
-  `required` or `all`.
+- Run `simulation=changed` over every newly materialized or changed route. Use
+  `required` or `all` only when the caller asks for broader coverage.
+- Optimize only when simulation or validation reports a broad route, duplicated
+  authority, fallback, or token-budget defect, then revalidate only the affected
+  slice when optimization changes PKF files.
 - Generate retrieval exports only when enabled.
 
 ## Runtime Contract
@@ -149,7 +153,9 @@ work, and knowledge-impact-gates closeout.
 
 - The reviewed capability map is complete, flat, and source-backed.
 - The deterministic scaffold validates and preserves existing instructions.
-- Shared routing and public entry-point facts are verified.
+- Shared routing, public behavior, and source-backed cross-capability contracts
+  are verified.
+- Changed-route simulation covers every newly materialized route.
 - Deferred leaves are explicitly pending.
 - One final post-extraction validation completes.
 - No application source or test file is modified.

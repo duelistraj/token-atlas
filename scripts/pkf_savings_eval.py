@@ -31,14 +31,22 @@ DEFAULT_MODEL = "gpt-5.6-luna"
 DEFAULT_REASONING_EFFORT = "high"
 DEFAULT_REPETITIONS = 3
 DEFAULT_TIMEOUT_SECONDS = 1_800
+DEFAULT_ARTIFACTS_ROOT = ROOT / "benchmarks" / "artifacts"
 ALLOWED_REASONING_EFFORTS = ("minimal", "low", "medium", "high", "xhigh")
 EVALUATION_SUITES = ("retrieval", "lifecycle", "closeout", "all")
+ARTIFACT_MODES = ("full", "public", "off")
 TARGET_NAME = "tether-brain"
 ISOLATED_CLOSEOUT_PATCH = ROOT / "benchmarks" / "patches" / "favorite-visibility.patch"
 INITIALIZATION_REFERENCE = {
     "non_cached_input_tokens": 99_720,
     "duration_ms": 516_944,
 }
+ARM_DEFINITIONS = {
+    "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only.",
+    "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
+    "pkf": "PKF installed with adaptive retrieval and closeout; an individual task may bypass retrieval.",
+}
+RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 
 SOURCE_ONLY_AGENTS = """# AGENTS
 
@@ -78,7 +86,8 @@ repository-wide work, use source-only discovery because no PKF is installed.
 INITIALIZE_PROMPT = (
     "Use the token-atlas skill and its deterministic scaffold helper to initialize "
     "PKF with hybrid extraction: review capability boundaries, materialize shared "
-    "architecture, routing, and bounded public entry points, and leave other leaves "
+    "architecture, routing, public behavior, and source-backed cross-capability "
+    "contracts needed for direct retrieval; leave unrelated implementation leaves "
     "pending. Use profile=core, retrieval_exports=off, "
     "simulation=changed, token_budget=summary, and validation_strictness=ci. "
     "Do not change application source or tests."
@@ -194,6 +203,7 @@ class TraceMetrics:
     explicit_skill_read_path_count: int
     searched_root_count: int
     ai_read_or_search_command_count: int
+    routed_document_count: int
     fallback_search: bool
 
 
@@ -210,7 +220,9 @@ class CodexResult:
     answer_correct: bool | None
     accessed_skill: bool
     accessed_closeout: bool
+    used_route_helper: bool
     emitted_closeout: bool
+    retrieval_decision: str
     fallback_search: bool
     mentioned_path_count: int
     mentioned_ai_path_count: int
@@ -223,6 +235,7 @@ class CodexResult:
     explicit_skill_read_path_count: int
     searched_root_count: int
     ai_read_or_search_command_count: int
+    routed_document_count: int
     changed_path_count: int
     changed_expected_paths: bool | None
     focused_test_passed: bool | None
@@ -251,12 +264,17 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--report-json", type=Path)
     parser.add_argument("--report-markdown", type=Path)
+    parser.add_argument("--artifacts-root", type=Path, default=DEFAULT_ARTIFACTS_ROOT)
+    parser.add_argument("--artifact-mode", choices=ARTIFACT_MODES, default="full")
+    parser.add_argument("--run-id")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     if args.repetitions < 1:
         parser.error("--repetitions must be at least 1")
     if args.timeout_seconds < 1:
         parser.error("--timeout-seconds must be at least 1")
+    if args.run_id is not None and not RUN_ID_PATTERN.fullmatch(args.run_id):
+        parser.error("--run-id must be 1-128 lowercase letters, digits, dots, underscores, or hyphens")
     return args
 
 
@@ -303,6 +321,10 @@ def sha256_tree(root: Path) -> str:
         digest.update(path.read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def export_target(target_repo: Path, target_commit: str, destination: Path) -> None:
@@ -556,6 +578,11 @@ def inspect_jsonl_trace(
     explicit_skill = {
         path for path in explicit_paths if "/skills/token-atlas/" in f"/{path}" or path.startswith(".codex/skills/token-atlas/")
     }
+    routed_documents = {
+        path
+        for path in explicit_paths
+        if path.startswith(".ai/knowledge/") and not path.endswith("/INDEX.md")
+    }
     return TraceMetrics(
         tool_call_count=tool_calls,
         read_or_search_command_count=read_or_search_commands,
@@ -566,6 +593,7 @@ def inspect_jsonl_trace(
         explicit_skill_read_path_count=len(explicit_skill),
         searched_root_count=len(searched_roots),
         ai_read_or_search_command_count=ai_read_or_search_commands,
+        routed_document_count=len(routed_documents),
         fallback_search=fallback_search,
     )
 
@@ -602,6 +630,220 @@ def sanitized_error(text: str, sensitive_roots: Sequence[Path]) -> str:
     return sanitized.strip()
 
 
+def slug(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9._-]+", "-", value.lower()).strip("-.")
+    return normalized or "run"
+
+
+def make_run_id(args: argparse.Namespace) -> str:
+    if args.run_id:
+        return args.run_id
+    timestamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    value = "-".join(
+        (
+            "token-atlas",
+            slug(args.model),
+            slug(args.model_reasoning_effort),
+            slug(args.suite),
+            slug(run_class(args.repetitions)),
+            timestamp,
+        )
+    )
+    return value[:128].rstrip("-.")
+
+
+def repository_diff(repo: Path, *, pkf_only: bool) -> str:
+    paths = (".ai", "AGENTS.md") if pkf_only else (".", ":(exclude).ai/**", ":(exclude)AGENTS.md")
+    completed = run_command(("git", "diff", "--binary", "--", *paths), cwd=repo, check=False)
+    return completed.stdout
+
+
+def route_trace_excerpt(output: str) -> str:
+    excerpts: list[str] = []
+    for raw_line in output.splitlines():
+        if "pkf_route.py" in raw_line:
+            excerpts.append(raw_line)
+    return "\n".join(excerpts)
+
+
+class ArtifactStore:
+    """Incrementally retain sanitized public results and local-only exact PKF evidence."""
+
+    def __init__(self, *, root: Path, run_id: str, mode: str) -> None:
+        self.mode = mode
+        self.run_id = run_id
+        self.root = root.resolve() / run_id
+        self.public_dir = self.root / "public"
+        self.private_dir = self.root / "private"
+        self.calls: list[dict[str, Any]] = []
+        self.created_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+        self._counter = 0
+        if mode == "off":
+            return
+        if self.root.exists() and any(self.root.iterdir()):
+            raise EvaluationError(f"artifact run already exists: {self.root}")
+        self.public_dir.mkdir(parents=True, exist_ok=True)
+        if mode == "full":
+            self.private_dir.mkdir(parents=True, exist_ok=True)
+            self.private_dir.chmod(0o700)
+        self.write_manifest("running")
+
+    @property
+    def manifest_path(self) -> Path | None:
+        return None if self.mode == "off" else self.root / "manifest.json"
+
+    def _write_private(self, path: Path, text: str) -> None:
+        if self.mode != "full":
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        parent = path.parent
+        while parent == self.private_dir or self.private_dir in parent.parents:
+            parent.chmod(0o700)
+            if parent == self.private_dir:
+                break
+            parent = parent.parent
+        path.write_text(text, encoding="utf-8")
+        path.chmod(0o600)
+
+    def record_call(
+        self,
+        *,
+        result: CodexResult,
+        stdout: str,
+        stderr: str,
+        schema_path: Path | None,
+        repo: Path,
+        workspace: Path,
+    ) -> None:
+        if self.mode == "off":
+            return
+        self._counter += 1
+        call_id = (
+            f"{self._counter:03d}-r{result.repetition}-{slug(result.arm)}-"
+            f"{slug(result.task_id)}"
+        )
+        self.calls.append(
+            {
+                "call_id": call_id,
+                "repetition": result.repetition,
+                "arm": result.arm,
+                "task_id": result.task_id,
+                "phase": result.phase,
+                "returncode": result.returncode,
+            }
+        )
+        if self.mode == "full":
+            call_dir = self.private_dir / "calls" / call_id
+            sanitized_trace = stdout
+            sanitized_stderr = stderr
+            for sensitive in (repo, workspace, ROOT):
+                replacement = f"<{sensitive.name or 'workspace'}>"
+                sanitized_trace = sanitized_trace.replace(str(sensitive.resolve()), replacement)
+                sanitized_stderr = sanitized_stderr.replace(str(sensitive.resolve()), replacement)
+            sanitized_trace = re.sub(r"/home/[^/]+/", "<home>/", sanitized_trace)
+            sanitized_stderr = re.sub(r"/home/[^/]+/", "<home>/", sanitized_stderr)
+            self._write_private(call_dir / "trace.jsonl", sanitized_trace)
+            self._write_private(call_dir / "stderr.txt", sanitized_stderr)
+            self._write_private(
+                call_dir / "result.json",
+                json.dumps(asdict(result), indent=2, sort_keys=True) + "\n",
+            )
+            if schema_path is not None and schema_path.is_file():
+                self._write_private(call_dir / "schema.json", schema_path.read_text(encoding="utf-8"))
+            if result.answer is not None:
+                self._write_private(
+                    call_dir / "answer.json",
+                    json.dumps(result.answer, indent=2, sort_keys=True) + "\n",
+                )
+            self._write_private(call_dir / "source.diff", repository_diff(repo, pkf_only=False))
+            self._write_private(call_dir / "pkf.diff", repository_diff(repo, pkf_only=True))
+            route_output = route_trace_excerpt(stdout)
+            if route_output:
+                self._write_private(call_dir / "route-output.jsonl", route_output + "\n")
+        self.write_manifest("running")
+
+    def snapshot_pkf(self, label: str, repo: Path) -> None:
+        if self.mode != "full":
+            return
+        destination = self.private_dir / "pkf-snapshots" / slug(label)
+        destination.mkdir(parents=True, exist_ok=True)
+        ai_dir = repo / ".ai"
+        if ai_dir.is_dir():
+            shutil.copytree(ai_dir, destination / ".ai", dirs_exist_ok=True)
+        agents = repo / "AGENTS.md"
+        if agents.is_file():
+            shutil.copy2(agents, destination / "AGENTS.md")
+        for path in destination.rglob("*"):
+            path.chmod(0o700 if path.is_dir() else 0o600)
+        self.write_manifest("running")
+
+    def record_validation(self, label: str, *, passed: bool, output: str) -> None:
+        if self.mode == "full":
+            self._write_private(
+                self.private_dir / "validation" / f"{slug(label)}.json",
+                json.dumps({"passed": passed, "output": output}, indent=2, sort_keys=True) + "\n",
+            )
+        if self.mode != "off":
+            self.write_manifest("running")
+
+    def _file_records(self) -> list[dict[str, Any]]:
+        if self.mode == "off" or not self.root.exists():
+            return []
+        records = []
+        for path in sorted(item for item in self.root.rglob("*") if item.is_file()):
+            if path == self.manifest_path:
+                continue
+            records.append(
+                {
+                    "path": path.relative_to(self.root).as_posix(),
+                    "sha256": sha256_file(path),
+                    "visibility": "private" if self.private_dir in path.parents else "public",
+                }
+            )
+        return records
+
+    def write_manifest(self, status: str, *, error: str = "") -> None:
+        if self.mode == "off":
+            return
+        manifest = {
+            "schema_version": 1,
+            "run_id": self.run_id,
+            "status": status,
+            "artifact_mode": self.mode,
+            "created_at": self.created_at,
+            "arm_definitions": ARM_DEFINITIONS,
+            "calls": self.calls,
+            "artifacts": self._file_records(),
+            "private_artifacts_local_only": self.mode == "full",
+            "error": error,
+        }
+        assert self.manifest_path is not None
+        self.manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    def write_public(self, report: Mapping[str, Any]) -> None:
+        if self.mode == "off":
+            return
+        report_path = self.public_dir / "report.json"
+        markdown_path = self.public_dir / "report.md"
+        report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        markdown_path.write_text(
+            render_markdown(report, raw_result_link="report.json"),
+            encoding="utf-8",
+        )
+        self.write_manifest("failed" if report.get("status") == "failed" else "completed")
+
+    def fail(self, error: str) -> None:
+        self.write_manifest("failed", error=error)
+
+
+def classify_retrieval_decision(*, arm: str, phase: str, trace: TraceMetrics) -> str:
+    if arm != "pkf" or phase not in {"retrieval", "post_mutation"}:
+        return "not_applicable"
+    if trace.explicit_ai_read_path_count or trace.explicit_skill_read_path_count:
+        return "activated"
+    return "bypassed"
+
+
 def run_codex(
     *,
     repetition: int,
@@ -616,6 +858,7 @@ def run_codex(
     workspace: Path,
     sandbox: str,
     task: TaskSpec | None = None,
+    artifacts: ArtifactStore | None = None,
 ) -> tuple[CodexResult, str]:
     source_codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
     eval_codex_home = workspace / "codex-homes" / f"{arm}-{task_id}"
@@ -698,7 +941,9 @@ def run_codex(
         answer_correct=answer_correct,
         accessed_skill="token-atlas/skill.md" in tool_inputs,
         accessed_closeout="token-atlas/references/closeout.md" in tool_inputs,
+        used_route_helper="pkf_route.py" in tool_inputs,
         emitted_closeout="pkf closeout:" in "\n".join(messages).lower(),
+        retrieval_decision=classify_retrieval_decision(arm=arm, phase=phase, trace=trace),
         fallback_search=trace.fallback_search,
         mentioned_path_count=len(accessed),
         mentioned_ai_path_count=sum(path.startswith(".ai/") for path in accessed),
@@ -711,12 +956,22 @@ def run_codex(
         explicit_skill_read_path_count=trace.explicit_skill_read_path_count,
         searched_root_count=trace.searched_root_count,
         ai_read_or_search_command_count=trace.ai_read_or_search_command_count,
+        routed_document_count=trace.routed_document_count,
         changed_path_count=len(changes),
         changed_expected_paths=None,
         focused_test_passed=None,
         pkf_validation_passed=None,
         error=sanitized_error(stderr, (repo, workspace, ROOT)) if returncode else "",
     )
+    if artifacts is not None:
+        artifacts.record_call(
+            result=result,
+            stdout=stdout,
+            stderr=stderr,
+            schema_path=schema_path,
+            repo=repo,
+            workspace=workspace,
+        )
     return result, event_text
 
 
@@ -747,7 +1002,27 @@ def validate_pkf(repo: Path) -> tuple[bool, str]:
         cwd=repo,
         check=False,
     )
-    return completed.returncode == 0, completed.stderr.strip()[-1_000:]
+    output = "\n".join(value for value in (completed.stdout.strip(), completed.stderr.strip()) if value)
+    return completed.returncode == 0, output[-10_000:]
+
+
+def pkf_materialization_inventory(repo: Path) -> dict[str, int]:
+    inventory = {"materialized_leaf_count": 0, "pending_leaf_count": 0, "unknown_leaf_count": 0}
+    knowledge = repo / ".ai" / "knowledge"
+    if not knowledge.is_dir():
+        return inventory
+    for path in knowledge.rglob("*.md"):
+        if path.name == "INDEX.md":
+            continue
+        header = path.read_text(encoding="utf-8", errors="replace")[:8_192]
+        match = re.search(r"(?m)^\s*materialization:\s*(complete|pending)\s*$", header)
+        if match is None:
+            inventory["unknown_leaf_count"] += 1
+        elif match.group(1) == "complete":
+            inventory["materialized_leaf_count"] += 1
+        else:
+            inventory["pending_leaf_count"] += 1
+    return inventory
 
 
 def run_focused_test(repo: Path) -> bool:
@@ -778,7 +1053,12 @@ def prepare_closeout_arms(workspace: Path, arms: Mapping[str, Path]) -> dict[str
     return prepared
 
 
-def score_closeout(result: CodexResult, repo: Path, arm: str) -> CodexResult:
+def score_closeout(
+    result: CodexResult,
+    repo: Path,
+    arm: str,
+    artifacts: ArtifactStore | None = None,
+) -> CodexResult:
     changes = changed_paths(repo)
     expected = {
         "frontend/src/notes/noteSectionState.ts",
@@ -786,7 +1066,11 @@ def score_closeout(result: CodexResult, repo: Path, arm: str) -> CodexResult:
     }
     valid: bool | None = None
     if arm == "pkf":
-        valid, _ = validate_pkf(repo)
+        valid, validation_output = validate_pkf(repo)
+        if artifacts is not None:
+            label = f"r{result.repetition}-{result.task_id}"
+            artifacts.record_validation(label, passed=valid, output=validation_output)
+            artifacts.snapshot_pkf(label, repo)
     return replace_result(
         result,
         changed_path_count=len(changes),
@@ -796,14 +1080,27 @@ def score_closeout(result: CodexResult, repo: Path, arm: str) -> CodexResult:
     )
 
 
-def score_mutation(result: CodexResult, repo: Path, arm: str) -> CodexResult:
+def score_mutation(
+    result: CodexResult,
+    repo: Path,
+    arm: str,
+    artifacts: ArtifactStore | None = None,
+) -> CodexResult:
     changes = changed_paths(repo)
     expected_source = "frontend/src/notes/noteSectionState.ts" in changes
     expected_test = "frontend/src/notes/noteSectionState.test.ts" in changes
     focused_test_passed = run_focused_test(repo)
     pkf_validation_passed: bool | None = None
     if arm == "pkf":
-        pkf_validation_passed, _ = validate_pkf(repo)
+        pkf_validation_passed, validation_output = validate_pkf(repo)
+        if artifacts is not None:
+            label = f"r{result.repetition}-{result.task_id}"
+            artifacts.record_validation(
+                label,
+                passed=pkf_validation_passed,
+                output=validation_output,
+            )
+            artifacts.snapshot_pkf(label, repo)
     return replace_result(
         result,
         changed_path_count=len(changes),
@@ -851,6 +1148,14 @@ def median(values: Sequence[int | float]) -> float:
     return float(statistics.median(values)) if values else 0.0
 
 
+def run_class(repetitions: int) -> str:
+    if repetitions == 1:
+        return "one_pass_preflight"
+    if repetitions >= 3:
+        return "replicated"
+    return "diagnostic"
+
+
 def usage_value(result: CodexResult, metric: str) -> int | None:
     if result.usage is None:
         return None
@@ -878,6 +1183,7 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
         "explicit_skill_read_path_count",
         "searched_root_count",
         "ai_read_or_search_command_count",
+        "routed_document_count",
         "mentioned_path_count",
         "mentioned_ai_path_count",
     )
@@ -899,6 +1205,10 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             if scored
             else None
         )
+        entry["retrieval_decisions"] = {
+            decision: sum(result.retrieval_decision == decision for result in grouped)
+            for decision in ("activated", "bypassed", "not_applicable")
+        }
         by_task.setdefault(task_id, {})[arm] = entry
 
     sum_metrics = (*usage_metrics, "duration_ms", *trace_metrics)
@@ -922,9 +1232,10 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             }
         operational_by_repetition.append(entry)
 
-    paired_savings: dict[str, list[float]] = {metric: [] for metric in usage_metrics}
+    activated_savings: dict[str, list[float]] = {metric: [] for metric in usage_metrics}
+    bypassed_deltas: dict[str, dict[str, list[float]]] = {}
     for repetition in sorted({result.repetition for result in results}):
-        for task_id in {task.task_id for task in READ_ONLY_TASKS}:
+        for task_id in {task.task_id for task in (*READ_ONLY_TASKS, POST_MUTATION_TASK)}:
             result_by_arm = {
                 result.arm: result
                 for result in results
@@ -932,11 +1243,17 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             }
             if not {"probe_only", "pkf"}.issubset(result_by_arm):
                 continue
+            decision = result_by_arm["pkf"].retrieval_decision
             for metric in usage_metrics:
                 baseline = usage_value(result_by_arm["probe_only"], metric)
                 candidate = usage_value(result_by_arm["pkf"], metric)
                 if baseline is not None and candidate is not None:
-                    paired_savings[metric].append(float(baseline - candidate))
+                    if decision == "activated":
+                        activated_savings[metric].append(float(baseline - candidate))
+                    elif decision == "bypassed":
+                        bypassed_deltas.setdefault(task_id, {}).setdefault(metric, []).append(
+                            float(candidate - baseline)
+                        )
 
     comparisons: dict[str, Any] = {}
     for task_id, arm_values in by_task.items():
@@ -962,7 +1279,7 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
 
     break_even: dict[str, int | None] = {}
     for metric in ("input_tokens", "non_cached_input_tokens"):
-        per_read_saving = median(paired_savings[metric])
+        per_read_saving = median(activated_savings[metric])
         init_cost = median(
             [
                 value
@@ -984,16 +1301,22 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
         "by_task": by_task,
         "comparisons": comparisons,
         "operational_by_repetition": operational_by_repetition,
-        "median_paired_pkf_read_only_savings": {
-            metric: median(values) for metric, values in paired_savings.items()
+        "activated_pkf_knowledge_savings": {
+            "paired_count": len(activated_savings["input_tokens"]),
+            **{metric: median(values) for metric, values in activated_savings.items()},
         },
-        "break_even_read_only_tasks": break_even,
+        "bypassed_pkf_environment_deltas": {
+            task_id: {
+                "paired_count": len(metric_values.get("input_tokens", [])),
+                **{metric: median(values) for metric, values in metric_values.items()},
+            }
+            for task_id, metric_values in sorted(bypassed_deltas.items())
+        },
+        "break_even_activated_tasks": break_even,
     }
 
 
 def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict[str, Any]:
-    if repetitions < 3:
-        return {"status": "preliminary", "checks": []}
     comparisons = metrics.get("comparisons", {})
     checks: list[dict[str, Any]] = []
 
@@ -1015,6 +1338,12 @@ def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict
         if metric in initialized:
             value = float(initialized[metric]) - reference
             add_check(f"initialization_{metric}_delta", value, "< 0 versus runtime-v3 one-pass", value < 0)
+    isolated_closeout = metrics.get("by_task", {}).get("isolated_closeout", {}).get("pkf", {})
+    if isolated_closeout:
+        tool_calls = float(isolated_closeout.get("tool_call_count", 0))
+        routed_docs = float(isolated_closeout.get("routed_document_count", 0))
+        add_check("mapped_closeout_tool_calls", tool_calls, "<= 6", tool_calls <= 6)
+        add_check("mapped_closeout_routed_documents", routed_docs, "<= 2", routed_docs <= 2)
     operational = metrics.get("operational_by_repetition", [])
     for metric in ("input_tokens", "non_cached_input_tokens", "duration_ms"):
         probe = median([entry["probe_only"][metric] for entry in operational])
@@ -1022,8 +1351,13 @@ def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict
         if probe:
             value = (pkf - probe) / probe * 100.0
             add_check(f"operational_{metric}_overhead", value, "<= 5%", value <= 5.0)
+    met = bool(checks) and all(check["met"] for check in checks)
+    status = "advisory_met" if met else "advisory_missed"
+    if repetitions < 3:
+        status = f"preliminary_{status}"
     return {
-        "status": "advisory_met" if checks and all(check["met"] for check in checks) else "advisory_missed",
+        "status": status,
+        "evidence_strength": "replicated" if repetitions >= 3 else "directional",
         "checks": checks,
     }
 
@@ -1051,9 +1385,13 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
         if result.task_id in {"boards_add_task", POST_MUTATION_TASK.task_id}:
             if result.explicit_ai_read_path_count or result.explicit_skill_read_path_count:
                 errors.append(f"{label}: local task explicitly read PKF or Token Atlas paths")
+            if result.arm == "pkf" and result.retrieval_decision != "bypassed":
+                errors.append(f"{label}: local PKF task was not classified as bypassed")
         if result.task_id == "note_task_links" and result.arm == "pkf":
             if result.explicit_ai_read_path_count < 1:
                 errors.append(f"{label}: cross-capability task did not activate PKF retrieval")
+            if result.retrieval_decision != "activated":
+                errors.append(f"{label}: cross-capability PKF task was not classified as activated")
         if result.task_id == "favorite_visibility_mutation":
             if result.changed_expected_paths is not True:
                 errors.append(f"{label}: mutation did not make the expected source/test change")
@@ -1064,21 +1402,38 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
                     errors.append(f"{label}: PKF failed validation after mutation")
                 if not result.emitted_closeout:
                     errors.append(f"{label}: mutation did not emit PKF closeout status")
+                if not result.used_route_helper:
+                    errors.append(f"{label}: mutation closeout did not use the changed-path route helper")
+                if result.accessed_skill or result.accessed_closeout:
+                    errors.append(f"{label}: mapped mutation closeout loaded Token Atlas workflow instructions")
+                if result.fallback_search:
+                    errors.append(f"{label}: mapped mutation closeout used fallback discovery")
         if result.task_id == "isolated_closeout":
             if result.arm == "pkf":
                 if result.pkf_validation_passed is not True:
                     errors.append(f"{label}: isolated closeout left PKF invalid")
                 if not result.emitted_closeout:
                     errors.append(f"{label}: isolated closeout did not emit status")
+                if not result.used_route_helper:
+                    errors.append(f"{label}: isolated closeout did not use the changed-path route helper")
+                if result.accessed_skill or result.accessed_closeout:
+                    errors.append(f"{label}: mapped isolated closeout loaded Token Atlas workflow instructions")
+                if result.fallback_search:
+                    errors.append(f"{label}: mapped isolated closeout used fallback discovery")
             elif result.explicit_ai_read_path_count or result.explicit_skill_read_path_count:
                 errors.append(f"{label}: closeout control accessed PKF or Token Atlas paths")
     return errors
 
 
-def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, Any]:
+def execute(
+    args: argparse.Namespace,
+    target: Mapping[str, str],
+    artifacts: ArtifactStore,
+) -> dict[str, Any]:
     runtime_root = args.runtime_root.resolve()
     runtime_root.mkdir(parents=True, exist_ok=True)
     results: list[CodexResult] = []
+    initialization_inventories: list[dict[str, int]] = []
     for repetition in range(1, args.repetitions + 1):
         with tempfile.TemporaryDirectory(
             prefix=f".pkf-savings-{repetition}-",
@@ -1108,6 +1463,7 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
                 timeout_seconds=args.timeout_seconds,
                 workspace=workspace,
                 sandbox="workspace-write",
+                artifacts=artifacts,
             )
             init_valid, validation_error = validate_pkf(arms["pkf"])
             init_result = replace_result(
@@ -1119,6 +1475,14 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
                 ),
             )
             results.append(init_result)
+            inventory = pkf_materialization_inventory(arms["pkf"])
+            initialization_inventories.append({"repetition": repetition, **inventory})
+            artifacts.record_validation(
+                f"r{repetition}-initialize",
+                passed=init_valid,
+                output=validation_error,
+            )
+            artifacts.snapshot_pkf(f"r{repetition}-initialize", arms["pkf"])
             if init_result.returncode == 0 and init_valid:
                 commit_generated_pkf(arms["pkf"])
 
@@ -1145,6 +1509,7 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
                             workspace=workspace,
                             sandbox="read-only",
                             task=task,
+                            artifacts=artifacts,
                         )
                         results.append(result)
 
@@ -1163,8 +1528,9 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
                         timeout_seconds=args.timeout_seconds,
                         workspace=workspace,
                         sandbox="workspace-write",
+                        artifacts=artifacts,
                     )
-                    results.append(score_mutation(result, arms[arm], arm))
+                    results.append(score_mutation(result, arms[arm], arm, artifacts))
 
                 for arm in two_arm_order(repetition):
                     print(f"[{repetition}/{args.repetitions}] {arm} {POST_MUTATION_TASK.task_id}", file=sys.stderr, flush=True)
@@ -1181,6 +1547,7 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
                         workspace=workspace,
                         sandbox="read-only",
                         task=POST_MUTATION_TASK,
+                        artifacts=artifacts,
                     )
                     results.append(result)
 
@@ -1199,8 +1566,9 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
                         timeout_seconds=args.timeout_seconds,
                         workspace=workspace,
                         sandbox="workspace-write" if arm == "pkf" else "read-only",
+                        artifacts=artifacts,
                     )
-                    results.append(score_closeout(result, closeout_arms[arm], arm))
+                    results.append(score_closeout(result, closeout_arms[arm], arm, artifacts))
 
     expected_count = len(build_schedule(args.repetitions, args.suite))
     errors = evaluation_errors(results, expected_count)
@@ -1209,9 +1577,14 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
     metrics = aggregate_metrics(results)
     performance = performance_advisories(metrics, args.repetitions)
     report = {
-        "schema_version": 2,
+        "schema_version": 4,
+        "run_id": artifacts.run_id,
+        "artifact_manifest_path": "../manifest.json" if artifacts.mode != "off" else None,
         "benchmark": "token-atlas-adaptive-attribution",
+        "arm_definitions": ARM_DEFINITIONS,
         "suite": args.suite,
+        "run_class": run_class(args.repetitions),
+        "replicated": args.repetitions >= 3,
         "status": "failed" if errors else ("preliminary" if args.repetitions < 3 else "completed"),
         "quality_status": "failed" if errors else "passed",
         "performance": performance,
@@ -1226,6 +1599,7 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
         "token_atlas": {
             "commit": token_atlas_commit,
             "public_skill_sha256": sha256_tree(PUBLIC_SKILL),
+            "harness_sha256": sha256_file(Path(__file__).resolve()),
         },
         "environment": {
             "model": args.model,
@@ -1233,16 +1607,28 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
             "repetitions": args.repetitions,
             "codex_version": codex_version,
             "scheduled_calls": expected_count,
-            "publishable": args.repetitions >= 3,
         },
         "methodology": {
             "arms": ["source_only", "probe_only", "pkf"],
+            "arm_definitions": ARM_DEFINITIONS,
             "task_ids": sorted({item["task_id"] for item in build_schedule(1, args.suite)}),
             "arm_order": "three-arm Latin square and alternating two-arm phases",
             "trace_accounting": "tool inputs and outputs parsed separately; path mentions remain unverified",
             "initialization_reference": INITIALIZATION_REFERENCE,
             "ambient_user_config": "ignored; authentication copied only",
             "raw_traces_published": False,
+        },
+        "pkf_inventory": {
+            "materialized_leaf_count": median(
+                [entry["materialized_leaf_count"] for entry in initialization_inventories]
+            ),
+            "pending_leaf_count": median(
+                [entry["pending_leaf_count"] for entry in initialization_inventories]
+            ),
+            "unknown_leaf_count": median(
+                [entry["unknown_leaf_count"] for entry in initialization_inventories]
+            ),
+            "by_repetition": initialization_inventories,
         },
         "metrics": metrics,
         "runs": [public_result(result) for result in results],
@@ -1259,10 +1645,13 @@ def render_markdown(
     target = report["target"]
     environment = report["environment"]
     metrics = report["metrics"]
+    one_pass = report.get("run_class") == "one_pass_preflight"
+    run_label = "one-pass preflight" if one_pass else str(report.get("run_class", "benchmark"))
+    usage_heading = "Single-pass usage by task" if one_pass else "Median usage by task"
     lines = [
         "# Token Atlas Benchmarks",
         "",
-        f"## Adaptive attribution benchmark — {report['suite']}",
+        f"## Adaptive attribution benchmark — {report['suite']} — {run_label}",
         "",
         (
             "This benchmark separates generic source discovery, the adaptive local-probe "
@@ -1271,6 +1660,8 @@ def render_markdown(
             "credentials, local paths, or raw traces are published."
         ),
         "",
+        f"Publication class: **{run_label}**<br>",
+        f"Replicated: **{'yes' if report.get('replicated') else 'no'}**<br>",
         f"Status: **{report['status']}**<br>",
         f"Quality: **{report['quality_status']}**<br>",
         f"Performance: **{report['performance']['status']}**<br>",
@@ -1282,20 +1673,28 @@ def render_markdown(
     if raw_result_link:
         result_name = Path(raw_result_link).name
         lines.extend((f"Raw sanitized result: [`{result_name}`]({raw_result_link})", ""))
+    if report.get("artifact_manifest_path"):
+        lines.extend(
+            (
+                f"Artifact manifest: [`manifest.json`]({report['artifact_manifest_path']})",
+                "",
+            )
+        )
     lines.extend(
         (
             "### Method",
             "",
-            "`source_only` measures generic discovery, `probe_only` isolates the bounded "
-            "local-probe policy, and `pkf` adds adaptive knowledge retrieval and semantic "
-            "closeout. Token counts come from Codex JSONL; total and non-cached input are "
+            "`source_only` has no PKF or probe policy, `probe_only` isolates the bounded "
+            "local-probe policy without PKF, and `pkf` installs adaptive retrieval and "
+            "semantic closeout but may bypass PKF for an individual task. Token counts come "
+            "from Codex JSONL; total and non-cached input are "
             "reported separately and are not pricing estimates. Tool input and output are "
             "parsed separately. Explicit read targets are distinct from unverified path mentions.",
             "",
-            "### Median usage by task",
+            f"### {usage_heading}",
             "",
-            "| Task | Phase | Arm | Input | Non-cached | Output | Duration ms | Tools | Explicit .ai reads | Correct |",
-            "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "| Task | Phase | Arm | Retrieval | Input | Non-cached | Output | Duration ms | Tools | Routed docs | Correct |",
+            "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         )
     )
     phase_by_task = {
@@ -1304,12 +1703,39 @@ def render_markdown(
     for task_id, arms in sorted(metrics["by_task"].items()):
         for arm, values in sorted(arms.items()):
             correct = "n/a" if values["correctness_rate"] is None else f"{values['correctness_rate'] * 100:.0f}%"
+            decisions = values.get("retrieval_decisions", {})
+            decision = ", ".join(
+                f"{name}:{count}" for name, count in decisions.items() if count
+            ) or "n/a"
             lines.append(
-                f"| {task_id} | {phase_by_task.get(task_id, 'unknown')} | `{arm}` | "
+                f"| {task_id} | {phase_by_task.get(task_id, 'unknown')} | `{arm}` | `{decision}` | "
                 f"{values['input_tokens']:.0f} | {values['non_cached_input_tokens']:.0f} | "
                 f"{values['output_tokens']:.0f} | {values['duration_ms']:.0f} | "
-                f"{values['tool_call_count']:.0f} | {values['explicit_ai_read_path_count']:.0f} | {correct} |"
+                f"{values['tool_call_count']:.0f} | {values['routed_document_count']:.0f} | {correct} |"
             )
+    knowledge_savings = metrics.get("activated_pkf_knowledge_savings", {})
+    lines.extend(("", "### PKF knowledge savings", ""))
+    lines.append(
+        "Only paired tasks whose PKF arm actually activated retrieval contribute to "
+        "this figure; bypassed tasks are excluded."
+    )
+    lines.append("")
+    lines.append(
+        f"Activated pairs: `{knowledge_savings.get('paired_count', 0)}`; median input "
+        f"saving: `{knowledge_savings.get('input_tokens', 0):.0f}`; median non-cached "
+        f"input saving: `{knowledge_savings.get('non_cached_input_tokens', 0):.0f}`."
+    )
+    lines.extend(("", "### Bypassed environment deltas", ""))
+    bypassed = metrics.get("bypassed_pkf_environment_deltas", {})
+    if bypassed:
+        for task_id, values in sorted(bypassed.items()):
+            lines.append(
+                f"- `{task_id}` ({values['paired_count']} pair(s)): input "
+                f"{values.get('input_tokens', 0):+.0f}, non-cached "
+                f"{values.get('non_cached_input_tokens', 0):+.0f}."
+            )
+    else:
+        lines.append("- No PKF-arm task bypassed retrieval in this suite.")
     lines.extend(("", "### Attribution deltas", ""))
     for task_id, comparisons in sorted(metrics["comparisons"].items()):
         for label, values in sorted(comparisons.items()):
@@ -1321,30 +1747,42 @@ def render_markdown(
                 f"{non_cached_delta:+.0f}, duration {duration_delta:+.0f} ms."
             )
     lines.extend(("", "### Performance advisories", ""))
+    lines.append(
+        f"Evidence strength: **{report['performance'].get('evidence_strength', 'unknown')}**."
+    )
+    lines.append("")
     if report["performance"]["checks"]:
         for check in report["performance"]["checks"]:
             state = "met" if check["met"] else "missed"
             value = "n/a" if check["value"] is None else f"{check['value']:.2f}"
             lines.append(f"- {check['name']}: {state} (`{value}`, target {check['target']}).")
     else:
-        lines.append("- Preliminary run: performance targets require at least three repetitions.")
+        lines.append("- No performance checks apply to the selected suite.")
     lines.extend(("", "### Limitations", ""))
     lines.extend(
         (
             "- One application repository, one pinned commit, one model, and one reasoning setting.",
             f"- {environment['repetitions']} repetition(s) describe this controlled run but are not a population-wide estimate.",
             "- Provider prompt caching can change total-input composition; interpret cached and non-cached input separately.",
-            "- A one-pass run is diagnostic only and cannot replace headline replicated results.",
         )
     )
+    if one_pass:
+        lines.append(
+            "- This published one-pass preflight is directional and cannot replace a fresh three-repetition result for replicated claims."
+        )
     if report["errors"]:
         lines.extend(("", "### Evaluation errors", ""))
         lines.extend(f"- {error}" for error in report["errors"])
     return "\n".join(lines) + "\n"
 
 
-def write_report(report: Mapping[str, Any], args: argparse.Namespace) -> None:
+def write_report(
+    report: Mapping[str, Any],
+    args: argparse.Namespace,
+    artifacts: ArtifactStore,
+) -> None:
     json_text = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    artifacts.write_public(report)
     if args.report_json:
         args.report_json.parent.mkdir(parents=True, exist_ok=True)
         args.report_json.write_text(json_text, encoding="utf-8")
@@ -1365,17 +1803,20 @@ def write_report(report: Mapping[str, Any], args: argparse.Namespace) -> None:
     if args.format == "json":
         print(json_text, end="")
     else:
-        savings = report["metrics"]["median_paired_pkf_read_only_savings"]
+        savings = report["metrics"]["activated_pkf_knowledge_savings"]
+        savings_label = "Activated-task paired" if report.get("run_class") == "one_pass_preflight" else "Median activated-task paired"
         print(f"PKF savings eval: {report['status']}")
+        print(f"Run class: {report['run_class']}")
         print(f"Suite: {report['suite']}")
         print(f"Calls: {len(report['runs'])}/{report['environment']['scheduled_calls']}")
-        print(f"Median paired read-only input saving: {savings['input_tokens']:.0f}")
+        print(f"{savings_label} read-only input saving: {savings['input_tokens']:.0f}")
         print(f"Performance: {report['performance']['status']}")
         print(f"Errors: {len(report['errors'])}")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
+    artifacts: ArtifactStore | None = None
     try:
         target = verify_target(args.target_repo, args.target_commit)
         schedule = build_schedule(args.repetitions, args.suite)
@@ -1386,18 +1827,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "model": args.model,
                 "reasoning_effort": args.model_reasoning_effort,
                 "suite": args.suite,
-                "publishable": args.repetitions >= 3,
+                "run_class": run_class(args.repetitions),
+                "replicated": args.repetitions >= 3,
                 "scheduled_calls": len(schedule),
                 "schedule": schedule,
             }
             print(json.dumps(output, indent=2, sort_keys=True))
             return 0
-        report = execute(args, target)
-        write_report(report, args)
+        artifacts = ArtifactStore(
+            root=args.artifacts_root,
+            run_id=make_run_id(args),
+            mode=args.artifact_mode,
+        )
+        report = execute(args, target, artifacts)
+        write_report(report, args, artifacts)
         return 1 if report["status"] == "failed" else 0
     except (EvaluationError, OSError, subprocess.SubprocessError) as exc:
+        if artifacts is not None:
+            artifacts.fail(sanitized_error(str(exc), (ROOT, args.target_repo)))
         print(f"pkf_savings_eval: {exc}", file=sys.stderr)
         return 2
+    except Exception as exc:
+        if artifacts is not None:
+            artifacts.fail(sanitized_error(str(exc), (ROOT, args.target_repo)))
+        raise
 
 
 if __name__ == "__main__":

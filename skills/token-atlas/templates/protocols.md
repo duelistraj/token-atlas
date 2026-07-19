@@ -82,13 +82,15 @@ the turn and report ambiguous pre-existing changes as `stale`.
 
 ### Incremental synchronization
 
-- Route mapped paths with the bundled `pkf_route.py` helper and read only the
-  returned leaves. Read an index only for an unmapped path.
-- Materialize affected pending leaves and repair deletes or renames.
+- Route mapped paths with the bundled `pkf_route.py` helper and read only
+  returned complete leaves. Do not load Token Atlas, startup documents, or an
+  index for this routine mapped path. Preserve the compact route result.
+- Treat pending, partial, and unmapped results as exceptional maintenance;
+  materialize affected pending leaves and repair deletes or renames there.
 - Update indexes only when ownership or routing changed.
 - Optimize only defective affected routes.
-- Run one affected-slice advisory validation with summary detail after changing
-  knowledge. Use full maintenance only for boundary changes, migrations,
+- Run exactly one affected-slice advisory validation with summary detail after
+  changing knowledge. Use full maintenance only for boundary changes, migrations,
   unresolved drift, broad-load repair, or CI.
 
 ### Safety and recursion

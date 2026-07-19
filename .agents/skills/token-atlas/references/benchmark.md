@@ -127,8 +127,10 @@ Pin the model and reasoning explicitly and inspect the call matrix before
 execution:
 
 ```text
+python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 1 --dry-run
+python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 1
 python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3 --dry-run
-python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3 --report-json /path/to/result.json --report-markdown /path/to/report.md
+python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3
 ```
 
 Publish total, cached, non-cached, and output tokens separately. Parse tool input
@@ -137,23 +139,51 @@ read/search calls, skill/reference reads, and unverified path mentions as
 different metrics. Keep initialization, local retrieval, cross-capability
 retrieval, mutation, post-mutation, and closeout phases separable.
 
+The three arms have fixed meanings:
+
+- `source_only`: no PKF and no adaptive probe instructions.
+- `probe_only`: the bounded adaptive local probe with no PKF installed.
+- `pkf`: PKF installed with adaptive retrieval and closeout; a particular task
+  may still bypass PKF.
+
+Record `retrieval_decision` as `activated`, `bypassed`, or `not_applicable` for
+every call. Calculate PKF knowledge savings only from paired tasks whose PKF arm
+was `activated`. Report PKF-arm tasks that bypassed retrieval separately as
+environment deltas; do not attribute those differences to PKF reads. Include
+materialized and pending leaf counts and the number of routed leaf documents.
+
 Correctness, zero local-task PKF reads, required cross-capability activation,
 focused tests, closeout, and validation are blocking quality gates. The desired
 5% local/operational token and latency overhead, positive cross-capability
 savings, and initialization improvement are advisory performance targets; a
 negative saving remains a valid result and never changes quality status.
 
-Three repetitions are required for a publishable result. `--repetitions 1` is
-allowed for diagnostics but must report `preliminary` and cannot replace
-headline replicated results.
+Three repetitions remain the default and are required for replicated claims.
+`--repetitions 1` is a publishable one-pass preflight: publish its complete
+sanitized report, calculate performance checks with `directional` evidence, and
+label its status `preliminary`. It must not replace a headline replicated result
+or be pooled into a later three-repetition run.
 Sanitize local paths, credentials, source contents, and raw traces. Pin both the
-target commit and public-skill digest so future skill revisions can rerun the
-same application baseline.
+target commit, public-skill digest, and benchmark-harness digest so future skill
+revisions can rerun the same application baseline and measurement logic.
+
+By default each run writes incrementally to
+`benchmarks/artifacts/<run-id>/`: `manifest.json` plus sanitized
+`public/report.json` and `public/report.md`. `--artifact-mode full` additionally
+retains local-only evidence under gitignored `private/`, including sanitized raw
+traces, exact PKF snapshots, structured answers, schemas, stderr, source/PKF
+diffs, route-helper output, and validation output. `public` omits that subtree;
+`off` disables artifact retention. `--artifacts-root` changes the root and
+`--run-id` supplies a validated stable ID.
+
+Never retain authentication, a Codex home directory, a complete target source
+workspace, `.git`, `node_modules`, or other dependency trees. Update the
+manifest after every completed call and mark it failed if execution terminates.
+Public artifacts may be versioned; exact private artifacts stay local.
 
 This lifecycle eval is internal maintainer tooling and must not be copied into
 the public skill package. Human-readable findings live in root
-`BENCHMARKS.md`; sanitized machine-readable reports live under
-`benchmarks/results/`.
+`BENCHMARKS.md`; canonical run bundles live under `benchmarks/artifacts/`.
 
 ---
 

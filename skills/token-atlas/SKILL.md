@@ -58,7 +58,10 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - During maintenance, automatically repartition coarse modules when capability ownership is unambiguous. Preserve the current structure and report ambiguity instead of guessing.
 - During `initialize`, embed the adaptive Retrieval Protocol into `.ai/PKF.md`, and ensure a neutral bootstrap can decide whether to use PKF without loading it first.
 - Default the runtime to `pkf.runtime_version: 3`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`. Permit `pkf.retrieval: mandatory` for compatibility and the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
-- Initialize in hybrid mode: materialize runtime, architecture, dependencies, routing, and public entry-point facts; mark deferred leaves `pkf.materialization: pending` until retrieval or semantic closeout needs them.
+- Initialize in hybrid mode: materialize runtime, architecture, dependencies,
+  public behavior, and source-backed cross-capability contracts needed for
+  direct routing; mark unrelated or genuinely deferred leaves
+  `pkf.materialization: pending`.
 - Use the bundled scaffold helper for fresh runtime mechanics. Review capability
   boundaries before creation; never let directory heuristics become durable
   ownership without source evidence.
@@ -74,11 +77,13 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - Prefer the bundled dependency-light validator for mechanical checks; keep source-truth and duplicate-authority judgments in the semantic validation workflow.
 - During routine closeout, run the validator with affected scope and summary detail. Reserve full, verbose validation for runtime/routing changes, exceptional maintenance, explicit validation, or CI.
 - Route durable turn-owned changes with the bundled changed-path helper before
-  reading indexes or leaves. A mapped route must not replay PKF startup.
-- During fresh initialization, rely on the scaffold helper's mechanical check
-  and run one final post-extraction validation. Optimize only reported defects
-  and skip initialization-time simulation in core unless `required` or `all`
-  was explicitly selected.
+  reading indexes or leaves. A mapped route reads only returned complete leaves,
+  performs one affected validation, and must not replay PKF startup or load
+  Token Atlas workflow instructions.
+- During fresh initialization, rely on the scaffold helper's mechanical check,
+  run `simulation=changed` over newly materialized routes, and run one final
+  post-extraction validation. Optimize only reported defects and revalidate only
+  an affected slice when optimization changes knowledge.
 
 ## Output Expectations
 

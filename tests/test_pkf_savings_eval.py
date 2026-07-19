@@ -31,7 +31,9 @@ class PkfSavingsEvalTests(unittest.TestCase):
             "answer_correct": True,
             "accessed_skill": False,
             "accessed_closeout": False,
+            "used_route_helper": False,
             "emitted_closeout": False,
+            "retrieval_decision": "not_applicable",
             "fallback_search": False,
             "mentioned_path_count": 1,
             "mentioned_ai_path_count": 0,
@@ -44,6 +46,7 @@ class PkfSavingsEvalTests(unittest.TestCase):
             "explicit_skill_read_path_count": 0,
             "searched_root_count": 1,
             "ai_read_or_search_command_count": 0,
+            "routed_document_count": 0,
             "changed_path_count": 0,
             "changed_expected_paths": None,
             "focused_test_passed": None,
@@ -95,6 +98,8 @@ class PkfSavingsEvalTests(unittest.TestCase):
         self.assertEqual(args.model_reasoning_effort, "high")
         self.assertEqual(args.repetitions, 3)
         self.assertEqual(args.suite, "lifecycle")
+        self.assertEqual(args.artifact_mode, "full")
+        self.assertEqual(args.artifacts_root, pkf_savings_eval.DEFAULT_ARTIFACTS_ROOT)
 
     def test_parse_jsonl_extracts_usage_and_structured_answer(self):
         answer = {
@@ -242,7 +247,11 @@ class PkfSavingsEvalTests(unittest.TestCase):
                 pkf_validation_passed=True,
             ),
             self.make_result(arm="probe_only", usage=pkf_savings_eval.Usage(2_000, 0, 20)),
-            self.make_result(arm="pkf", usage=pkf_savings_eval.Usage(1_500, 0, 20)),
+            self.make_result(
+                arm="pkf",
+                usage=pkf_savings_eval.Usage(1_500, 0, 20),
+                retrieval_decision="activated",
+            ),
             self.make_result(
                 arm="probe_only",
                 task_id="favorite_visibility_mutation",
@@ -259,10 +268,52 @@ class PkfSavingsEvalTests(unittest.TestCase):
 
         metrics = pkf_savings_eval.aggregate_metrics(results)
 
-        self.assertEqual(metrics["median_paired_pkf_read_only_savings"]["input_tokens"], 500)
-        self.assertEqual(metrics["break_even_read_only_tasks"]["input_tokens"], 3)
+        self.assertEqual(metrics["activated_pkf_knowledge_savings"]["input_tokens"], 500)
+        self.assertEqual(metrics["activated_pkf_knowledge_savings"]["paired_count"], 1)
+        self.assertEqual(metrics["break_even_activated_tasks"]["input_tokens"], 3)
 
-    def test_one_repetition_is_always_preliminary(self):
+    def test_bypassed_tasks_are_not_counted_as_pkf_knowledge_savings(self):
+        metrics = pkf_savings_eval.aggregate_metrics(
+            (
+                self.make_result(arm="probe_only", usage=pkf_savings_eval.Usage(1_000, 100, 10)),
+                self.make_result(
+                    arm="pkf",
+                    usage=pkf_savings_eval.Usage(900, 100, 10),
+                    retrieval_decision="bypassed",
+                ),
+            )
+        )
+
+        self.assertEqual(metrics["activated_pkf_knowledge_savings"]["paired_count"], 0)
+        self.assertEqual(
+            metrics["bypassed_pkf_environment_deltas"]["boards_add_task"]["input_tokens"],
+            -100,
+        )
+
+    def test_retrieval_decision_activates_only_for_pkf_reads(self):
+        empty = pkf_savings_eval.TraceMetrics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, False)
+        activated = pkf_savings_eval.TraceMetrics(1, 1, 1, 1, 1, 1, 0, 0, 1, 1, False)
+
+        self.assertEqual(
+            pkf_savings_eval.classify_retrieval_decision(
+                arm="pkf", phase="retrieval", trace=empty
+            ),
+            "bypassed",
+        )
+        self.assertEqual(
+            pkf_savings_eval.classify_retrieval_decision(
+                arm="pkf", phase="retrieval", trace=activated
+            ),
+            "activated",
+        )
+        self.assertEqual(
+            pkf_savings_eval.classify_retrieval_decision(
+                arm="probe_only", phase="retrieval", trace=activated
+            ),
+            "not_applicable",
+        )
+
+    def test_one_repetition_reports_directional_performance_checks(self):
         metrics = pkf_savings_eval.aggregate_metrics(
             (
                 self.make_result(arm="probe_only"),
@@ -272,7 +323,14 @@ class PkfSavingsEvalTests(unittest.TestCase):
 
         performance = pkf_savings_eval.performance_advisories(metrics, 1)
 
-        self.assertEqual(performance, {"status": "preliminary", "checks": []})
+        self.assertEqual(performance["evidence_strength"], "directional")
+        self.assertTrue(performance["status"].startswith("preliminary_"))
+        self.assertTrue(performance["checks"])
+
+    def test_run_class_keeps_one_pass_separate_from_replicated_results(self):
+        self.assertEqual(pkf_savings_eval.run_class(1), "one_pass_preflight")
+        self.assertEqual(pkf_savings_eval.run_class(2), "diagnostic")
+        self.assertEqual(pkf_savings_eval.run_class(3), "replicated")
 
     def test_score_mutation_checks_paths_without_coupling_to_test_title(self):
         with tempfile.TemporaryDirectory() as raw_temp:
@@ -305,10 +363,13 @@ class PkfSavingsEvalTests(unittest.TestCase):
             task_id="note_task_links",
             usage=pkf_savings_eval.Usage(80, 70, 5),
             explicit_ai_read_path_count=1,
+            retrieval_decision="activated",
         )
         metrics = pkf_savings_eval.aggregate_metrics((probe, candidate))
         report = {
             "suite": "retrieval",
+            "run_class": "replicated",
+            "replicated": True,
             "status": "completed",
             "quality_status": "passed",
             "performance": pkf_savings_eval.performance_advisories(metrics, 3),
@@ -342,6 +403,134 @@ class PkfSavingsEvalTests(unittest.TestCase):
         self.assertIn("source_only", markdown)
         self.assertIn("probe_only", markdown)
         self.assertIn("Explicit read targets", markdown)
+        self.assertIn("Only paired tasks whose PKF arm actually activated", markdown)
+
+    def test_one_pass_markdown_is_publishable_but_not_replicated(self):
+        probe = self.make_result(arm="probe_only")
+        candidate = self.make_result(arm="pkf")
+        metrics = pkf_savings_eval.aggregate_metrics((probe, candidate))
+        report = {
+            "suite": "retrieval",
+            "run_class": "one_pass_preflight",
+            "replicated": False,
+            "status": "preliminary",
+            "quality_status": "passed",
+            "performance": pkf_savings_eval.performance_advisories(metrics, 1),
+            "recorded_at": "2026-07-19T00:00:00+00:00",
+            "target": {"commit": "abc"},
+            "environment": {
+                "model": "gpt-5.6-luna",
+                "reasoning_effort": "high",
+                "repetitions": 1,
+                "scheduled_calls": 7,
+            },
+            "metrics": metrics,
+            "runs": [pkf_savings_eval.public_result(probe), pkf_savings_eval.public_result(candidate)],
+            "errors": [],
+        }
+
+        markdown = pkf_savings_eval.render_markdown(report)
+
+        self.assertIn("Publication class: **one-pass preflight**", markdown)
+        self.assertIn("Replicated: **no**", markdown)
+        self.assertIn("### Single-pass usage by task", markdown)
+        self.assertIn("Evidence strength: **directional**", markdown)
+        self.assertIn("cannot replace a fresh three-repetition result", markdown)
+
+    def test_materialization_inventory_counts_complete_pending_and_unknown_leaves(self):
+        with tempfile.TemporaryDirectory() as raw_temp:
+            repo = Path(raw_temp)
+            knowledge = repo / ".ai" / "knowledge" / "notes"
+            knowledge.mkdir(parents=True)
+            (knowledge / "INDEX.md").write_text("index", encoding="utf-8")
+            (knowledge / "complete.md").write_text(
+                "---\npkf:\n  materialization: complete\n---\n", encoding="utf-8"
+            )
+            (knowledge / "pending.md").write_text(
+                "---\npkf:\n  materialization: pending\n---\n", encoding="utf-8"
+            )
+            (knowledge / "unknown.md").write_text("# No state\n", encoding="utf-8")
+
+            inventory = pkf_savings_eval.pkf_materialization_inventory(repo)
+
+        self.assertEqual(inventory["materialized_leaf_count"], 1)
+        self.assertEqual(inventory["pending_leaf_count"], 1)
+        self.assertEqual(inventory["unknown_leaf_count"], 1)
+
+    def test_artifact_store_keeps_private_evidence_out_of_public_report(self):
+        with tempfile.TemporaryDirectory() as raw_temp:
+            temp = Path(raw_temp)
+            repo = temp / "repo"
+            repo.mkdir()
+            (repo / "source.py").write_text("VALUE = 1\n", encoding="utf-8")
+            (repo / ".ai" / "knowledge" / "notes").mkdir(parents=True)
+            (repo / ".ai" / "knowledge" / "notes" / "behavior.md").write_text(
+                "pkf:\n  materialization: complete\n", encoding="utf-8"
+            )
+            (repo / "AGENTS.md").write_text("instructions", encoding="utf-8")
+            self.initialize_repo(repo)
+            store = pkf_savings_eval.ArtifactStore(
+                root=temp / "artifacts", run_id="test-run", mode="full"
+            )
+            result = self.make_result(answer={"secret": True})
+            store.record_call(
+                result=result,
+                stdout='{"type":"turn.completed"}\n',
+                stderr="",
+                schema_path=None,
+                repo=repo,
+                workspace=temp,
+            )
+            store.snapshot_pkf("initialized", repo)
+
+            manifest = json.loads((store.root / "manifest.json").read_text(encoding="utf-8"))
+
+        paths = {item["path"] for item in manifest["artifacts"]}
+        self.assertIn("private/calls/001-r1-probe_only-boards_add_task/answer.json", paths)
+        self.assertIn("private/pkf-snapshots/initialized/.ai/knowledge/notes/behavior.md", paths)
+        self.assertFalse(any("auth.json" in path for path in paths))
+
+    def test_public_artifact_mode_never_creates_private_subtree(self):
+        with tempfile.TemporaryDirectory() as raw_temp:
+            store = pkf_savings_eval.ArtifactStore(
+                root=Path(raw_temp), run_id="public-run", mode="public"
+            )
+            store.write_manifest("completed")
+
+            self.assertTrue((store.root / "public").is_dir())
+            self.assertFalse((store.root / "private").exists())
+
+    def test_quality_gate_requires_bypass_and_narrow_mapped_closeout(self):
+        local = self.make_result(arm="pkf", retrieval_decision="bypassed")
+        closeout = self.make_result(
+            arm="pkf",
+            task_id="isolated_closeout",
+            phase="closeout",
+            answer_correct=None,
+            used_route_helper=True,
+            emitted_closeout=True,
+            pkf_validation_passed=True,
+        )
+
+        self.assertEqual(pkf_savings_eval.evaluation_errors((local, closeout), 2), [])
+        errors = pkf_savings_eval.evaluation_errors(
+            (
+                pkf_savings_eval.replace_result(local, retrieval_decision="activated"),
+                pkf_savings_eval.replace_result(closeout, accessed_closeout=True),
+            ),
+            2,
+        )
+        self.assertTrue(any("not classified as bypassed" in error for error in errors))
+        self.assertTrue(any("loaded Token Atlas workflow" in error for error in errors))
+
+    def test_runtime_contract_restores_changed_simulation_and_narrow_closeout(self):
+        initialize = (ROOT / "skills/token-atlas/references/initialize.md").read_text(encoding="utf-8")
+        closeout = (ROOT / "skills/token-atlas/references/closeout.md").read_text(encoding="utf-8")
+
+        self.assertIn("do not impose a fixed per-capability leaf\n   cap", initialize)
+        self.assertIn("Run `simulation=changed`", initialize)
+        self.assertIn("Do not read the skill, this reference", closeout)
+        self.assertIn("exactly one affected-slice advisory validation", closeout)
 
 
 if __name__ == "__main__":

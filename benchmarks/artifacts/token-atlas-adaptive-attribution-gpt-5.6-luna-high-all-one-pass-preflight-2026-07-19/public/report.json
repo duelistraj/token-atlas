@@ -1,0 +1,1594 @@
+{
+  "benchmark": "token-atlas-adaptive-attribution",
+  "environment": {
+    "codex_version": "codex-cli 0.144.5",
+    "model": "gpt-5.6-luna",
+    "reasoning_effort": "high",
+    "repetitions": 1,
+    "scheduled_calls": 13
+  },
+  "errors": [],
+  "methodology": {
+    "ambient_user_config": "ignored; authentication copied only",
+    "arm_order": "three-arm Latin square and alternating two-arm phases",
+    "arms": [
+      "source_only",
+      "probe_only",
+      "pkf"
+    ],
+    "initialization_reference": {
+      "duration_ms": 516944,
+      "non_cached_input_tokens": 99720
+    },
+    "raw_traces_published": false,
+    "task_ids": [
+      "boards_add_task",
+      "favorite_visibility_after_change",
+      "favorite_visibility_mutation",
+      "initialize",
+      "isolated_closeout",
+      "note_task_links"
+    ],
+    "trace_accounting": "tool inputs and outputs parsed separately; path mentions remain unverified"
+  },
+  "metrics": {
+    "break_even_read_only_tasks": {
+      "input_tokens": null,
+      "non_cached_input_tokens": null
+    },
+    "by_task": {
+      "boards_add_task": {
+        "pkf": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 38144.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 25691.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 1.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 59006.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 3.0,
+          "non_cached_input_tokens": 20862.0,
+          "output_tokens": 824.0,
+          "read_or_search_command_count": 3.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 448.0,
+          "tool_output_chars": 28511.0
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 42240.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 25267.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 2.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 66139.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 30.0,
+          "non_cached_input_tokens": 23899.0,
+          "output_tokens": 983.0,
+          "read_or_search_command_count": 3.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 524.0,
+          "tool_output_chars": 37312.0
+        },
+        "source_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 50432.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 24535.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 2.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 79735.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 17.0,
+          "non_cached_input_tokens": 29303.0,
+          "output_tokens": 892.0,
+          "read_or_search_command_count": 3.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 578.0,
+          "tool_output_chars": 63608.0
+        }
+      },
+      "favorite_visibility_after_change": {
+        "pkf": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 48384.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 34466.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 3.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 72401.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 26.0,
+          "non_cached_input_tokens": 24017.0,
+          "output_tokens": 1204.0,
+          "read_or_search_command_count": 3.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 528.0,
+          "tool_output_chars": 40138.0
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 63488.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 37909.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 3.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 88182.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 92.0,
+          "non_cached_input_tokens": 24694.0,
+          "output_tokens": 1421.0,
+          "read_or_search_command_count": 4.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 4.0,
+          "tool_input_chars": 616.0,
+          "tool_output_chars": 41404.0
+        }
+      },
+      "favorite_visibility_mutation": {
+        "pkf": {
+          "ai_read_or_search_command_count": 7.0,
+          "cached_input_tokens": 624896.0,
+          "correctness_rate": null,
+          "duration_ms": 181316.0,
+          "explicit_ai_read_path_count": 8.0,
+          "explicit_read_path_count": 16.0,
+          "explicit_skill_read_path_count": 3.0,
+          "input_tokens": 670367.0,
+          "mentioned_ai_path_count": 42.0,
+          "mentioned_path_count": 208.0,
+          "non_cached_input_tokens": 45471.0,
+          "output_tokens": 7082.0,
+          "read_or_search_command_count": 12.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 23.0,
+          "tool_input_chars": 3642.0,
+          "tool_output_chars": 68376.0
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 656640.0,
+          "correctness_rate": null,
+          "duration_ms": 139493.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 10.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 698703.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 28.0,
+          "non_cached_input_tokens": 42063.0,
+          "output_tokens": 5181.0,
+          "read_or_search_command_count": 5.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 15.0,
+          "tool_input_chars": 2114.0,
+          "tool_output_chars": 80762.0
+        }
+      },
+      "initialize": {
+        "pkf": {
+          "ai_read_or_search_command_count": 10.0,
+          "cached_input_tokens": 1470720.0,
+          "correctness_rate": null,
+          "duration_ms": 392357.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 32.0,
+          "explicit_skill_read_path_count": 10.0,
+          "input_tokens": 1562263.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 194.0,
+          "non_cached_input_tokens": 91543.0,
+          "output_tokens": 17044.0,
+          "read_or_search_command_count": 31.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 45.0,
+          "tool_input_chars": 7070.0,
+          "tool_output_chars": 230139.0
+        }
+      },
+      "isolated_closeout": {
+        "pkf": {
+          "ai_read_or_search_command_count": 9.0,
+          "cached_input_tokens": 276480.0,
+          "correctness_rate": null,
+          "duration_ms": 124512.0,
+          "explicit_ai_read_path_count": 7.0,
+          "explicit_read_path_count": 12.0,
+          "explicit_skill_read_path_count": 3.0,
+          "input_tokens": 325615.0,
+          "mentioned_ai_path_count": 27.0,
+          "mentioned_path_count": 70.0,
+          "non_cached_input_tokens": 49135.0,
+          "output_tokens": 5159.0,
+          "read_or_search_command_count": 9.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 15.0,
+          "tool_input_chars": 2744.0,
+          "tool_output_chars": 40630.0
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 8960.0,
+          "correctness_rate": null,
+          "duration_ms": 7836.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 0.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 11269.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 0.0,
+          "non_cached_input_tokens": 2309.0,
+          "output_tokens": 66.0,
+          "read_or_search_command_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 0.0,
+          "tool_input_chars": 0.0,
+          "tool_output_chars": 0.0
+        }
+      },
+      "note_task_links": {
+        "pkf": {
+          "ai_read_or_search_command_count": 5.0,
+          "cached_input_tokens": 413440.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 99730.0,
+          "explicit_ai_read_path_count": 13.0,
+          "explicit_read_path_count": 22.0,
+          "explicit_skill_read_path_count": 1.0,
+          "input_tokens": 489957.0,
+          "mentioned_ai_path_count": 27.0,
+          "mentioned_path_count": 96.0,
+          "non_cached_input_tokens": 76517.0,
+          "output_tokens": 4153.0,
+          "read_or_search_command_count": 13.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 13.0,
+          "tool_input_chars": 2887.0,
+          "tool_output_chars": 312971.0
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 133888.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 63765.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 10.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 182547.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 170.0,
+          "non_cached_input_tokens": 48659.0,
+          "output_tokens": 2720.0,
+          "read_or_search_command_count": 5.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 5.0,
+          "tool_input_chars": 1519.0,
+          "tool_output_chars": 201208.0
+        },
+        "source_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 168448.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 59415.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 7.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 224632.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 170.0,
+          "non_cached_input_tokens": 56184.0,
+          "output_tokens": 2550.0,
+          "read_or_search_command_count": 6.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 6.0,
+          "tool_input_chars": 1523.0,
+          "tool_output_chars": 153090.0
+        }
+      }
+    },
+    "comparisons": {
+      "boards_add_task": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 42240.0,
+            "candidate": 38144.0,
+            "delta": -4096.0,
+            "percent": -9.696969696969697
+          },
+          "duration_ms": {
+            "baseline": 25267.0,
+            "candidate": 25691.0,
+            "delta": 424.0,
+            "percent": 1.6780781256183954
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 2.0,
+            "candidate": 1.0,
+            "delta": -1.0,
+            "percent": -50.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 66139.0,
+            "candidate": 59006.0,
+            "delta": -7133.0,
+            "percent": -10.784862184187846
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 30.0,
+            "candidate": 3.0,
+            "delta": -27.0,
+            "percent": -90.0
+          },
+          "non_cached_input_tokens": {
+            "baseline": 23899.0,
+            "candidate": 20862.0,
+            "delta": -3037.0,
+            "percent": -12.707644671325161
+          },
+          "output_tokens": {
+            "baseline": 983.0,
+            "candidate": 824.0,
+            "delta": -159.0,
+            "percent": -16.17497456765005
+          },
+          "read_or_search_command_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "tool_input_chars": {
+            "baseline": 524.0,
+            "candidate": 448.0,
+            "delta": -76.0,
+            "percent": -14.50381679389313
+          },
+          "tool_output_chars": {
+            "baseline": 37312.0,
+            "candidate": 28511.0,
+            "delta": -8801.0,
+            "percent": -23.587585763293312
+          }
+        },
+        "source_vs_probe": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 50432.0,
+            "candidate": 42240.0,
+            "delta": -8192.0,
+            "percent": -16.243654822335024
+          },
+          "duration_ms": {
+            "baseline": 24535.0,
+            "candidate": 25267.0,
+            "delta": 732.0,
+            "percent": 2.983492969227634
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 2.0,
+            "candidate": 2.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 79735.0,
+            "candidate": 66139.0,
+            "delta": -13596.0,
+            "percent": -17.051483037561923
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 17.0,
+            "candidate": 30.0,
+            "delta": 13.0,
+            "percent": 76.47058823529412
+          },
+          "non_cached_input_tokens": {
+            "baseline": 29303.0,
+            "candidate": 23899.0,
+            "delta": -5404.0,
+            "percent": -18.441797768146607
+          },
+          "output_tokens": {
+            "baseline": 892.0,
+            "candidate": 983.0,
+            "delta": 91.0,
+            "percent": 10.201793721973095
+          },
+          "read_or_search_command_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "tool_input_chars": {
+            "baseline": 578.0,
+            "candidate": 524.0,
+            "delta": -54.0,
+            "percent": -9.342560553633218
+          },
+          "tool_output_chars": {
+            "baseline": 63608.0,
+            "candidate": 37312.0,
+            "delta": -26296.0,
+            "percent": -41.34071186014338
+          }
+        }
+      },
+      "favorite_visibility_after_change": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 63488.0,
+            "candidate": 48384.0,
+            "delta": -15104.0,
+            "percent": -23.790322580645164
+          },
+          "duration_ms": {
+            "baseline": 37909.0,
+            "candidate": 34466.0,
+            "delta": -3443.0,
+            "percent": -9.082275976681
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 88182.0,
+            "candidate": 72401.0,
+            "delta": -15781.0,
+            "percent": -17.89594248259282
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 92.0,
+            "candidate": 26.0,
+            "delta": -66.0,
+            "percent": -71.73913043478261
+          },
+          "non_cached_input_tokens": {
+            "baseline": 24694.0,
+            "candidate": 24017.0,
+            "delta": -677.0,
+            "percent": -2.741556653438082
+          },
+          "output_tokens": {
+            "baseline": 1421.0,
+            "candidate": 1204.0,
+            "delta": -217.0,
+            "percent": -15.270935960591133
+          },
+          "read_or_search_command_count": {
+            "baseline": 4.0,
+            "candidate": 3.0,
+            "delta": -1.0,
+            "percent": -25.0
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 4.0,
+            "candidate": 3.0,
+            "delta": -1.0,
+            "percent": -25.0
+          },
+          "tool_input_chars": {
+            "baseline": 616.0,
+            "candidate": 528.0,
+            "delta": -88.0,
+            "percent": -14.285714285714285
+          },
+          "tool_output_chars": {
+            "baseline": 41404.0,
+            "candidate": 40138.0,
+            "delta": -1266.0,
+            "percent": -3.0576755868998164
+          }
+        }
+      },
+      "favorite_visibility_mutation": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 7.0,
+            "delta": 7.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 656640.0,
+            "candidate": 624896.0,
+            "delta": -31744.0,
+            "percent": -4.834307992202729
+          },
+          "duration_ms": {
+            "baseline": 139493.0,
+            "candidate": 181316.0,
+            "delta": 41823.0,
+            "percent": 29.982149641917516
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 8.0,
+            "delta": 8.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 10.0,
+            "candidate": 16.0,
+            "delta": 6.0,
+            "percent": 60.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 3.0,
+            "delta": 3.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 698703.0,
+            "candidate": 670367.0,
+            "delta": -28336.0,
+            "percent": -4.0555142886176245
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 42.0,
+            "delta": 42.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 28.0,
+            "candidate": 208.0,
+            "delta": 180.0,
+            "percent": 642.8571428571429
+          },
+          "non_cached_input_tokens": {
+            "baseline": 42063.0,
+            "candidate": 45471.0,
+            "delta": 3408.0,
+            "percent": 8.102132515512446
+          },
+          "output_tokens": {
+            "baseline": 5181.0,
+            "candidate": 7082.0,
+            "delta": 1901.0,
+            "percent": 36.691758347809305
+          },
+          "read_or_search_command_count": {
+            "baseline": 5.0,
+            "candidate": 12.0,
+            "delta": 7.0,
+            "percent": 140.0
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 15.0,
+            "candidate": 23.0,
+            "delta": 8.0,
+            "percent": 53.333333333333336
+          },
+          "tool_input_chars": {
+            "baseline": 2114.0,
+            "candidate": 3642.0,
+            "delta": 1528.0,
+            "percent": 72.28003784295176
+          },
+          "tool_output_chars": {
+            "baseline": 80762.0,
+            "candidate": 68376.0,
+            "delta": -12386.0,
+            "percent": -15.33642059384364
+          }
+        }
+      },
+      "initialize": {},
+      "isolated_closeout": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 9.0,
+            "delta": 9.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 8960.0,
+            "candidate": 276480.0,
+            "delta": 267520.0,
+            "percent": 2985.714285714286
+          },
+          "duration_ms": {
+            "baseline": 7836.0,
+            "candidate": 124512.0,
+            "delta": 116676.0,
+            "percent": 1488.9739663093414
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 7.0,
+            "delta": 7.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 12.0,
+            "delta": 12.0,
+            "percent": null
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 3.0,
+            "delta": 3.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 11269.0,
+            "candidate": 325615.0,
+            "delta": 314346.0,
+            "percent": 2789.4755524003904
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 27.0,
+            "delta": 27.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 0.0,
+            "candidate": 70.0,
+            "delta": 70.0,
+            "percent": null
+          },
+          "non_cached_input_tokens": {
+            "baseline": 2309.0,
+            "candidate": 49135.0,
+            "delta": 46826.0,
+            "percent": 2027.9774794283237
+          },
+          "output_tokens": {
+            "baseline": 66.0,
+            "candidate": 5159.0,
+            "delta": 5093.0,
+            "percent": 7716.666666666667
+          },
+          "read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 9.0,
+            "delta": 9.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 0.0,
+            "candidate": 15.0,
+            "delta": 15.0,
+            "percent": null
+          },
+          "tool_input_chars": {
+            "baseline": 0.0,
+            "candidate": 2744.0,
+            "delta": 2744.0,
+            "percent": null
+          },
+          "tool_output_chars": {
+            "baseline": 0.0,
+            "candidate": 40630.0,
+            "delta": 40630.0,
+            "percent": null
+          }
+        }
+      },
+      "note_task_links": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 5.0,
+            "delta": 5.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 133888.0,
+            "candidate": 413440.0,
+            "delta": 279552.0,
+            "percent": 208.79541108986618
+          },
+          "duration_ms": {
+            "baseline": 63765.0,
+            "candidate": 99730.0,
+            "delta": 35965.0,
+            "percent": 56.40241511801145
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 13.0,
+            "delta": 13.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 10.0,
+            "candidate": 22.0,
+            "delta": 12.0,
+            "percent": 120.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "delta": 1.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 182547.0,
+            "candidate": 489957.0,
+            "delta": 307410.0,
+            "percent": 168.40046672911632
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 27.0,
+            "delta": 27.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 170.0,
+            "candidate": 96.0,
+            "delta": -74.0,
+            "percent": -43.529411764705884
+          },
+          "non_cached_input_tokens": {
+            "baseline": 48659.0,
+            "candidate": 76517.0,
+            "delta": 27858.0,
+            "percent": 57.25148482295156
+          },
+          "output_tokens": {
+            "baseline": 2720.0,
+            "candidate": 4153.0,
+            "delta": 1433.0,
+            "percent": 52.68382352941177
+          },
+          "read_or_search_command_count": {
+            "baseline": 5.0,
+            "candidate": 13.0,
+            "delta": 8.0,
+            "percent": 160.0
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 5.0,
+            "candidate": 13.0,
+            "delta": 8.0,
+            "percent": 160.0
+          },
+          "tool_input_chars": {
+            "baseline": 1519.0,
+            "candidate": 2887.0,
+            "delta": 1368.0,
+            "percent": 90.05924950625412
+          },
+          "tool_output_chars": {
+            "baseline": 201208.0,
+            "candidate": 312971.0,
+            "delta": 111763.0,
+            "percent": 55.54600214703193
+          }
+        },
+        "source_vs_probe": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 168448.0,
+            "candidate": 133888.0,
+            "delta": -34560.0,
+            "percent": -20.51671732522796
+          },
+          "duration_ms": {
+            "baseline": 59415.0,
+            "candidate": 63765.0,
+            "delta": 4350.0,
+            "percent": 7.321383489017924
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 7.0,
+            "candidate": 10.0,
+            "delta": 3.0,
+            "percent": 42.857142857142854
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 224632.0,
+            "candidate": 182547.0,
+            "delta": -42085.0,
+            "percent": -18.73508671961252
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 170.0,
+            "candidate": 170.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "non_cached_input_tokens": {
+            "baseline": 56184.0,
+            "candidate": 48659.0,
+            "delta": -7525.0,
+            "percent": -13.393492809340737
+          },
+          "output_tokens": {
+            "baseline": 2550.0,
+            "candidate": 2720.0,
+            "delta": 170.0,
+            "percent": 6.666666666666667
+          },
+          "read_or_search_command_count": {
+            "baseline": 6.0,
+            "candidate": 5.0,
+            "delta": -1.0,
+            "percent": -16.666666666666664
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 6.0,
+            "candidate": 5.0,
+            "delta": -1.0,
+            "percent": -16.666666666666664
+          },
+          "tool_input_chars": {
+            "baseline": 1523.0,
+            "candidate": 1519.0,
+            "delta": -4.0,
+            "percent": -0.2626395272488509
+          },
+          "tool_output_chars": {
+            "baseline": 153090.0,
+            "candidate": 201208.0,
+            "delta": 48118.0,
+            "percent": 31.431184270690444
+          }
+        }
+      }
+    },
+    "median_paired_pkf_read_only_savings": {
+      "cached_input_tokens": -137728.0,
+      "input_tokens": -150138.5,
+      "non_cached_input_tokens": -12410.5,
+      "output_tokens": -637.0
+    },
+    "operational_by_repetition": [
+      {
+        "pkf": {
+          "ai_read_or_search_command_count": 21,
+          "cached_input_tokens": 1401344,
+          "duration_ms": 465715,
+          "explicit_ai_read_path_count": 28,
+          "explicit_read_path_count": 54,
+          "explicit_skill_read_path_count": 7,
+          "input_tokens": 1617346,
+          "mentioned_ai_path_count": 96,
+          "mentioned_path_count": 403,
+          "non_cached_input_tokens": 216002,
+          "output_tokens": 18422,
+          "read_or_search_command_count": 40,
+          "searched_root_count": 0,
+          "tool_call_count": 57,
+          "tool_input_chars": 10249,
+          "tool_output_chars": 490626
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0,
+          "cached_input_tokens": 905216,
+          "duration_ms": 274270,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 25,
+          "explicit_skill_read_path_count": 0,
+          "input_tokens": 1046840,
+          "mentioned_ai_path_count": 0,
+          "mentioned_path_count": 320,
+          "non_cached_input_tokens": 141624,
+          "output_tokens": 10371,
+          "read_or_search_command_count": 17,
+          "searched_root_count": 0,
+          "tool_call_count": 27,
+          "tool_input_chars": 4773,
+          "tool_output_chars": 360686
+        },
+        "repetition": 1,
+        "source_only": {
+          "ai_read_or_search_command_count": 0,
+          "cached_input_tokens": 218880,
+          "duration_ms": 83950,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 9,
+          "explicit_skill_read_path_count": 0,
+          "input_tokens": 304367,
+          "mentioned_ai_path_count": 0,
+          "mentioned_path_count": 187,
+          "non_cached_input_tokens": 85487,
+          "output_tokens": 3442,
+          "read_or_search_command_count": 9,
+          "searched_root_count": 0,
+          "tool_call_count": 9,
+          "tool_input_chars": 2101,
+          "tool_output_chars": 216698
+        }
+      }
+    ]
+  },
+  "performance": {
+    "checks": [
+      {
+        "met": true,
+        "name": "local_input_tokens_overhead",
+        "target": "<= 5%",
+        "value": -10.784862184187846
+      },
+      {
+        "met": true,
+        "name": "local_non_cached_input_tokens_overhead",
+        "target": "<= 5%",
+        "value": -12.707644671325161
+      },
+      {
+        "met": true,
+        "name": "local_duration_ms_overhead",
+        "target": "<= 5%",
+        "value": 1.6780781256183954
+      },
+      {
+        "met": false,
+        "name": "cross_capability_non_cached_input_tokens_delta",
+        "target": "< 0",
+        "value": 27858.0
+      },
+      {
+        "met": false,
+        "name": "cross_capability_tool_call_count_delta",
+        "target": "< 0",
+        "value": 8.0
+      },
+      {
+        "met": true,
+        "name": "initialization_non_cached_input_tokens_delta",
+        "target": "< 0 versus runtime-v3 one-pass",
+        "value": -8177.0
+      },
+      {
+        "met": true,
+        "name": "initialization_duration_ms_delta",
+        "target": "< 0 versus runtime-v3 one-pass",
+        "value": -124587.0
+      },
+      {
+        "met": false,
+        "name": "operational_input_tokens_overhead",
+        "target": "<= 5%",
+        "value": 54.49791754231783
+      },
+      {
+        "met": false,
+        "name": "operational_non_cached_input_tokens_overhead",
+        "target": "<= 5%",
+        "value": 52.51793481330848
+      },
+      {
+        "met": false,
+        "name": "operational_duration_ms_overhead",
+        "target": "<= 5%",
+        "value": 69.8016553031684
+      }
+    ],
+    "evidence_strength": "directional",
+    "status": "preliminary_advisory_missed"
+  },
+  "quality_status": "passed",
+  "recorded_at": "2026-07-19T17:01:30+00:00",
+  "replicated": false,
+  "run_class": "one_pass_preflight",
+  "runs": [
+    {
+      "accessed_closeout": false,
+      "accessed_skill": true,
+      "ai_read_or_search_command_count": 10,
+      "answer_correct": null,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 2,
+      "duration_ms": 392357,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 32,
+      "explicit_skill_read_path_count": 10,
+      "fallback_search": true,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 194,
+      "phase": "setup",
+      "pkf_validation_passed": true,
+      "read_or_search_command_count": 31,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "initialize",
+      "tool_call_count": 45,
+      "tool_input_chars": 7070,
+      "tool_output_chars": 230139,
+      "usage": {
+        "cached_input_tokens": 1470720,
+        "input_tokens": 1562263,
+        "output_tokens": 17044
+      }
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "source_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 24535,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 2,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 17,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "boards_add_task",
+      "tool_call_count": 3,
+      "tool_input_chars": 578,
+      "tool_output_chars": 63608,
+      "usage": {
+        "cached_input_tokens": 50432,
+        "input_tokens": 79735,
+        "output_tokens": 892
+      }
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "probe_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 25267,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 2,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 30,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "boards_add_task",
+      "tool_call_count": 3,
+      "tool_input_chars": 524,
+      "tool_output_chars": 37312,
+      "usage": {
+        "cached_input_tokens": 42240,
+        "input_tokens": 66139,
+        "output_tokens": 983
+      }
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 25691,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 1,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 3,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "boards_add_task",
+      "tool_call_count": 3,
+      "tool_input_chars": 448,
+      "tool_output_chars": 28511,
+      "usage": {
+        "cached_input_tokens": 38144,
+        "input_tokens": 59006,
+        "output_tokens": 824
+      }
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "source_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 59415,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 7,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": true,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 170,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 6,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "note_task_links",
+      "tool_call_count": 6,
+      "tool_input_chars": 1523,
+      "tool_output_chars": 153090,
+      "usage": {
+        "cached_input_tokens": 168448,
+        "input_tokens": 224632,
+        "output_tokens": 2550
+      }
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "probe_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 63765,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 10,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": true,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 170,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 5,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "note_task_links",
+      "tool_call_count": 5,
+      "tool_input_chars": 1519,
+      "tool_output_chars": 201208,
+      "usage": {
+        "cached_input_tokens": 133888,
+        "input_tokens": 182547,
+        "output_tokens": 2720
+      }
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": true,
+      "ai_read_or_search_command_count": 5,
+      "answer_correct": true,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 99730,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 13,
+      "explicit_read_path_count": 22,
+      "explicit_skill_read_path_count": 1,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 27,
+      "mentioned_path_count": 96,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 13,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "note_task_links",
+      "tool_call_count": 13,
+      "tool_input_chars": 2887,
+      "tool_output_chars": 312971,
+      "usage": {
+        "cached_input_tokens": 413440,
+        "input_tokens": 489957,
+        "output_tokens": 4153
+      }
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": null,
+      "arm": "probe_only",
+      "changed_expected_paths": true,
+      "changed_path_count": 2,
+      "duration_ms": 139493,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 10,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": true,
+      "focused_test_passed": true,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 28,
+      "phase": "mutation",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 5,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_mutation",
+      "tool_call_count": 15,
+      "tool_input_chars": 2114,
+      "tool_output_chars": 80762,
+      "usage": {
+        "cached_input_tokens": 656640,
+        "input_tokens": 698703,
+        "output_tokens": 5181
+      }
+    },
+    {
+      "accessed_closeout": true,
+      "accessed_skill": true,
+      "ai_read_or_search_command_count": 7,
+      "answer_correct": null,
+      "arm": "pkf",
+      "changed_expected_paths": true,
+      "changed_path_count": 3,
+      "duration_ms": 181316,
+      "emitted_closeout": true,
+      "error": "",
+      "explicit_ai_read_path_count": 8,
+      "explicit_read_path_count": 16,
+      "explicit_skill_read_path_count": 3,
+      "fallback_search": true,
+      "focused_test_passed": true,
+      "mentioned_ai_path_count": 42,
+      "mentioned_path_count": 208,
+      "phase": "mutation",
+      "pkf_validation_passed": true,
+      "read_or_search_command_count": 12,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_mutation",
+      "tool_call_count": 23,
+      "tool_input_chars": 3642,
+      "tool_output_chars": 68376,
+      "usage": {
+        "cached_input_tokens": 624896,
+        "input_tokens": 670367,
+        "output_tokens": 7082
+      }
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "probe_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 2,
+      "duration_ms": 37909,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 3,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": true,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 92,
+      "phase": "post_mutation",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 4,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_after_change",
+      "tool_call_count": 4,
+      "tool_input_chars": 616,
+      "tool_output_chars": 41404,
+      "usage": {
+        "cached_input_tokens": 63488,
+        "input_tokens": 88182,
+        "output_tokens": 1421
+      }
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 3,
+      "duration_ms": 34466,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 3,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 26,
+      "phase": "post_mutation",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_after_change",
+      "tool_call_count": 3,
+      "tool_input_chars": 528,
+      "tool_output_chars": 40138,
+      "usage": {
+        "cached_input_tokens": 48384,
+        "input_tokens": 72401,
+        "output_tokens": 1204
+      }
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": null,
+      "arm": "probe_only",
+      "changed_expected_paths": true,
+      "changed_path_count": 2,
+      "duration_ms": 7836,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 0,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": true,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 0,
+      "phase": "closeout",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 0,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "isolated_closeout",
+      "tool_call_count": 0,
+      "tool_input_chars": 0,
+      "tool_output_chars": 0,
+      "usage": {
+        "cached_input_tokens": 8960,
+        "input_tokens": 11269,
+        "output_tokens": 66
+      }
+    },
+    {
+      "accessed_closeout": true,
+      "accessed_skill": true,
+      "ai_read_or_search_command_count": 9,
+      "answer_correct": null,
+      "arm": "pkf",
+      "changed_expected_paths": true,
+      "changed_path_count": 3,
+      "duration_ms": 124512,
+      "emitted_closeout": true,
+      "error": "",
+      "explicit_ai_read_path_count": 7,
+      "explicit_read_path_count": 12,
+      "explicit_skill_read_path_count": 3,
+      "fallback_search": true,
+      "focused_test_passed": true,
+      "mentioned_ai_path_count": 27,
+      "mentioned_path_count": 70,
+      "phase": "closeout",
+      "pkf_validation_passed": true,
+      "read_or_search_command_count": 9,
+      "repetition": 1,
+      "returncode": 0,
+      "searched_root_count": 0,
+      "task_id": "isolated_closeout",
+      "tool_call_count": 15,
+      "tool_input_chars": 2744,
+      "tool_output_chars": 40630,
+      "usage": {
+        "cached_input_tokens": 276480,
+        "input_tokens": 325615,
+        "output_tokens": 5159
+      }
+    }
+  ],
+  "schema_version": 3,
+  "status": "preliminary",
+  "suite": "all",
+  "target": {
+    "commit": "5c458df3c737f0af2a2193186d98af90c45163f0",
+    "name": "tether-brain",
+    "repository": "duelistraj/tether-brain",
+    "tree": "d679f127ae072f8b4f20dbe39c90f7d5173bedf4",
+    "visibility_at_measurement": "private"
+  },
+  "token_atlas": {
+    "commit": "38fa2f5484bede49f3da94eac0636d3272cdd4ba",
+    "harness_sha256": "26466f2ca577798f0c00ee8975d26acf5431130d9b911121b377b44561e94cfb",
+    "public_skill_sha256": "d351374ab23f83a6a20369ff969d52237a93bb28a7d574baa71eb9874f8c3875"
+  }
+}

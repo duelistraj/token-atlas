@@ -48,6 +48,9 @@ exports/
 !/.agents/skills/token-atlas/benchmarks/fixtures/exports/repo/AGENTS.md
 invoices/
 
+# Benchmark evidence: publish summaries, keep exact target/PKF traces local.
+benchmarks/artifacts/**/private/
+
 # IDEs
 .vscode/
 .idea/
