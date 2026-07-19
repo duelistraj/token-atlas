@@ -522,19 +522,14 @@ class PkfValidateTests(unittest.TestCase):
     def test_internal_initialize_uses_public_protocol_templates(self):
         public = PUBLIC_INITIALIZE.read_text(encoding="utf-8")
         internal = INTERNAL_INITIALIZE.read_text(encoding="utf-8")
+        protocols = (PUBLIC_INITIALIZE.parent.parent / "templates" / "protocols.md").read_text(encoding="utf-8")
+        bootstrap = (PUBLIC_INITIALIZE.parent.parent / "templates" / "bootstrap.md").read_text(encoding="utf-8")
 
-        self.assertEqual(
-            self.template_block(public, "## Retrieval Protocol Template"),
-            self.template_block(internal, "## Retrieval Protocol Template"),
-        )
-        self.assertEqual(
-            self.template_block(public, "## Bootstrap Template"),
-            self.template_block(internal, "## Bootstrap Template"),
-        )
-        self.assertEqual(
-            self.template_block(public, "## Closeout Protocol Template"),
-            self.template_block(internal, "## Closeout Protocol Template"),
-        )
+        self.assertEqual(public, internal)
+        self.assertIn("pkf_scaffold.py inspect", public)
+        self.assertIn("## Retrieval Protocol (MANDATORY)", protocols)
+        self.assertIn("## Closeout Protocol (MANDATORY)", protocols)
+        self.assertIn("token-atlas:bootstrap:start", bootstrap)
         skill = INTERNAL_SKILL.read_text(encoding="utf-8")
         self.assertIn("embed the Retrieval and Closeout Protocols", skill)
         self.assertIn("neutral bootstrap", skill)

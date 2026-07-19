@@ -11,6 +11,20 @@ The canonical dependency-light validator modules live in the repository root
 remain byte-for-byte identical. The public package does not include the local
 PowerShell or benchmark runners.
 
+The public package also includes dependency-light `pkf_scaffold.py` and
+`pkf_route.py` helpers. Scaffolding owns only fresh-runtime mechanics; routing
+maps changed paths to leaf front matter without deciding semantic impact. The
+model remains responsible for capability boundaries, durable facts, extraction,
+and knowledge-impact judgment.
+
+Public helper commands:
+
+```text
+python <skill-root>/scripts/pkf_scaffold.py inspect --path .
+python <skill-root>/scripts/pkf_scaffold.py create --path .
+python <skill-root>/scripts/pkf_route.py --path . --changed-path <path> --format json
+```
+
 ---
 
 ## Command Surface

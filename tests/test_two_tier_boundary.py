@@ -31,8 +31,12 @@ class TwoTierBoundaryTests(unittest.TestCase):
             "references/validation.md",
             "scripts/pkf_contract.py",
             "scripts/pkf_lib.py",
+            "scripts/pkf_route.py",
+            "scripts/pkf_scaffold.py",
             "scripts/pkf_tokens.py",
             "scripts/pkf_validate.py",
+            "templates/bootstrap.md",
+            "templates/protocols.md",
         }
 
         self.assertEqual(actual, expected)

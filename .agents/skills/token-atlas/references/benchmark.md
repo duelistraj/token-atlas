@@ -100,37 +100,52 @@ python scripts/pkf_activation_eval.py --repetitions 3 --model gpt-5.6-luna --mod
 This eval is internal maintainer tooling and must not be copied into the public
 skill package.
 
-### Real Repository Lifecycle Eval
+### Real Repository Adaptive Attribution Eval
 
-Use the maintainer-only `scripts/pkf_savings_eval.py` to compare full Token
-Atlas lifecycle cost with a no-PKF baseline on a pinned external repository.
-Run it only with explicit approval because every repetition makes nine model
-calls, including a fresh initialization. The default target commit is Tether
-Brain `5c458df3c737f0af2a2193186d98af90c45163f0`; the runner requires a local
-checkout containing that commit and exports the Git tree into isolated
-workspaces. It never targets the Token Atlas maintenance repository.
+Use the maintainer-only `scripts/pkf_savings_eval.py` to separate generic source
+discovery, the adaptive local-probe policy, and PKF knowledge on a pinned
+external repository. Run it only with explicit approval. The default target is
+Tether Brain commit `5c458df3c737f0af2a2193186d98af90c45163f0`; the runner
+requires a local checkout containing that commit, exports the tree into isolated
+workspaces, and never targets this maintenance repository.
 
-Both arms start from the same source-only export. The no-PKF arm keeps neutral
-repository guidance, while the PKF arm installs the current public skill,
-initializes and strictly validates `.ai/`, runs identical read-only and mutation
-tasks, and validates closeout. Pin the model and reasoning explicitly and
-inspect the call matrix before execution:
+The runner provides split suites:
+
+| Suite | Per repetition | Purpose |
+| --- | ---: | --- |
+| `retrieval` | 7 calls | Initialization plus both read-only tasks across source-only, probe-only, and PKF arms. |
+| `lifecycle` | 5 calls | Initialization plus mutation and post-mutation work across probe-only and PKF. |
+| `closeout` | 3 calls | Initialization plus an identical pre-applied mutation control and PKF closeout. |
+| `all` | 13 calls | All phases sharing one initialization. |
+
+The retrieval suite uses a Latin-square three-arm order; two-arm phases alternate
+by repetition. The closeout suite applies the checked-in patch under
+`benchmarks/patches/` to identical clean workspaces and supplies the same changed
+paths and semantic summary to both calls.
+
+Pin the model and reasoning explicitly and inspect the call matrix before
+execution:
 
 ```text
-python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3 --dry-run
-python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3 --report-json .agents/skills/token-atlas/benchmarks/results/pkf-vs-no-pkf-gpt-5.6-luna-high-2026-07-17.json --report-markdown BENCHMARKS.md
+python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3 --dry-run
+python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3 --report-json /path/to/result.json --report-markdown /path/to/report.md
 ```
 
-Publish total, cached, non-cached, and output tokens separately. Report
-correctness, strict validation, focused tests, latency, initialization cost,
-mutation premium, and both total-input and non-cached-input break-even. A
-negative saving is a valid finding; never add a minimum-savings pass gate.
-Treat path counts as trace mentions rather than confirmed reads, and publish
-tool calls, read/search commands, and tool-output characters to expose workflow
-churn and cached-context replay. Keep initialization, local read-only,
-cross-capability read-only, knowledge-neutral mutation, and semantic closeout
-results separable rather than attributing a combined lifecycle delta to PKF
-reads alone.
+Publish total, cached, non-cached, and output tokens separately. Parse tool input
+and output separately and report explicit read targets, searched roots, `.ai`
+read/search calls, skill/reference reads, and unverified path mentions as
+different metrics. Keep initialization, local retrieval, cross-capability
+retrieval, mutation, post-mutation, and closeout phases separable.
+
+Correctness, zero local-task PKF reads, required cross-capability activation,
+focused tests, closeout, and validation are blocking quality gates. The desired
+5% local/operational token and latency overhead, positive cross-capability
+savings, and initialization improvement are advisory performance targets; a
+negative saving remains a valid result and never changes quality status.
+
+Three repetitions are required for a publishable result. `--repetitions 1` is
+allowed for diagnostics but must report `preliminary` and cannot replace
+headline replicated results.
 Sanitize local paths, credentials, source contents, and raw traces. Pin both the
 target commit and public-skill digest so future skill revisions can rerun the
 same application baseline.

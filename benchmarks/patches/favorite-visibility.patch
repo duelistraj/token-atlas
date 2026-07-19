@@ -1,0 +1,41 @@
+diff --git a/frontend/src/notes/noteSectionState.ts b/frontend/src/notes/noteSectionState.ts
+--- a/frontend/src/notes/noteSectionState.ts
++++ b/frontend/src/notes/noteSectionState.ts
+@@ -9,7 +9,7 @@ export function appearsInArchive(note: NoteSectionState): boolean {
+ }
+ 
+ export function appearsInHome(note: NoteSectionState, includeArchived: boolean): boolean {
+-  return !note.is_favorite && (includeArchived || !note.is_archived);
++  return includeArchived || (!note.is_favorite && !note.is_archived);
+ }
+ 
+ export function favoriteStateUpdate(note: NoteSectionState): NoteUpdate {
+diff --git a/frontend/src/notes/noteSectionState.test.ts b/frontend/src/notes/noteSectionState.test.ts
+--- a/frontend/src/notes/noteSectionState.test.ts
++++ b/frontend/src/notes/noteSectionState.test.ts
+@@ -1,13 +1,13 @@
+ import { describe, expect, it } from "vitest";
+ import { appearsInArchive, appearsInFavorite, appearsInHome, archiveStateUpdate, favoriteStateUpdate } from "@/notes/noteSectionState";
+ 
+-describe("exclusive favorite visibility", () => {
+-  it("shows favorites only in Favorite", () => {
++describe("favorite visibility", () => {
++  it("keeps favorites in All while excluding their home category", () => {
+     const note = { is_favorite: true, is_archived: false };
+     expect(appearsInFavorite(note)).toBe(true);
+     expect(appearsInArchive(note)).toBe(false);
+     expect(appearsInHome(note, false)).toBe(false);
+-    expect(appearsInHome(note, true)).toBe(false);
++    expect(appearsInHome(note, true)).toBe(true);
+   });
+ 
+   it("keeps archived notes in All but out of their active home category", () => {
+@@ -20,7 +20,7 @@ describe("exclusive favorite visibility", () => {
+     const note = { is_favorite: true, is_archived: true };
+     expect(appearsInFavorite(note)).toBe(true);
+     expect(appearsInArchive(note)).toBe(false);
+-    expect(appearsInHome(note, true)).toBe(false);
++    expect(appearsInHome(note, true)).toBe(true);
+   });
+ 
+   it("clears the opposing state when favoriting or archiving", () => {

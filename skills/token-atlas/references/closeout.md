@@ -59,10 +59,33 @@ the mutation changed durable facts, evidence, or routing.
 - Treat ambiguous impact or an unmapped new path as exceptional maintenance.
   Report `stale` when ownership cannot be proved.
 
+## Fast Changed-Path Route
+
+For a durable change, use the embedded protocol and turn-owned context first;
+do not load this reference merely to repeat the gate. Invoke the bundled helper:
+
+```text
+python <token-atlas-skill>/scripts/pkf_route.py --path . \
+  --changed-path <path> --format json
+```
+
+Repeat `--changed-path` for rename endpoints and every other turn-owned path.
+The helper returns mapped leaves, pending state, unmatched paths, index fallback,
+and the required validation scope without exposing leaf contents to model
+context. A valid `partial` or `unmapped` result is not a tooling failure.
+
+- For `mapped`, read and synchronize only the returned leaves.
+- For `partial`, synchronize mapped leaves and read the root index only for the
+  unmatched slice.
+- For `unmapped`, read the root index and escalate to exceptional maintenance if
+  ownership remains unresolved.
+- When the helper requests `full` validation, treat routing/runtime knowledge as
+  changed; otherwise retain affected-slice validation.
+
 ## Incremental Sync
 
-- Route turn-owned changed paths directly to existing leaves. Read a root or
-  module index only for a new or unmapped path; never replay the startup chain.
+- Route turn-owned changed paths with `pkf_route.py`. Read a root or module
+  index only for a new or unmapped path; never replay the startup chain.
 - Update only leaves whose durable facts changed. Keep `source_symbols`, Edit
   Maps, tests, styles/tokens, and locator commands exact.
 - Materialize an affected `pkf.materialization: pending` leaf and mark it

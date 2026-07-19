@@ -2,12 +2,41 @@
 
 ## Purpose
 
-Define the bundled deterministic validator and optional local command wrappers
-for repeatable developer and CI requests.
+Define the bundled deterministic helpers and optional local command wrappers for
+repeatable developer and CI requests.
 
-Public Token Atlas bundles a dependency-light Python validator under `scripts/`.
-It does not bundle a workflow wrapper. If a target repo provides one, it should
-remain a thin selector and must not become a second source of truth.
+Public Token Atlas bundles dependency-light scaffold, changed-path route, and
+validation helpers under `scripts/`. They implement mechanical operations, not
+capability-boundary judgment, knowledge-impact judgment, extraction, or
+optimization. If a target repo provides a workflow wrapper, it should remain a
+thin selector and must not become a second source of truth.
+
+## Scaffold Helper
+
+For fresh initialization, create a bounded structural draft, review its
+capability map, then create the runtime:
+
+```bash
+python <skill-root>/scripts/pkf_scaffold.py inspect --path .
+python <skill-root>/scripts/pkf_scaffold.py create --path .
+```
+
+The helper refuses to overwrite an existing runtime. Use
+`references/initialize.md` for the full contract and preservation fallback.
+
+## Changed-Path Route Helper
+
+After the semantic knowledge-impact gate accepts a durable mutation, resolve
+the smallest affected slice without loading leaf contents:
+
+```bash
+python <skill-root>/scripts/pkf_route.py --path . \
+  --changed-path src/example.py --format json
+```
+
+Repeat `--changed-path` for all turn-owned paths and rename endpoints. A valid
+request exits `0` even when its status is `partial` or `unmapped`; invalid usage
+or malformed PKF data exits `2`.
 
 ## Bundled Validator
 
@@ -61,7 +90,8 @@ validation_strictness: advisory
 - Validate command and option values locally.
 - Print selected workflow and options.
 - Detect simple startup failures when useful.
-- Do not implement extraction, optimization, validation, simulation, or export logic inside the wrapper.
+- Do not implement extraction, optimization, validation, simulation, export,
+  scaffold, or changed-path routing logic inside the wrapper.
 - Keep documented workflows authoritative.
 
 ## Exit Codes

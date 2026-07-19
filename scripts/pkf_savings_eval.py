@@ -10,6 +10,7 @@ import json
 import math
 import os
 import re
+import shlex
 import shutil
 import statistics
 import subprocess
@@ -31,9 +32,36 @@ DEFAULT_REASONING_EFFORT = "high"
 DEFAULT_REPETITIONS = 3
 DEFAULT_TIMEOUT_SECONDS = 1_800
 ALLOWED_REASONING_EFFORTS = ("minimal", "low", "medium", "high", "xhigh")
+EVALUATION_SUITES = ("retrieval", "lifecycle", "closeout", "all")
 TARGET_NAME = "tether-brain"
+ISOLATED_CLOSEOUT_PATCH = ROOT / "benchmarks" / "patches" / "favorite-visibility.patch"
+INITIALIZATION_REFERENCE = {
+    "non_cached_input_tokens": 99_720,
+    "duration_ms": 516_944,
+}
 
-NEUTRAL_AGENTS = """# AGENTS
+SOURCE_ONLY_AGENTS = """# AGENTS
+
+## Code Search
+
+- Prefer `rg` (ripgrep) for text search and file discovery.
+- Prefer `sg` (ast-grep) for syntax-aware searches and refactoring.
+- Avoid `grep -r` unless `rg` is unavailable.
+
+## Best Practices
+
+- Read and follow `.codex/best-practices/PYTHON-BEST-PRACTICES.md` for Python work.
+- Read and follow `.codex/best-practices/REACT-BEST-PRACTICES.md` for React work.
+"""
+
+PROBE_ONLY_AGENTS = """# AGENTS
+
+## Adaptive local discovery
+
+For a likely single-capability task, use a cheap local probe of at most two
+targeted `rg`/`sg` searches and three source files. If that resolves a known path
+or symbol, continue locally. For cross-capability, architecture, ownership, or
+repository-wide work, use source-only discovery because no PKF is installed.
 
 ## Code Search
 
@@ -48,12 +76,32 @@ NEUTRAL_AGENTS = """# AGENTS
 """
 
 INITIALIZE_PROMPT = (
-    "Use the token-atlas skill to initialize PKF with hybrid extraction: materialize "
-    "shared architecture, routing, and public entry points from source, and mark other "
-    "planned leaves pending. Use profile=core, retrieval_exports=off, "
+    "Use the token-atlas skill and its deterministic scaffold helper to initialize "
+    "PKF with hybrid extraction: review capability boundaries, materialize shared "
+    "architecture, routing, and bounded public entry points, and leave other leaves "
+    "pending. Use profile=core, retrieval_exports=off, "
     "simulation=changed, token_budget=summary, and validation_strictness=ci. "
     "Do not change application source or tests."
 )
+
+CLOSEOUT_CONTROL_PROMPT = """A benchmark harness already applied and tested this
+repository mutation: favorited notes remain visible in All, remain excluded from
+their home category, and retain archive/favorite mutual exclusion. The turn-owned
+paths are frontend/src/notes/noteSectionState.ts and
+frontend/src/notes/noteSectionState.test.ts. Do not change application source or
+tests. This checkout has no PKF; return a compact acknowledgement that no knowledge
+synchronization surface exists without reading repository source.
+"""
+
+CLOSEOUT_PKF_PROMPT = """A benchmark harness already applied and tested this
+repository mutation: favorited notes remain visible in All, remain excluded from
+their home category, and retain archive/favorite mutual exclusion. The turn-owned
+paths are frontend/src/notes/noteSectionState.ts and
+frontend/src/notes/noteSectionState.test.ts. Do not change application source or
+tests. Perform only the required PKF semantic closeout using the provided
+implementation context and changed paths; do not replay repository startup or
+rediscover the mutation.
+"""
 
 MUTATION_PROMPT = """In this disposable benchmark checkout, change note visibility so a
 favorited note remains visible in All while staying excluded from its home category.
@@ -139,7 +187,14 @@ class Usage:
 class TraceMetrics:
     tool_call_count: int
     read_or_search_command_count: int
+    tool_input_chars: int
     tool_output_chars: int
+    explicit_read_path_count: int
+    explicit_ai_read_path_count: int
+    explicit_skill_read_path_count: int
+    searched_root_count: int
+    ai_read_or_search_command_count: int
+    fallback_search: bool
 
 
 @dataclass(frozen=True)
@@ -147,6 +202,7 @@ class CodexResult:
     repetition: int
     arm: str
     task_id: str
+    phase: str
     returncode: int
     duration_ms: int
     usage: Usage | None
@@ -160,7 +216,13 @@ class CodexResult:
     mentioned_ai_path_count: int
     tool_call_count: int
     read_or_search_command_count: int
+    tool_input_chars: int
     tool_output_chars: int
+    explicit_read_path_count: int
+    explicit_ai_read_path_count: int
+    explicit_skill_read_path_count: int
+    searched_root_count: int
+    ai_read_or_search_command_count: int
     changed_path_count: int
     changed_expected_paths: bool | None
     focused_test_passed: bool | None
@@ -183,6 +245,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_REASONING_EFFORT,
     )
     parser.add_argument("--repetitions", type=int, default=DEFAULT_REPETITIONS)
+    parser.add_argument("--suite", choices=EVALUATION_SUITES, default="lifecycle")
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--runtime-root", type=Path, default=ROOT)
     parser.add_argument("--format", choices=("text", "json"), default="text")
@@ -260,14 +323,14 @@ def export_target(target_repo: Path, target_commit: str, destination: Path) -> N
     archive_path.unlink()
 
 
-def strip_pkf(repo: Path) -> None:
+def strip_pkf(repo: Path, agents_text: str = SOURCE_ONLY_AGENTS) -> None:
     ai_dir = repo / ".ai"
     if ai_dir.exists():
         shutil.rmtree(ai_dir)
     installed_skill = repo / ".codex" / "skills" / "token-atlas"
     if installed_skill.exists():
         shutil.rmtree(installed_skill)
-    (repo / "AGENTS.md").write_text(NEUTRAL_AGENTS, encoding="utf-8")
+    (repo / "AGENTS.md").write_text(agents_text, encoding="utf-8")
 
 
 def install_public_skill(repo: Path) -> None:
@@ -310,11 +373,13 @@ def prepare_arms(
     export_target(target_repo, target_commit, exported)
     strip_pkf(exported)
     arms: dict[str, Path] = {}
-    for arm in ("no_pkf", "pkf"):
+    for arm in ("source_only", "probe_only", "pkf"):
         repo = workspace / arm
         shutil.copytree(exported, repo, symlinks=True)
         if arm == "pkf":
             install_public_skill(repo)
+        elif arm == "probe_only":
+            (repo / "AGENTS.md").write_text(PROBE_ONLY_AGENTS, encoding="utf-8")
         link_local_dependencies(repo, target_repo)
         initialize_git(repo, "Benchmark source baseline")
         arms[arm] = repo
@@ -351,6 +416,44 @@ def flatten_strings(value: Any) -> list[str]:
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         return [item for nested in value for item in flatten_strings(nested)]
     return []
+
+
+TOOL_INPUT_FIELDS = frozenset(
+    {"command", "args", "arguments", "path", "paths", "query", "pattern", "input"}
+)
+TOOL_OUTPUT_FIELDS = frozenset(
+    {"output", "stdout", "stderr", "result", "content", "aggregated_output", "error"}
+)
+READ_OR_SEARCH_TOKENS = ("rg ", "sg ", "sed ", "cat ", "head ", "tail ", "find ", "git show")
+FALLBACK_PATTERNS = ("rg --files", "git ls-files", "find . ", "find ./", "grep -r")
+
+
+def named_field_strings(value: Any, names: frozenset[str]) -> list[str]:
+    if not isinstance(value, Mapping):
+        return []
+    strings: list[str] = []
+    for key, nested in value.items():
+        if str(key).lower() in names:
+            strings.extend(flatten_strings(nested))
+        elif isinstance(nested, Mapping):
+            strings.extend(named_field_strings(nested, names))
+        elif isinstance(nested, Sequence) and not isinstance(nested, (str, bytes)):
+            for item in nested:
+                strings.extend(named_field_strings(item, names))
+    return strings
+
+
+def trace_tool_inputs(output: str) -> str:
+    values: list[str] = []
+    for raw_line in output.splitlines():
+        try:
+            event = json.loads(raw_line)
+        except json.JSONDecodeError:
+            continue
+        item = event.get("item")
+        if event.get("type") == "item.completed" and isinstance(item, dict):
+            values.extend(named_field_strings(item, TOOL_INPUT_FIELDS))
+    return "\n".join(values)
 
 
 def parse_jsonl(output: str) -> tuple[Usage | None, tuple[str, ...], str]:
@@ -392,11 +495,22 @@ def parse_structured_answer(messages: Sequence[str]) -> Mapping[str, Any] | None
     return None
 
 
-def inspect_jsonl_trace(output: str) -> TraceMetrics:
+def inspect_jsonl_trace(
+    output: str,
+    *,
+    known_paths: Sequence[str] = (),
+    known_directories: Sequence[str] = (),
+) -> TraceMetrics:
     tool_calls = 0
     read_or_search_commands = 0
+    tool_input_chars = 0
     tool_output_chars = 0
-    read_or_search_tokens = ("rg ", "sg ", "sed ", "cat ", "head ", "tail ")
+    explicit_paths: set[str] = set()
+    searched_roots: set[str] = set()
+    ai_read_or_search_commands = 0
+    fallback_search = False
+    normalized_paths = tuple(sorted(set(known_paths), key=len, reverse=True))
+    normalized_directories = set(known_directories)
     for raw_line in output.splitlines():
         try:
             event = json.loads(raw_line)
@@ -409,12 +523,51 @@ def inspect_jsonl_trace(output: str) -> TraceMetrics:
         if item_type in {"agent_message", "reasoning"}:
             continue
         tool_calls += 1
-        strings = flatten_strings(item)
-        tool_output_chars += sum(len(value) for value in strings)
-        lowered = " ".join(strings).lower()
-        if any(token in lowered for token in read_or_search_tokens):
+        input_strings = named_field_strings(item, TOOL_INPUT_FIELDS)
+        output_strings = named_field_strings(item, TOOL_OUTPUT_FIELDS)
+        tool_input_chars += sum(len(value) for value in input_strings)
+        tool_output_chars += sum(len(value) for value in output_strings)
+        input_text = " ".join(input_strings)
+        lowered = input_text.lower()
+        read_like = any(token in f"{lowered} " for token in READ_OR_SEARCH_TOKENS) or any(
+            token in item_type.lower() for token in ("read", "search", "query")
+        )
+        if read_like:
             read_or_search_commands += 1
-    return TraceMetrics(tool_calls, read_or_search_commands, tool_output_chars)
+            if ".ai/" in lowered or " .ai" in lowered:
+                ai_read_or_search_commands += 1
+            for path in normalized_paths:
+                if path in input_text:
+                    explicit_paths.add(path)
+            for value in input_strings:
+                try:
+                    tokens = shlex.split(value)
+                except ValueError:
+                    tokens = value.split()
+                for token in tokens:
+                    clean = token.strip("'\"").removeprefix("./")
+                    if token in {".", "./"}:
+                        searched_roots.add(".")
+                    elif clean in normalized_directories:
+                        searched_roots.add(clean)
+        if any(pattern in lowered for pattern in FALLBACK_PATTERNS):
+            fallback_search = True
+    explicit_ai = {path for path in explicit_paths if path.startswith(".ai/")}
+    explicit_skill = {
+        path for path in explicit_paths if "/skills/token-atlas/" in f"/{path}" or path.startswith(".codex/skills/token-atlas/")
+    }
+    return TraceMetrics(
+        tool_call_count=tool_calls,
+        read_or_search_command_count=read_or_search_commands,
+        tool_input_chars=tool_input_chars,
+        tool_output_chars=tool_output_chars,
+        explicit_read_path_count=len(explicit_paths),
+        explicit_ai_read_path_count=len(explicit_ai),
+        explicit_skill_read_path_count=len(explicit_skill),
+        searched_root_count=len(searched_roots),
+        ai_read_or_search_command_count=ai_read_or_search_commands,
+        fallback_search=fallback_search,
+    )
 
 
 def changed_paths(repo: Path) -> tuple[str, ...]:
@@ -427,20 +580,18 @@ def tracked_paths(repo: Path) -> tuple[str, ...]:
     return tuple(line for line in output.splitlines() if line)
 
 
+def tracked_directories(paths: Sequence[str]) -> tuple[str, ...]:
+    directories = {
+        parent.as_posix()
+        for value in paths
+        for parent in Path(value).parents
+        if parent.as_posix() not in {"", "."}
+    }
+    return tuple(sorted(directories))
+
+
 def detect_accessed_paths(event_text: str, paths: Sequence[str]) -> tuple[str, ...]:
     return tuple(path for path in paths if path in event_text)
-
-
-def detect_fallback_search(event_text: str) -> bool:
-    lowered = event_text.lower()
-    patterns = (
-        "rg --files",
-        "git ls-files",
-        "find . ",
-        "find ./",
-        "grep -r",
-    )
-    return any(pattern in lowered for pattern in patterns)
 
 
 def sanitized_error(text: str, sensitive_roots: Sequence[Path]) -> str:
@@ -456,6 +607,7 @@ def run_codex(
     repetition: int,
     arm: str,
     task_id: str,
+    phase: str,
     prompt: str,
     repo: Path,
     model: str,
@@ -518,7 +670,12 @@ def run_codex(
     duration_ms = int((time.monotonic() - started) * 1_000)
 
     usage, messages, event_text = parse_jsonl(stdout)
-    trace = inspect_jsonl_trace(stdout)
+    repo_paths = tracked_paths(repo)
+    trace = inspect_jsonl_trace(
+        stdout,
+        known_paths=repo_paths,
+        known_directories=tracked_directories(repo_paths),
+    )
     structured = parse_structured_answer(messages) if task is not None else None
     answer = structured.get("answers") if isinstance(structured, dict) else None
     answer_correct = (
@@ -526,26 +683,34 @@ def run_codex(
         if task is not None and isinstance(answer, Mapping)
         else (False if task is not None else None)
     )
-    accessed = detect_accessed_paths(event_text, tracked_paths(repo))
+    accessed = detect_accessed_paths(event_text, repo_paths)
+    tool_inputs = trace_tool_inputs(stdout).lower()
     changes = changed_paths(repo)
     result = CodexResult(
         repetition=repetition,
         arm=arm,
         task_id=task_id,
+        phase=phase,
         returncode=returncode,
         duration_ms=duration_ms,
         usage=usage,
         answer=answer,
         answer_correct=answer_correct,
-        accessed_skill="token-atlas/skill.md" in event_text.lower(),
-        accessed_closeout="token-atlas/references/closeout.md" in event_text.lower(),
+        accessed_skill="token-atlas/skill.md" in tool_inputs,
+        accessed_closeout="token-atlas/references/closeout.md" in tool_inputs,
         emitted_closeout="pkf closeout:" in "\n".join(messages).lower(),
-        fallback_search=detect_fallback_search(event_text),
+        fallback_search=trace.fallback_search,
         mentioned_path_count=len(accessed),
         mentioned_ai_path_count=sum(path.startswith(".ai/") for path in accessed),
         tool_call_count=trace.tool_call_count,
         read_or_search_command_count=trace.read_or_search_command_count,
+        tool_input_chars=trace.tool_input_chars,
         tool_output_chars=trace.tool_output_chars,
+        explicit_read_path_count=trace.explicit_read_path_count,
+        explicit_ai_read_path_count=trace.explicit_ai_read_path_count,
+        explicit_skill_read_path_count=trace.explicit_skill_read_path_count,
+        searched_root_count=trace.searched_root_count,
+        ai_read_or_search_command_count=trace.ai_read_or_search_command_count,
         changed_path_count=len(changes),
         changed_expected_paths=None,
         focused_test_passed=None,
@@ -595,20 +760,39 @@ def run_focused_test(repo: Path) -> bool:
     return completed.returncode == 0
 
 
-def mutation_behavior_changed(repo: Path) -> bool:
-    test_path = repo / "frontend" / "src" / "notes" / "noteSectionState.test.ts"
-    if not test_path.is_file():
-        return False
-    text = test_path.read_text(encoding="utf-8")
-    match = re.search(
-        r'shows favorites.*?\{(?P<body>.*?)\n\s*\}\);',
-        text,
-        flags=re.DOTALL,
-    )
-    return bool(
-        match
-        and "appearsInHome(note, false)).toBe(false)" in match.group("body")
-        and "appearsInHome(note, true)).toBe(true)" in match.group("body")
+def prepare_closeout_arms(workspace: Path, arms: Mapping[str, Path]) -> dict[str, Path]:
+    prepared: dict[str, Path] = {}
+    for arm in ("probe_only", "pkf"):
+        destination = workspace / f"{arm}-isolated-closeout"
+        shutil.copytree(arms[arm], destination, symlinks=True)
+        completed = run_command(
+            ("git", "apply", str(ISOLATED_CLOSEOUT_PATCH)),
+            cwd=destination,
+            check=False,
+        )
+        if completed.returncode != 0:
+            raise EvaluationError(f"isolated closeout patch did not apply to {arm}: {completed.stderr.strip()}")
+        if not run_focused_test(destination):
+            raise EvaluationError(f"isolated closeout patch failed focused test in {arm}")
+        prepared[arm] = destination
+    return prepared
+
+
+def score_closeout(result: CodexResult, repo: Path, arm: str) -> CodexResult:
+    changes = changed_paths(repo)
+    expected = {
+        "frontend/src/notes/noteSectionState.ts",
+        "frontend/src/notes/noteSectionState.test.ts",
+    }
+    valid: bool | None = None
+    if arm == "pkf":
+        valid, _ = validate_pkf(repo)
+    return replace_result(
+        result,
+        changed_path_count=len(changes),
+        changed_expected_paths=expected.issubset(changes),
+        focused_test_passed=True,
+        pkf_validation_passed=valid,
     )
 
 
@@ -617,31 +801,49 @@ def score_mutation(result: CodexResult, repo: Path, arm: str) -> CodexResult:
     expected_source = "frontend/src/notes/noteSectionState.ts" in changes
     expected_test = "frontend/src/notes/noteSectionState.test.ts" in changes
     focused_test_passed = run_focused_test(repo)
-    behavior_changed = mutation_behavior_changed(repo)
     pkf_validation_passed: bool | None = None
     if arm == "pkf":
         pkf_validation_passed, _ = validate_pkf(repo)
     return replace_result(
         result,
         changed_path_count=len(changes),
-        changed_expected_paths=expected_source and expected_test and behavior_changed,
+        changed_expected_paths=expected_source and expected_test,
         focused_test_passed=focused_test_passed,
         pkf_validation_passed=pkf_validation_passed,
     )
 
 
-def build_schedule(repetitions: int) -> list[dict[str, Any]]:
+def three_arm_order(repetition: int) -> tuple[str, ...]:
+    orders = (
+        ("source_only", "probe_only", "pkf"),
+        ("probe_only", "pkf", "source_only"),
+        ("pkf", "source_only", "probe_only"),
+    )
+    return orders[(repetition - 1) % len(orders)]
+
+
+def two_arm_order(repetition: int) -> tuple[str, ...]:
+    return ("probe_only", "pkf") if repetition % 2 else ("pkf", "probe_only")
+
+
+def build_schedule(repetitions: int, suite: str = "lifecycle") -> list[dict[str, Any]]:
+    if suite not in EVALUATION_SUITES:
+        raise EvaluationError(f"unknown evaluation suite: {suite}")
     schedule: list[dict[str, Any]] = []
     for repetition in range(1, repetitions + 1):
-        schedule.append({"repetition": repetition, "arm": "pkf", "task_id": "initialize"})
-        arm_order = ("no_pkf", "pkf") if repetition % 2 else ("pkf", "no_pkf")
-        for task in READ_ONLY_TASKS:
-            for arm in arm_order:
-                schedule.append({"repetition": repetition, "arm": arm, "task_id": task.task_id})
-        for arm in arm_order:
-            schedule.append({"repetition": repetition, "arm": arm, "task_id": "favorite_visibility_mutation"})
-        for arm in arm_order:
-            schedule.append({"repetition": repetition, "arm": arm, "task_id": POST_MUTATION_TASK.task_id})
+        schedule.append({"repetition": repetition, "arm": "pkf", "task_id": "initialize", "phase": "setup"})
+        if suite in {"retrieval", "all"}:
+            for task in READ_ONLY_TASKS:
+                for arm in three_arm_order(repetition):
+                    schedule.append({"repetition": repetition, "arm": arm, "task_id": task.task_id, "phase": "retrieval"})
+        if suite in {"lifecycle", "all"}:
+            for arm in two_arm_order(repetition):
+                schedule.append({"repetition": repetition, "arm": arm, "task_id": "favorite_visibility_mutation", "phase": "mutation"})
+            for arm in two_arm_order(repetition):
+                schedule.append({"repetition": repetition, "arm": arm, "task_id": POST_MUTATION_TASK.task_id, "phase": "post_mutation"})
+        if suite in {"closeout", "all"}:
+            for arm in two_arm_order(repetition):
+                schedule.append({"repetition": repetition, "arm": arm, "task_id": "isolated_closeout", "phase": "closeout"})
     return schedule
 
 
@@ -660,27 +862,34 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
     for result in results:
         groups.setdefault((result.task_id, result.arm), []).append(result)
     by_task: dict[str, Any] = {}
-    metrics = (
+    usage_metrics = (
         "input_tokens",
         "cached_input_tokens",
         "non_cached_input_tokens",
         "output_tokens",
+    )
+    trace_metrics = (
+        "tool_call_count",
+        "read_or_search_command_count",
+        "tool_input_chars",
+        "tool_output_chars",
+        "explicit_read_path_count",
+        "explicit_ai_read_path_count",
+        "explicit_skill_read_path_count",
+        "searched_root_count",
+        "ai_read_or_search_command_count",
+        "mentioned_path_count",
+        "mentioned_ai_path_count",
     )
     for (task_id, arm), grouped in sorted(groups.items()):
         entry = {
             metric: median(
                 [value for result in grouped if (value := usage_value(result, metric)) is not None]
             )
-            for metric in metrics
+            for metric in usage_metrics
         }
         entry["duration_ms"] = median([result.duration_ms for result in grouped])
-        for trace_metric in (
-            "tool_call_count",
-            "read_or_search_command_count",
-            "tool_output_chars",
-            "mentioned_path_count",
-            "mentioned_ai_path_count",
-        ):
+        for trace_metric in trace_metrics:
             entry[trace_metric] = median(
                 [getattr(result, trace_metric) for result in grouped]
             )
@@ -692,55 +901,64 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
         )
         by_task.setdefault(task_id, {})[arm] = entry
 
-    lifecycle_by_repetition: list[dict[str, Any]] = []
+    sum_metrics = (*usage_metrics, "duration_ms", *trace_metrics)
+    operational_by_repetition: list[dict[str, Any]] = []
     for repetition in sorted({result.repetition for result in results}):
         repeated = [result for result in results if result.repetition == repetition]
         entry: dict[str, Any] = {"repetition": repetition}
-        for arm in ("no_pkf", "pkf"):
-            arm_results = [result for result in repeated if result.arm == arm]
+        for arm in ("source_only", "probe_only", "pkf"):
+            arm_results = [result for result in repeated if result.arm == arm and result.phase != "setup"]
             entry[arm] = {
                 metric: sum(
-                    value
+                    (
+                        usage_value(result, metric)
+                        if metric in usage_metrics
+                        else getattr(result, metric)
+                    )
+                    or 0
                     for result in arm_results
-                    if (value := usage_value(result, metric)) is not None
                 )
-                for metric in metrics
+                for metric in sum_metrics
             }
-        lifecycle_by_repetition.append(entry)
+        operational_by_repetition.append(entry)
 
-    read_only_ids = {task.task_id for task in READ_ONLY_TASKS} | {POST_MUTATION_TASK.task_id}
-    paired_savings: dict[str, list[float]] = {metric: [] for metric in metrics}
+    paired_savings: dict[str, list[float]] = {metric: [] for metric in usage_metrics}
     for repetition in sorted({result.repetition for result in results}):
-        for task_id in read_only_ids:
+        for task_id in {task.task_id for task in READ_ONLY_TASKS}:
             result_by_arm = {
                 result.arm: result
                 for result in results
                 if result.repetition == repetition and result.task_id == task_id
             }
-            if set(result_by_arm) != {"no_pkf", "pkf"}:
+            if not {"probe_only", "pkf"}.issubset(result_by_arm):
                 continue
-            for metric in metrics:
-                baseline = usage_value(result_by_arm["no_pkf"], metric)
+            for metric in usage_metrics:
+                baseline = usage_value(result_by_arm["probe_only"], metric)
                 candidate = usage_value(result_by_arm["pkf"], metric)
                 if baseline is not None and candidate is not None:
                     paired_savings[metric].append(float(baseline - candidate))
 
-    def overhead(metric: str, task_id: str) -> float:
-        pkf_values = [
-            value
-            for result in results
-            if result.arm == "pkf"
-            and result.task_id == task_id
-            and (value := usage_value(result, metric)) is not None
-        ]
-        no_pkf_values = [
-            value
-            for result in results
-            if result.arm == "no_pkf"
-            and result.task_id == task_id
-            and (value := usage_value(result, metric)) is not None
-        ]
-        return median(pkf_values) - median(no_pkf_values)
+    comparisons: dict[str, Any] = {}
+    for task_id, arm_values in by_task.items():
+        task_comparisons: dict[str, Any] = {}
+        for label, baseline_arm, candidate_arm in (
+            ("source_vs_probe", "source_only", "probe_only"),
+            ("probe_vs_pkf", "probe_only", "pkf"),
+        ):
+            if baseline_arm not in arm_values or candidate_arm not in arm_values:
+                continue
+            comparison: dict[str, Any] = {}
+            for metric in (*usage_metrics, "duration_ms", *trace_metrics):
+                baseline = float(arm_values[baseline_arm][metric])
+                candidate = float(arm_values[candidate_arm][metric])
+                comparison[metric] = {
+                    "baseline": baseline,
+                    "candidate": candidate,
+                    "delta": candidate - baseline,
+                    "percent": ((candidate - baseline) / baseline * 100.0) if baseline else None,
+                }
+            task_comparisons[label] = comparison
+        comparisons[task_id] = task_comparisons
 
     break_even: dict[str, int | None] = {}
     for metric in ("input_tokens", "non_cached_input_tokens"):
@@ -754,7 +972,8 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
                 and (value := usage_value(result, metric)) is not None
             ]
         )
-        mutation_premium = max(0.0, overhead(metric, "favorite_visibility_mutation"))
+        mutation = comparisons.get("favorite_visibility_mutation", {}).get("probe_vs_pkf", {}).get(metric, {})
+        mutation_premium = max(0.0, float(mutation.get("delta", 0.0)))
         break_even[metric] = (
             math.ceil((init_cost + mutation_premium) / per_read_saving)
             if per_read_saving > 0
@@ -763,11 +982,49 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
 
     return {
         "by_task": by_task,
-        "lifecycle_by_repetition": lifecycle_by_repetition,
-        "median_paired_read_only_savings": {
+        "comparisons": comparisons,
+        "operational_by_repetition": operational_by_repetition,
+        "median_paired_pkf_read_only_savings": {
             metric: median(values) for metric, values in paired_savings.items()
         },
         "break_even_read_only_tasks": break_even,
+    }
+
+
+def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict[str, Any]:
+    if repetitions < 3:
+        return {"status": "preliminary", "checks": []}
+    comparisons = metrics.get("comparisons", {})
+    checks: list[dict[str, Any]] = []
+
+    def add_check(name: str, value: float | None, target: str, met: bool | None) -> None:
+        checks.append({"name": name, "value": value, "target": target, "met": met})
+
+    local = comparisons.get("boards_add_task", {}).get("probe_vs_pkf", {})
+    if local:
+        for metric in ("input_tokens", "non_cached_input_tokens", "duration_ms"):
+            value = local.get(metric, {}).get("percent")
+            add_check(f"local_{metric}_overhead", value, "<= 5%", value is not None and value <= 5.0)
+    cross = comparisons.get("note_task_links", {}).get("probe_vs_pkf", {})
+    if cross:
+        for metric in ("non_cached_input_tokens", "tool_call_count"):
+            value = cross.get(metric, {}).get("delta")
+            add_check(f"cross_capability_{metric}_delta", value, "< 0", value is not None and value < 0)
+    initialized = metrics.get("by_task", {}).get("initialize", {}).get("pkf", {})
+    for metric, reference in INITIALIZATION_REFERENCE.items():
+        if metric in initialized:
+            value = float(initialized[metric]) - reference
+            add_check(f"initialization_{metric}_delta", value, "< 0 versus runtime-v3 one-pass", value < 0)
+    operational = metrics.get("operational_by_repetition", [])
+    for metric in ("input_tokens", "non_cached_input_tokens", "duration_ms"):
+        probe = median([entry["probe_only"][metric] for entry in operational])
+        pkf = median([entry["pkf"][metric] for entry in operational])
+        if probe:
+            value = (pkf - probe) / probe * 100.0
+            add_check(f"operational_{metric}_overhead", value, "<= 5%", value <= 5.0)
+    return {
+        "status": "advisory_met" if checks and all(check["met"] for check in checks) else "advisory_missed",
+        "checks": checks,
     }
 
 
@@ -791,6 +1048,12 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
             errors.append(f"{label}: incorrect structured answer")
         if result.task_id == "initialize" and result.pkf_validation_passed is not True:
             errors.append(f"{label}: initialized PKF failed strict validation")
+        if result.task_id in {"boards_add_task", POST_MUTATION_TASK.task_id}:
+            if result.explicit_ai_read_path_count or result.explicit_skill_read_path_count:
+                errors.append(f"{label}: local task explicitly read PKF or Token Atlas paths")
+        if result.task_id == "note_task_links" and result.arm == "pkf":
+            if result.explicit_ai_read_path_count < 1:
+                errors.append(f"{label}: cross-capability task did not activate PKF retrieval")
         if result.task_id == "favorite_visibility_mutation":
             if result.changed_expected_paths is not True:
                 errors.append(f"{label}: mutation did not make the expected source/test change")
@@ -801,6 +1064,14 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
                     errors.append(f"{label}: PKF failed validation after mutation")
                 if not result.emitted_closeout:
                     errors.append(f"{label}: mutation did not emit PKF closeout status")
+        if result.task_id == "isolated_closeout":
+            if result.arm == "pkf":
+                if result.pkf_validation_passed is not True:
+                    errors.append(f"{label}: isolated closeout left PKF invalid")
+                if not result.emitted_closeout:
+                    errors.append(f"{label}: isolated closeout did not emit status")
+            elif result.explicit_ai_read_path_count or result.explicit_skill_read_path_count:
+                errors.append(f"{label}: closeout control accessed PKF or Token Atlas paths")
     return errors
 
 
@@ -829,6 +1100,7 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
                 repetition=repetition,
                 arm="pkf",
                 task_id="initialize",
+                phase="setup",
                 prompt=INITIALIZE_PROMPT,
                 repo=arms["pkf"],
                 model=args.model,
@@ -850,78 +1122,99 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
             if init_result.returncode == 0 and init_valid:
                 commit_generated_pkf(arms["pkf"])
 
-            arm_order = ("no_pkf", "pkf") if repetition % 2 else ("pkf", "no_pkf")
-            for task in READ_ONLY_TASKS:
-                for arm in arm_order:
-                    print(
-                        f"[{repetition}/{args.repetitions}] {arm} {task.task_id}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
+            closeout_arms = (
+                prepare_closeout_arms(workspace, arms)
+                if args.suite in {"closeout", "all"}
+                else {}
+            )
+
+            if args.suite in {"retrieval", "all"}:
+                for task in READ_ONLY_TASKS:
+                    for arm in three_arm_order(repetition):
+                        print(f"[{repetition}/{args.repetitions}] {arm} {task.task_id}", file=sys.stderr, flush=True)
+                        result, _ = run_codex(
+                            repetition=repetition,
+                            arm=arm,
+                            task_id=task.task_id,
+                            phase="retrieval",
+                            prompt=task.prompt,
+                            repo=arms[arm],
+                            model=args.model,
+                            reasoning_effort=args.model_reasoning_effort,
+                            timeout_seconds=args.timeout_seconds,
+                            workspace=workspace,
+                            sandbox="read-only",
+                            task=task,
+                        )
+                        results.append(result)
+
+            if args.suite in {"lifecycle", "all"}:
+                for arm in two_arm_order(repetition):
+                    print(f"[{repetition}/{args.repetitions}] {arm} favorite_visibility_mutation", file=sys.stderr, flush=True)
                     result, _ = run_codex(
                         repetition=repetition,
                         arm=arm,
-                        task_id=task.task_id,
-                        prompt=task.prompt,
+                        task_id="favorite_visibility_mutation",
+                        phase="mutation",
+                        prompt=MUTATION_PROMPT,
+                        repo=arms[arm],
+                        model=args.model,
+                        reasoning_effort=args.model_reasoning_effort,
+                        timeout_seconds=args.timeout_seconds,
+                        workspace=workspace,
+                        sandbox="workspace-write",
+                    )
+                    results.append(score_mutation(result, arms[arm], arm))
+
+                for arm in two_arm_order(repetition):
+                    print(f"[{repetition}/{args.repetitions}] {arm} {POST_MUTATION_TASK.task_id}", file=sys.stderr, flush=True)
+                    result, _ = run_codex(
+                        repetition=repetition,
+                        arm=arm,
+                        task_id=POST_MUTATION_TASK.task_id,
+                        phase="post_mutation",
+                        prompt=POST_MUTATION_TASK.prompt,
                         repo=arms[arm],
                         model=args.model,
                         reasoning_effort=args.model_reasoning_effort,
                         timeout_seconds=args.timeout_seconds,
                         workspace=workspace,
                         sandbox="read-only",
-                        task=task,
+                        task=POST_MUTATION_TASK,
                     )
                     results.append(result)
 
-            for arm in arm_order:
-                print(
-                    f"[{repetition}/{args.repetitions}] {arm} favorite_visibility_mutation",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                result, _ = run_codex(
-                    repetition=repetition,
-                    arm=arm,
-                    task_id="favorite_visibility_mutation",
-                    prompt=MUTATION_PROMPT,
-                    repo=arms[arm],
-                    model=args.model,
-                    reasoning_effort=args.model_reasoning_effort,
-                    timeout_seconds=args.timeout_seconds,
-                    workspace=workspace,
-                    sandbox="workspace-write",
-                )
-                results.append(score_mutation(result, arms[arm], arm))
+            if args.suite in {"closeout", "all"}:
+                for arm in two_arm_order(repetition):
+                    print(f"[{repetition}/{args.repetitions}] {arm} isolated_closeout", file=sys.stderr, flush=True)
+                    result, _ = run_codex(
+                        repetition=repetition,
+                        arm=arm,
+                        task_id="isolated_closeout",
+                        phase="closeout",
+                        prompt=CLOSEOUT_PKF_PROMPT if arm == "pkf" else CLOSEOUT_CONTROL_PROMPT,
+                        repo=closeout_arms[arm],
+                        model=args.model,
+                        reasoning_effort=args.model_reasoning_effort,
+                        timeout_seconds=args.timeout_seconds,
+                        workspace=workspace,
+                        sandbox="workspace-write" if arm == "pkf" else "read-only",
+                    )
+                    results.append(score_closeout(result, closeout_arms[arm], arm))
 
-            for arm in arm_order:
-                print(
-                    f"[{repetition}/{args.repetitions}] {arm} {POST_MUTATION_TASK.task_id}",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                result, _ = run_codex(
-                    repetition=repetition,
-                    arm=arm,
-                    task_id=POST_MUTATION_TASK.task_id,
-                    prompt=POST_MUTATION_TASK.prompt,
-                    repo=arms[arm],
-                    model=args.model,
-                    reasoning_effort=args.model_reasoning_effort,
-                    timeout_seconds=args.timeout_seconds,
-                    workspace=workspace,
-                    sandbox="read-only",
-                    task=POST_MUTATION_TASK,
-                )
-                results.append(result)
-
-    expected_count = len(build_schedule(args.repetitions))
+    expected_count = len(build_schedule(args.repetitions, args.suite))
     errors = evaluation_errors(results, expected_count)
     token_atlas_commit = run_command(("git", "rev-parse", "HEAD"), cwd=ROOT).stdout.strip()
     codex_version = run_command(("codex", "--version"), cwd=ROOT).stdout.strip()
+    metrics = aggregate_metrics(results)
+    performance = performance_advisories(metrics, args.repetitions)
     report = {
-        "schema_version": 1,
-        "benchmark": "pkf-vs-no-pkf-lifecycle",
-        "status": "failed" if errors else "completed",
+        "schema_version": 2,
+        "benchmark": "token-atlas-adaptive-attribution",
+        "suite": args.suite,
+        "status": "failed" if errors else ("preliminary" if args.repetitions < 3 else "completed"),
+        "quality_status": "failed" if errors else "passed",
+        "performance": performance,
         "recorded_at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
         "target": {
             "name": TARGET_NAME,
@@ -940,201 +1233,109 @@ def execute(args: argparse.Namespace, target: Mapping[str, str]) -> dict[str, An
             "repetitions": args.repetitions,
             "codex_version": codex_version,
             "scheduled_calls": expected_count,
+            "publishable": args.repetitions >= 3,
         },
         "methodology": {
-            "arms": ["no_pkf", "pkf"],
-            "task_ids": [
-                "initialize",
-                *(task.task_id for task in READ_ONLY_TASKS),
-                "favorite_visibility_mutation",
-                POST_MUTATION_TASK.task_id,
-            ],
-            "arm_order": "counterbalanced by repetition",
+            "arms": ["source_only", "probe_only", "pkf"],
+            "task_ids": sorted({item["task_id"] for item in build_schedule(1, args.suite)}),
+            "arm_order": "three-arm Latin square and alternating two-arm phases",
+            "trace_accounting": "tool inputs and outputs parsed separately; path mentions remain unverified",
+            "initialization_reference": INITIALIZATION_REFERENCE,
             "ambient_user_config": "ignored; authentication copied only",
             "raw_traces_published": False,
         },
-        "metrics": aggregate_metrics(results),
+        "metrics": metrics,
         "runs": [public_result(result) for result in results],
         "errors": errors,
     }
     return report
 
 
-def render_markdown(report: Mapping[str, Any]) -> str:
+def render_markdown(
+    report: Mapping[str, Any],
+    *,
+    raw_result_link: str | None = None,
+) -> str:
     target = report["target"]
     environment = report["environment"]
     metrics = report["metrics"]
-    by_task = metrics["by_task"]
-    lifecycle = metrics["lifecycle_by_repetition"]
-    lifecycle_median = {
-        arm: {
-            metric: median([entry[arm][metric] for entry in lifecycle])
-            for metric in (
-                "input_tokens",
-                "cached_input_tokens",
-                "non_cached_input_tokens",
-                "output_tokens",
-            )
-        }
-        for arm in ("no_pkf", "pkf")
-    }
     lines = [
         "# Token Atlas Benchmarks",
         "",
-        "## PKF vs no PKF lifecycle benchmark",
+        f"## Adaptive attribution benchmark — {report['suite']}",
         "",
         (
-            f"This benchmark compares Token Atlas with a source-only baseline on the real "
-            f"Tether Brain repository at commit `{target['commit']}`. The repository was "
-            "private when measured; no source, credentials, raw traces, or local paths are "
-            "published here. The pinned commit can be independently checked once the project "
-            "is public."
+            "This benchmark separates generic source discovery, the adaptive local-probe "
+            "policy, and PKF knowledge on Tether Brain at commit "
+            f"`{target['commit']}`. The repository was private when measured; no source, "
+            "credentials, local paths, or raw traces are published."
         ),
         "",
         f"Status: **{report['status']}**<br>",
+        f"Quality: **{report['quality_status']}**<br>",
+        f"Performance: **{report['performance']['status']}**<br>",
         f"Recorded: `{report['recorded_at']}`<br>",
         f"Model: `{environment['model']}` at `{environment['reasoning_effort']}` reasoning<br>",
         f"Repetitions: `{environment['repetitions']}` (`{environment['scheduled_calls']}` calls)",
         "",
-        "Raw sanitized result: "
-        "[`pkf-vs-no-pkf-gpt-5.6-luna-high-2026-07-17.json`](.agents/skills/token-atlas/benchmarks/results/pkf-vs-no-pkf-gpt-5.6-luna-high-2026-07-17.json)",
-        "",
-        "### Method",
-        "",
-        "Each repetition exports the pinned Git tree into disposable workspaces. Both arms "
-        "start without `.ai/` or Token Atlas instructions. The PKF arm installs the public "
-        "skill under test, initializes and validates its knowledge base, then both arms run "
-        "the same two read-only questions, one focused mutation, and one post-mutation "
-        "question. Arm order alternates by repetition.",
-        "",
-        "Token counts come from Codex JSONL. Total input includes cached input; non-cached "
-        "input is reported separately. These figures are not pricing estimates.",
-        "",
-        "### Median usage by task",
-        "",
-        "| Task | Arm | Input | Cached | Non-cached | Output | Correct | Duration (ms) |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
-    task_labels = {
-        "initialize": "Initialize PKF",
-        "boards_add_task": "Boards Add task lookup",
-        "note_task_links": "Note/task link lookup",
-        "favorite_visibility_mutation": "Favorite visibility mutation",
-        "favorite_visibility_after_change": "Post-mutation lookup",
+    if raw_result_link:
+        result_name = Path(raw_result_link).name
+        lines.extend((f"Raw sanitized result: [`{result_name}`]({raw_result_link})", ""))
+    lines.extend(
+        (
+            "### Method",
+            "",
+            "`source_only` measures generic discovery, `probe_only` isolates the bounded "
+            "local-probe policy, and `pkf` adds adaptive knowledge retrieval and semantic "
+            "closeout. Token counts come from Codex JSONL; total and non-cached input are "
+            "reported separately and are not pricing estimates. Tool input and output are "
+            "parsed separately. Explicit read targets are distinct from unverified path mentions.",
+            "",
+            "### Median usage by task",
+            "",
+            "| Task | Phase | Arm | Input | Non-cached | Output | Duration ms | Tools | Explicit .ai reads | Correct |",
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        )
+    )
+    phase_by_task = {
+        run["task_id"]: run["phase"] for run in report["runs"]
     }
-    for task_id, arm_values in by_task.items():
-        for arm, values in arm_values.items():
-            correctness = values["correctness_rate"]
-            correctness_text = "n/a" if correctness is None else f"{correctness:.0%}"
+    for task_id, arms in sorted(metrics["by_task"].items()):
+        for arm, values in sorted(arms.items()):
+            correct = "n/a" if values["correctness_rate"] is None else f"{values['correctness_rate'] * 100:.0f}%"
             lines.append(
-                f"| {task_labels.get(task_id, task_id)} | `{arm}` | "
-                f"{values['input_tokens']:.0f} | {values['cached_input_tokens']:.0f} | "
-                f"{values['non_cached_input_tokens']:.0f} | {values['output_tokens']:.0f} | "
-                f"{correctness_text} | {values['duration_ms']:.0f} |"
+                f"| {task_id} | {phase_by_task.get(task_id, 'unknown')} | `{arm}` | "
+                f"{values['input_tokens']:.0f} | {values['non_cached_input_tokens']:.0f} | "
+                f"{values['output_tokens']:.0f} | {values['duration_ms']:.0f} | "
+                f"{values['tool_call_count']:.0f} | {values['explicit_ai_read_path_count']:.0f} | {correct} |"
             )
-
-    lines.extend(
-        [
-            "",
-            "### Median workflow churn by task",
-            "",
-            "Path counts are trace mentions, not confirmed reads. Tool calls and tool-output "
-            "size are retained to explain cached-context replay.",
-            "",
-            "| Task | Arm | Tool calls | Read/search commands | Tool output chars | Mentioned paths | Mentioned `.ai` paths |",
-            "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
-        ]
-    )
-    for task_id, arm_values in by_task.items():
-        for arm, values in arm_values.items():
+    lines.extend(("", "### Attribution deltas", ""))
+    for task_id, comparisons in sorted(metrics["comparisons"].items()):
+        for label, values in sorted(comparisons.items()):
+            input_delta = values["input_tokens"]["delta"]
+            non_cached_delta = values["non_cached_input_tokens"]["delta"]
+            duration_delta = values["duration_ms"]["delta"]
             lines.append(
-                f"| {task_labels.get(task_id, task_id)} | `{arm}` | "
-                f"{values.get('tool_call_count', 0):.0f} | {values.get('read_or_search_command_count', 0):.0f} | "
-                f"{values.get('tool_output_chars', 0):.0f} | {values.get('mentioned_path_count', 0):.0f} | "
-                f"{values.get('mentioned_ai_path_count', 0):.0f} |"
+                f"- `{task_id}` {label}: input {input_delta:+.0f}, non-cached "
+                f"{non_cached_delta:+.0f}, duration {duration_delta:+.0f} ms."
             )
-
-    savings = metrics["median_paired_read_only_savings"]
-    break_even = metrics["break_even_read_only_tasks"]
-    link_no_pkf = by_task["note_task_links"]["no_pkf"]
-    link_pkf = by_task["note_task_links"]["pkf"]
-    mutation_no_pkf = by_task["favorite_visibility_mutation"]["no_pkf"]
-    mutation_pkf = by_task["favorite_visibility_mutation"]["pkf"]
-    boards_errors = [error for error in report["errors"] if "/boards_add_task:" in error]
-    boards_scoring_text = (
-        f"The strict benchmark status includes {len(boards_errors)} incorrect Boards answers."
-        if boards_errors
-        else "The Boards structured-answer gate passed in every recorded run."
-    )
-    lines.extend(
-        [
-            "",
-            "### Result",
-            "",
-            (
-                "Median complete lifecycle input: "
-                f"**{lifecycle_median['no_pkf']['input_tokens']:.0f}** without PKF and "
-                f"**{lifecycle_median['pkf']['input_tokens']:.0f}** with PKF.<br>"
-            ),
-            (
-                "Median complete lifecycle non-cached input: "
-                f"**{lifecycle_median['no_pkf']['non_cached_input_tokens']:.0f}** without PKF and "
-                f"**{lifecycle_median['pkf']['non_cached_input_tokens']:.0f}** with PKF.<br>"
-            ),
-            f"Median paired read-only input saving: **{savings['input_tokens']:.0f} tokens**.<br>",
-            (
-                "Median paired read-only non-cached input saving: "
-                f"**{savings['non_cached_input_tokens']:.0f} tokens**.<br>"
-            ),
-            (
-                "Break-even including initialization and the measured mutation premium: "
-                f"**{break_even['input_tokens'] if break_even['input_tokens'] is not None else 'not reached'}** "
-                "read-only tasks by total input and "
-                f"**{break_even['non_cached_input_tokens'] if break_even['non_cached_input_tokens'] is not None else 'not reached'}** "
-                "by non-cached input."
-            ),
-            "",
-        ]
-    )
-    if break_even["input_tokens"] is None:
-        lines.append(
-            "On this measured workload, PKF did not produce positive median read-only total-input savings, so no lifecycle break-even was observed."
-        )
+    lines.extend(("", "### Performance advisories", ""))
+    if report["performance"]["checks"]:
+        for check in report["performance"]["checks"]:
+            state = "met" if check["met"] else "missed"
+            value = "n/a" if check["value"] is None else f"{check['value']:.2f}"
+            lines.append(f"- {check['name']}: {state} (`{value}`, target {check['target']}).")
     else:
-        lines.append(
-            "On this measured workload, PKF is token-beneficial only when the number of comparable read-only tasks exceeds the reported break-even; smaller workloads retain the setup and maintenance overhead."
-        )
+        lines.append("- Preliminary run: performance targets require at least three repetitions.")
+    lines.extend(("", "### Limitations", ""))
     lines.extend(
-        [
-            "",
-            "The cross-capability note/task-link lookup was the clear PKF win: median input "
-            f"fell from **{link_no_pkf['input_tokens']:.0f}** to **{link_pkf['input_tokens']:.0f}** "
-            "tokens, while non-cached input fell from "
-            f"**{link_no_pkf['non_cached_input_tokens']:.0f}** to "
-            f"**{link_pkf['non_cached_input_tokens']:.0f}**. The focused mutation moved the "
-            f"other way: median input rose from **{mutation_no_pkf['input_tokens']:.0f}** to "
-            f"**{mutation_pkf['input_tokens']:.0f}** because PKF also synchronized and "
-            "validated knowledge.",
-            "",
-            "Every PKF initialization passed strict validation. Every mutation arm made "
-            "the expected source/test change and passed the focused test; every PKF "
-            "mutation also emitted closeout and passed strict validation. The link and "
-            "post-mutation lookup answers were 100% correct in both arms.",
-            "",
-            boards_scoring_text,
-        ]
-    )
-    lines.extend(
-        [
-            "",
-            "### Limitations",
-            "",
+        (
             "- One application repository, one pinned commit, one model, and one reasoning setting.",
-            "- Three repetitions describe this controlled run but are not a population-wide estimate.",
-            "- Provider prompt caching can change total-input composition, so cached and non-cached input must be interpreted separately.",
-            "- The target was private when measured; external reproduction becomes possible when that exact commit is published.",
-            "- The Boards correctness field depended on implicit toast placement and should be narrowed before the next benchmark series.",
-        ]
+            f"- {environment['repetitions']} repetition(s) describe this controlled run but are not a population-wide estimate.",
+            "- Provider prompt caching can change total-input composition; interpret cached and non-cached input separately.",
+            "- A one-pass run is diagnostic only and cannot replace headline replicated results.",
+        )
     )
     if report["errors"]:
         lines.extend(("", "### Evaluation errors", ""))
@@ -1149,14 +1350,27 @@ def write_report(report: Mapping[str, Any], args: argparse.Namespace) -> None:
         args.report_json.write_text(json_text, encoding="utf-8")
     if args.report_markdown:
         args.report_markdown.parent.mkdir(parents=True, exist_ok=True)
-        args.report_markdown.write_text(render_markdown(report), encoding="utf-8")
+        raw_result_link = None
+        if args.report_json:
+            raw_result_link = Path(
+                os.path.relpath(
+                    args.report_json.resolve(),
+                    start=args.report_markdown.parent.resolve(),
+                )
+            ).as_posix()
+        args.report_markdown.write_text(
+            render_markdown(report, raw_result_link=raw_result_link),
+            encoding="utf-8",
+        )
     if args.format == "json":
         print(json_text, end="")
     else:
-        savings = report["metrics"]["median_paired_read_only_savings"]
+        savings = report["metrics"]["median_paired_pkf_read_only_savings"]
         print(f"PKF savings eval: {report['status']}")
+        print(f"Suite: {report['suite']}")
         print(f"Calls: {len(report['runs'])}/{report['environment']['scheduled_calls']}")
         print(f"Median paired read-only input saving: {savings['input_tokens']:.0f}")
+        print(f"Performance: {report['performance']['status']}")
         print(f"Errors: {len(report['errors'])}")
 
 
@@ -1164,13 +1378,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         target = verify_target(args.target_repo, args.target_commit)
-        schedule = build_schedule(args.repetitions)
+        schedule = build_schedule(args.repetitions, args.suite)
         if args.dry_run:
             output = {
                 "dry_run": True,
                 "target": {"name": TARGET_NAME, **target},
                 "model": args.model,
                 "reasoning_effort": args.model_reasoning_effort,
+                "suite": args.suite,
+                "publishable": args.repetitions >= 3,
                 "scheduled_calls": len(schedule),
                 "schedule": schedule,
             }

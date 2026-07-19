@@ -16,16 +16,18 @@ Token Atlas is an AI context-optimization skill for coding agents. It extracts *
    ```
 
    Copy only `skills/token-atlas/` (`SKILL.md`, `references/`, `agents/`, and the
-   dependency-light validator under `scripts/`). You do not need the repository
-   root maintainer scripts, tests, or benchmark fixtures.
+   dependency-light scaffold, route, and validator helpers under `scripts/`,
+   plus their templates). You do not need the repository root maintainer
+   scripts, tests, or benchmark fixtures.
 
 2. Ask your agent for the skill by name for the initial setup:
 
    > Use the **token-atlas** skill to initialize PKF and extract knowledge for this repo.
 
-3. The first run creates `.ai/` (runtime plus knowledge skeleton), embeds the
-   Retrieval and Closeout Protocols in `PKF.md`, adds a neutral bootstrap,
-   performs hybrid source extraction, optimizes routing, and validates.
+3. The first run inspects a bounded structural summary, reviews capability
+   ownership, deterministically creates `.ai/`, performs bounded hybrid source
+   extraction, and validates once. Optimization runs only when validation finds
+   a routing or token-budget defect.
    Subsequent knowledge-impacting mutations run adaptive closeout automatically;
    read-only and knowledge-neutral turns bypass Token Atlas work.
 
@@ -85,7 +87,7 @@ module vocabulary.
 A run initializes on first use. Later intentional repository mutations pass
 through a knowledge-impact gate; read-only and knowledge-neutral turns do not
 activate Token Atlas. Only semantic or evidence changes continue into targeted
-extraction and affected-slice summary validation.
+changed-path routing, extraction, and affected-slice summary validation.
 
 ```mermaid
 flowchart LR
@@ -98,7 +100,8 @@ flowchart LR
     Closeout -- no --> Done
     Closeout -- yes --> Maintain
     Maintain --> Extract
-    Extract --> Optimize --> Validate --> Done([In sync])
+    Extract --> Validate --> Done([In sync])
+    Validate -. route defect .-> Optimize --> Validate
     Validate -. optional .-> Simulate
     Validate -. optional .-> Export
 ```
@@ -143,9 +146,10 @@ Token usage is measured with an exact tokenizer when available, otherwise estima
 
 Warnings are advisory locally and become blocking under `validation_strictness: ci`.
 
-See [the published benchmarks](BENCHMARKS.md) for the pinned real-repository
-PKF-versus-no-PKF lifecycle evaluation, including setup cost, cached and
-non-cached input, mutation overhead, correctness gates, and limitations.
+See [the published benchmarks](BENCHMARKS.md) for pinned real-repository
+measurements. The current harness separates generic source discovery, the local
+probe policy, PKF retrieval, mutation lifecycle, and isolated closeout instead
+of attributing all differences to PKF reads.
 
 ## Other useful features
 
@@ -153,6 +157,9 @@ non-cached input, mutation overhead, correctness gates, and limitations.
 - **Deterministic validation** — the public package includes structure, runtime,
   routing, source-symbol/Edit Map, affected-slice, and token-budget checks with
   `--format json` for CI and no model calls.
+- **Deterministic runtime mechanics** — bounded scaffold inspection generates
+  fresh skeletons without model-authored boilerplate, and changed-path routing
+  maps durable mutations to affected leaves without loading their contents.
 - **Optional retrieval exports** — generate RAG (`documents.jsonl`, `claims.jsonl`) or GraphRAG (`entities`, `relationships`, `claims`) artifacts from canonical Markdown.
 - **Advisory or CI strictness** — the same checks read as recommendations locally and fail the build in CI.
 
@@ -162,7 +169,7 @@ This repository maintains the skill itself and ships two surfaces:
 
 | Path | Purpose |
 |------|---------|
-| `skills/token-atlas/` | Public package with skill guidance and a dependency-light validator. |
+| `skills/token-atlas/` | Public package with skill guidance, templates, and dependency-light scaffold, route, and validation helpers. |
 | `.agents/skills/token-atlas/` | Internal development and benchmark copy. |
 
 > This is the skill-maintenance repo. Do not run Token Atlas against it; the internal copy is for development and benchmarking only.

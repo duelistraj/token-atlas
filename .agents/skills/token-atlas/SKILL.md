@@ -25,7 +25,7 @@ If `.ai/PKF.md` is missing and Token Atlas was explicitly invoked:
 
 - Do not continue with repository analysis yet.
 - Execute `references/initialize.md` to create the PKF runtime and OKF skeleton.
-- Validate the initialized structure.
+- Use the bundled scaffold helper, which validates the initialized structure.
 - Resume the normal execution flow only after `PKF.md` exists.
 - Report the recovery as a startup action.
 
@@ -71,25 +71,29 @@ Do not generate or load retrieval exports unless `retrieval_exports` is not `off
 If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
 - Execute `references/initialize.md`
-- Validate
 - Execute `references/extract.md` using **Hybrid Extraction** for shared knowledge, routing, and public entry points
-- Validate
 - Mark deferred leaves `pkf.materialization: pending`
-- Execute `references/optimize.md` only for materialized routes
-- Execute `references/simulate.md` only according to the selected `simulation` option
+- Validate once after hybrid extraction
+- Execute `references/optimize.md` only when validation reports a routing,
+  duplication, or token-budget defect; revalidate only the affected slice if it
+  changes knowledge
+- Execute `references/simulate.md` during initialization only when `simulation`
+  is explicitly `required` or `all`
 - Execute `references/export.md` only when `retrieval_exports` is not `off`
-- Validate
 
 Otherwise, after an intentional mutation with durable knowledge impact:
 
-- Execute `references/closeout.md` first and stop on a no-op
+- Apply the embedded closeout gate first and stop on a no-op
+- Route turn-owned paths with bundled `pkf_route.py`; do not replay startup for
+  a mapped route
+- Read `references/closeout.md` only for a partial, unmapped, or exceptional route
 - Execute `references/maintenance.md` to detect changed paths, stale references, duplicate facts, and affected docs when closeout identifies an exceptional case
 - Execute `references/extract.md` using **Incremental Extraction**
-- Validate
-- Execute `references/optimize.md`
+- Validate the affected slice once
+- Execute `references/optimize.md` only for a reported affected-route defect and
+  revalidate only if it changes knowledge
 - Execute `references/simulate.md` only according to the selected `simulation` option
 - Execute `references/export.md` only when `retrieval_exports` is not `off`
-- Validate
 
 Stop immediately on validation failures only when `validation_strictness: ci` is selected. In advisory mode, report blocking recommendations without treating the default workflow as a CI gate.
 
@@ -285,6 +289,8 @@ Commands are thin workflow selectors:
 - `pkf bench` -> `references/benchmark.md`
 
 Tooling must keep documented workflows authoritative. Scripts may validate arguments and report CI startup failures, but must not reimplement extraction, optimization, validation, or export logic.
+The public scaffold and route helpers are deterministic mechanics: they must not
+decide capability boundaries, durable facts, or knowledge impact.
 
 ---
 ## Global Rules
@@ -308,7 +314,8 @@ Tooling must keep documented workflows authoritative. Scripts may validate argum
 
 Execution succeeds only when:
 
-- Validation completes after every phase, with hard failure behavior only in `ci` strictness.
+- The scaffold mechanical check and the smallest required final or affected
+  validation complete, with hard failure behavior only in `ci` strictness.
 - The PKF runtime is synchronized.
 - Initialization records both embedded mandatory protocols, the adaptive closeout mode, and the neutral bootstrap it created or updated.
 - The OKF knowledge base reflects the repository.
