@@ -31,8 +31,11 @@ class PkfSavingsEvalTests(unittest.TestCase):
             "accessed_closeout": False,
             "emitted_closeout": False,
             "fallback_search": False,
-            "accessed_path_count": 1,
-            "accessed_ai_path_count": 0,
+            "mentioned_path_count": 1,
+            "mentioned_ai_path_count": 0,
+            "tool_call_count": 2,
+            "read_or_search_command_count": 1,
+            "tool_output_chars": 500,
             "changed_path_count": 0,
             "changed_expected_paths": None,
             "focused_test_passed": None,
@@ -110,6 +113,30 @@ class PkfSavingsEvalTests(unittest.TestCase):
         self.assertEqual(usage, pkf_savings_eval.Usage(1_200, 200, 80))
         self.assertEqual(pkf_savings_eval.parse_structured_answer(messages), answer)
         self.assertIn("turn.completed", normalized)
+
+    def test_trace_metrics_measure_tool_churn_without_claiming_file_reads(self):
+        output = "\n".join(
+            (
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {"type": "command_execution", "command": "rg -n Widget src", "output": "src/a.py:1"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {"type": "agent_message", "text": "done"},
+                    }
+                ),
+            )
+        )
+
+        metrics = pkf_savings_eval.inspect_jsonl_trace(output)
+
+        self.assertEqual(metrics.tool_call_count, 1)
+        self.assertEqual(metrics.read_or_search_command_count, 1)
+        self.assertGreater(metrics.tool_output_chars, 0)
 
     def test_prepare_arms_uses_same_commit_and_removes_pkf_from_baseline(self):
         with tempfile.TemporaryDirectory() as raw_temp:

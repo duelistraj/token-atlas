@@ -10,7 +10,11 @@ from __future__ import annotations
 REQUIRED_FRONT_MATTER = {"type", "title", "description", "resource", "tags", "timestamp", "pkf"}
 
 RUNTIME_VERSION_FIELD = "runtime_version"
-RUNTIME_VERSION = 2
+RUNTIME_VERSION = 3
+
+RETRIEVAL_MODE_FIELD = "retrieval"
+RETRIEVAL_DEFAULT = "adaptive"
+RETRIEVAL_MODES = ("adaptive", "mandatory")
 
 TOKEN_THRESHOLDS = {
     "startup": 2500,
@@ -30,8 +34,9 @@ CLOSEOUT_PROTOCOL_HEADING = "## Closeout Protocol (MANDATORY)"
 LEGACY_CLOSEOUT_PHRASES = ("every user turn", "every final response")
 PROTOCOL_REQUIREMENTS = {
     "retrieval": (
-        "### Hard precondition",
-        "Negative constraint",
+        "### Adaptive retrieval gate",
+        "cheap local probe",
+        "### PKF activation",
         "### Fallback and verification",
         "### Keep the knowledge base in sync",
     ),
@@ -40,6 +45,8 @@ PROTOCOL_REQUIREMENTS = {
         "If the current turn made no intentional repository content mutation",
         "stop silently",
         "Keep the acknowledgement in session context",
+        "### Knowledge-impact gate",
+        "durable facts, evidence, or routing",
         "### Incremental synchronization",
         "### Safety and recursion",
         "Never invoke closeout again",
@@ -67,7 +74,10 @@ REQUIRED_MODULE_DOCS = (
 )
 LEAF_MODULE_DOCS = tuple(doc for doc in REQUIRED_MODULE_DOCS if doc != "INDEX.md")
 LEAF_SOURCE_SYMBOLS_FIELD = "source_symbols"
+LEAF_MATERIALIZATION_FIELD = "materialization"
+LEAF_MATERIALIZATION_MODES = ("complete", "pending")
 EMPTY_LEAF_MARKER = "- TODO: No source-backed facts."
+PENDING_LEAF_MARKER = "- TODO: Pending source extraction."
 EDIT_MAP_HEADING = "## Edit Map"
 EDIT_MAP_COLUMNS = ("Behavior", "Source symbols", "Tests", "Styles/tokens", "Locator")
 GENERIC_EDIT_MAP_BEHAVIORS = frozenset(

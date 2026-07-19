@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure Token Atlas runtime-v2 activation behavior with isolated Codex runs."""
+"""Measure Token Atlas adaptive activation behavior with isolated Codex runs."""
 
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "fixtures" / "activation-gate"
 BASE_FIXTURE = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "fixtures" / "schema-change" / "repo"
 PUBLIC_SKILL = ROOT / "skills" / "token-atlas"
-DEFAULT_MODEL = "gpt-5.5"
-DEFAULT_REASONING_EFFORT = "low"
+DEFAULT_MODEL = "gpt-5.6-luna"
+DEFAULT_REASONING_EFFORT = "high"
 MINIMUM_MEDIAN_SAVINGS = 500
 READ_ONLY_PROMPT = (
     "Answer only this repository question: which path string does "
@@ -31,6 +31,11 @@ MUTATION_PROMPT = (
     "Change the path returned by listCustomersRoute from /customers to /clients. "
     "Keep its test and repository knowledge synchronized as required by the "
     "repository instructions."
+)
+KNOWLEDGE_NEUTRAL_MUTATION_PROMPT = (
+    "Reformat only the customers array entry in src/backend/routes/customers.ts "
+    "across multiple lines. Do not change symbols, behavior, API values, tests, or "
+    "repository knowledge. Follow the repository knowledge-impact gate."
 )
 
 
@@ -51,6 +56,7 @@ class RunResult:
     prompt_kind: str
     returncode: int
     usage: Usage | None
+    accessed_pkf: bool
     accessed_skill: bool
     accessed_closeout: bool
     emitted_closeout: bool
@@ -134,7 +140,7 @@ def prepare_repo(workspace: Path, variant: str) -> Path:
     shutil.copytree(BASE_FIXTURE, repo)
     shutil.copytree(FIXTURE / "overlay", repo, dirs_exist_ok=True)
     installed_skill = repo / ".codex" / "skills" / "token-atlas"
-    if variant == "v2":
+    if variant == "v3":
         shutil.copytree(PUBLIC_SKILL, installed_skill)
     elif variant == "v1":
         legacy = FIXTURE / "legacy"
@@ -208,6 +214,7 @@ def run_codex(
                 prompt_kind=prompt_kind,
                 returncode=124,
                 usage=None,
+                accessed_pkf=False,
                 accessed_skill=False,
                 accessed_closeout=False,
                 emitted_closeout=False,
@@ -239,6 +246,7 @@ def run_codex(
             prompt_kind=prompt_kind,
             returncode=completed.returncode,
             usage=usage,
+            accessed_pkf=".ai/pkf.md" in event_text,
             accessed_skill="token-atlas/skill.md" in event_text,
             accessed_closeout="token-atlas/references/closeout.md" in event_text,
             emitted_closeout="PKF closeout:" in final_text,
@@ -274,21 +282,36 @@ def median_usage_metric(results: Sequence[RunResult], metric: str) -> float:
 def evaluate(
     legacy_results: Sequence[RunResult],
     optimized_results: Sequence[RunResult],
+    neutral_mutation_result: RunResult,
     mutation_result: RunResult,
 ) -> tuple[list[str], dict[str, Any]]:
     errors: list[str] = []
-    if any(result.returncode != 0 for result in (*legacy_results, *optimized_results, mutation_result)):
+    if any(
+        result.returncode != 0
+        for result in (*legacy_results, *optimized_results, neutral_mutation_result, mutation_result)
+    ):
         errors.append("one or more Codex runs failed")
     if any(result.changed_paths for result in (*legacy_results, *optimized_results)):
         errors.append("a read-only run changed repository content")
-    if any(result.accessed_skill or result.accessed_closeout for result in optimized_results):
-        errors.append("runtime v2 loaded Token Atlas closeout on a read-only turn")
+    if any(result.accessed_pkf or result.accessed_skill or result.accessed_closeout for result in optimized_results):
+        errors.append("runtime v3 loaded PKF or Token Atlas on a local read-only turn")
     if any(result.emitted_closeout for result in optimized_results):
-        errors.append("runtime v2 emitted closeout status on a read-only turn")
+        errors.append("runtime v3 emitted closeout status on a read-only turn")
     if not all(result.accessed_skill or result.accessed_closeout for result in legacy_results):
         errors.append("runtime v1 did not exercise Token Atlas closeout in every read-only run")
     if not all(result.emitted_closeout for result in legacy_results):
         errors.append("runtime v1 did not emit closeout status in every read-only run")
+
+    if neutral_mutation_result.changed_paths != ("src/backend/routes/customers.ts",):
+        errors.append("runtime v3 knowledge-neutral control did not make only the intended source change")
+    if (
+        neutral_mutation_result.accessed_pkf
+        or neutral_mutation_result.accessed_skill
+        or neutral_mutation_result.accessed_closeout
+    ):
+        errors.append("runtime v3 loaded PKF or Token Atlas for a knowledge-neutral mutation")
+    if not neutral_mutation_result.emitted_closeout:
+        errors.append("runtime v3 knowledge-neutral mutation did not emit the direct no-op status")
 
     try:
         legacy_median = median_input_tokens(legacy_results)
@@ -314,13 +337,13 @@ def evaluate(
         )
 
     if not (mutation_result.accessed_skill or mutation_result.accessed_closeout):
-        errors.append("runtime v2 did not activate Token Atlas after a repository mutation")
+        errors.append("runtime v3 did not activate Token Atlas after a knowledge-impacting mutation")
     if not mutation_result.emitted_closeout:
-        errors.append("runtime v2 mutation run did not emit closeout status")
+        errors.append("runtime v3 mutation run did not emit closeout status")
     if not mutation_result.source_synchronized:
-        errors.append("runtime v2 mutation run did not synchronize source and test")
+        errors.append("runtime v3 mutation run did not synchronize source and test")
     if not mutation_result.knowledge_synchronized:
-        errors.append("runtime v2 mutation run did not synchronize PKF knowledge")
+        errors.append("runtime v3 mutation run did not synchronize PKF knowledge")
 
     metrics = {
         "legacy_median_input_tokens": legacy_median,
@@ -338,6 +361,14 @@ def evaluate(
         "legacy_median_output_tokens": legacy_output,
         "optimized_median_output_tokens": optimized_output,
         "median_output_token_savings": legacy_output - optimized_output,
+        "knowledge_neutral_mutation_usage": (
+            asdict(neutral_mutation_result.usage)
+            if neutral_mutation_result.usage is not None
+            else None
+        ),
+        "knowledge_impacting_mutation_usage": (
+            asdict(mutation_result.usage) if mutation_result.usage is not None else None
+        ),
         "minimum_required_savings": MINIMUM_MEDIAN_SAVINGS,
     }
     return errors, metrics
@@ -359,7 +390,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ]
     optimized_results = [
         run_codex(
-            variant="v2",
+            variant="v3",
             prompt_kind="read-only",
             prompt=READ_ONLY_PROMPT,
             model=args.model,
@@ -369,8 +400,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         for _ in range(args.repetitions)
     ]
+    neutral_mutation_result = run_codex(
+        variant="v3",
+        prompt_kind="knowledge-neutral-mutation",
+        prompt=KNOWLEDGE_NEUTRAL_MUTATION_PROMPT,
+        model=args.model,
+        reasoning_effort=args.model_reasoning_effort,
+        timeout_seconds=args.timeout_seconds,
+        runtime_root=args.runtime_root,
+    )
     mutation_result = run_codex(
-        variant="v2",
+        variant="v3",
         prompt_kind="mutation",
         prompt=MUTATION_PROMPT,
         model=args.model,
@@ -378,7 +418,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         timeout_seconds=args.timeout_seconds,
         runtime_root=args.runtime_root,
     )
-    errors, metrics = evaluate(legacy_results, optimized_results, mutation_result)
+    errors, metrics = evaluate(
+        legacy_results,
+        optimized_results,
+        neutral_mutation_result,
+        mutation_result,
+    )
     report = {
         "status": "failed" if errors else "passed",
         "model": args.model,
@@ -388,6 +433,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "errors": errors,
         "legacy_read_only": [asdict(result) for result in legacy_results],
         "optimized_read_only": [asdict(result) for result in optimized_results],
+        "optimized_knowledge_neutral_mutation": asdict(neutral_mutation_result),
         "optimized_mutation": asdict(mutation_result),
     }
     if args.format == "json":
@@ -395,7 +441,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         print(f"Token Atlas activation eval: {report['status']}")
         print(f"Legacy median input tokens: {metrics['legacy_median_input_tokens']:.0f}")
-        print(f"V2 median input tokens: {metrics['optimized_median_input_tokens']:.0f}")
+        print(f"V3 median input tokens: {metrics['optimized_median_input_tokens']:.0f}")
         print(f"Median savings: {metrics['median_input_token_savings']:.0f}")
         for error in errors:
             print(f"ERROR: {error}")

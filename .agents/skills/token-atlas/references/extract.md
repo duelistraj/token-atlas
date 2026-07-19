@@ -29,13 +29,19 @@ Update only the affected OKF documents so they accurately reflect the current re
 
 ### 1. Determine Extraction Mode
 
-If `.ai/` does **not** exist:
+If `.ai/` was just initialized:
 
-- Perform a **Full Repository Extraction**.
+- Perform a **Hybrid Extraction**: materialize shared knowledge and leaves that
+  own public package, service, CLI, API, or primary UI entry points. Leave other
+  skeleton leaves pending.
 
 Otherwise:
 
-- Perform an **Incremental Extraction**.
+- Perform an **On-Demand Extraction** for a selected pending leaf, or an
+  **Incremental Extraction** for turn-owned source changes.
+
+Perform a **Full Repository Extraction** only when explicitly requested or
+required by CI.
 
 ---
 
@@ -62,6 +68,9 @@ Identify:
 For Full Repository Extraction:
 
 Analyze the entire repository.
+
+For Hybrid Extraction, inspect repository structure and public entry points but
+do not scan unrelated implementation solely to materialize every leaf.
 
 ---
 
@@ -122,6 +131,7 @@ Every non-placeholder fact should include compact evidence:
 
 For every implementation-bearing leaf:
 
+- Set `pkf.materialization: complete` after source-backed extraction succeeds.
 - Populate `source_symbols` as a repository-relative path-to-symbol-list mapping.
 - Use `## Edit Map` as the primary retrieval index with columns `Behavior`,
   `Source symbols`, `Tests`, `Styles/tokens`, and `Locator`.
@@ -130,7 +140,9 @@ For every implementation-bearing leaf:
 - Keep current implementation facts, not chronological feature summaries. Put
   durable policies in `business_rules.md` and still-relevant history in
   `decision_log.md`.
-- Use `source_symbols: {}` and `- TODO: No source-backed facts.` for an empty leaf.
+- Use `source_symbols: {}` and `- TODO: No source-backed facts.` for an empty
+  complete leaf. Deferred leaves retain `pkf.materialization: pending`,
+  `source_symbols: {}`, and `- TODO: Pending source extraction.`.
 
 Do not paste large code blocks. Summarize behavior and point to source.
 

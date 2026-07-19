@@ -1,6 +1,6 @@
 ---
 name: token-atlas
-description: Generate and maintain repository-specific PKF runtime and OKF knowledge bases on demand or incrementally in target repositories. Use when explicitly asked to initialize, extract, maintain, optimize, validate, simulate, or export PKF/OKF knowledge, and after an intentional repository mutation when an initialized repository's `.ai/PKF.md` requires adaptive Token Atlas closeout. Do not trigger for read-only turns or implicitly initialize unrelated repositories.
+description: Generate and maintain repository-specific PKF runtime and OKF knowledge bases on demand or incrementally in target repositories. Use when explicitly asked to initialize, extract, maintain, optimize, validate, simulate, or export PKF/OKF knowledge, and after an intentional repository mutation changes durable facts, evidence, or routing in an initialized repository. Do not trigger for read-only turns, knowledge-neutral mutations, or unrelated repositories.
 ---
 
 # Token Atlas
@@ -9,15 +9,15 @@ description: Generate and maintain repository-specific PKF runtime and OKF knowl
 
 Use Token Atlas to create and maintain `.ai/` Project Knowledge Framework (PKF) runtime files and an Open Knowledge Format (OKF) knowledge base for a target repository.
 
-Initialize only when explicitly invoked. After initialization, run the adaptive
+Initialize only when explicitly invoked. After initialization, run semantic
 closeout when the target repository's own instructions require it. Do not install
 watchers, daemons, global hooks, background jobs, or persistent runtime services.
 
 ## Workflow Selection
 
-Start by reading the target repository's `.ai/PKF.md` when it exists.
+Start by detecting whether `.ai/PKF.md` exists. Read it only when an explicit Token Atlas workflow or the repository's adaptive retrieval gate activates PKF.
 
-If `.ai/PKF.md` is missing, read `references/initialize.md` before repository analysis. If `.ai/PKF.md` exists, read `references/maintenance.md` before extraction when the repository has changes.
+If `.ai/PKF.md` is missing, read `references/initialize.md` before repository analysis. If `.ai/PKF.md` exists, read `references/maintenance.md` before extraction only for exceptional drift, migration, or module-boundary work. Routine semantic closeout starts with `references/closeout.md` and the turn-owned changed paths.
 
 Use the smallest needed reference set:
 
@@ -56,17 +56,20 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - Store each durable fact in one narrow authoritative document. This governs where a fact is written, not how many docs a task reads: a cross-cutting change legitimately routes to several leaf docs, one slice each.
 - Derive flat module names from source-backed functional capabilities. Prefer capability boundaries over technical layers only when the repository proves at least two independently routable capabilities; never prescribe module names or create speculative modules.
 - During maintenance, automatically repartition coarse modules when capability ownership is unambiguous. Preserve the current structure and report ambiguity instead of guessing.
-- During `initialize`, embed the Retrieval Protocol into the generated `.ai/PKF.md`, and ensure a neutral bootstrap (a root `AGENTS.md`, or the repository's existing agent-instruction entry point) routes every task to `.ai/PKF.md`.
-- Default the runtime to `pkf.runtime_version: 2` and `pkf.closeout: adaptive`. Permit the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
-- Bypass closeout silently on read-only turns. Before an intentional repository mutation, capture a deterministic session baseline; afterward run closeout exactly once, detect later edits to the same path, acknowledge only successfully validated snapshots, and never recursively close out a closeout.
+- During `initialize`, embed the adaptive Retrieval Protocol into `.ai/PKF.md`, and ensure a neutral bootstrap can decide whether to use PKF without loading it first.
+- Default the runtime to `pkf.runtime_version: 3`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`. Permit `pkf.retrieval: mandatory` for compatibility and the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
+- Initialize in hybrid mode: materialize runtime, architecture, dependencies, routing, and public entry-point facts; mark deferred leaves `pkf.materialization: pending` until retrieval or semantic closeout needs them.
+- Allow a cheap local source probe for a single-capability task. Activate PKF for explicit cross-capability, architecture, ownership, or repository-wide work, or when the probe cannot resolve the target without broad search.
+- Bypass closeout silently on read-only turns. Use implementation context to reject knowledge-neutral mutations before loading PKF or inspecting Git. For a durable knowledge-impacting mutation, capture a deterministic session baseline, synchronize only affected knowledge, acknowledge only successfully validated snapshots, and never recursively close out a closeout.
 - Keep all generated guidance vendor, agent, and model agnostic. Reference no specific assistant, tool, or model.
 - Keep `pkf.loads` minimal and put optional context in `pkf.related`.
 - Require every module leaf to expose machine-readable `source_symbols`; use a compact Edit Map to connect behaviors to symbols, tests, styles, and targeted locator commands.
-- Cache startup protocol and index acknowledgements for the session. Re-read them only when they changed, contradict source truth, or the task needs an uncached section.
+- Cache PKF protocol and index acknowledgements after activation. Do not load the startup path for a bypassed local task or routine semantic closeout.
 - Keep a normal task within one module index, one or two leaves, and the exact named symbols. Require an explicit reason for cross-cutting exceptions.
 - Do not load or generate `.ai/retrieval/` unless retrieval exports are enabled.
 - Report stale, unsupported, duplicate, or broad-loading knowledge as validation defects.
 - Prefer the bundled dependency-light validator for mechanical checks; keep source-truth and duplicate-authority judgments in the semantic validation workflow.
+- During routine closeout, run the validator with affected scope and summary detail. Reserve full, verbose validation for runtime/routing changes, exceptional maintenance, explicit validation, or CI.
 
 ## Output Expectations
 

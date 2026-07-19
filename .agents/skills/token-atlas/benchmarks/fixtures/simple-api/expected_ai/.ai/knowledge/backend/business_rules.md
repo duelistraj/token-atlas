@@ -7,8 +7,9 @@ tags: [simple-api, backend, rules]
 timestamp: 2026-07-08
 source_symbols: {}
 pkf:
+  materialization: pending
   loads: []
   related: []
 ---
 
-- TODO: No source-backed facts.
+- TODO: Pending source extraction.

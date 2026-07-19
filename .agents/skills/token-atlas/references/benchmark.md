@@ -83,16 +83,18 @@ Performance timing may be recorded, but it must not replace these correctness an
 ### Activation Gate Eval
 
 Use the maintainer-only `scripts/pkf_activation_eval.py` after changing skill
-trigger or closeout semantics. It runs frozen runtime-v1 and current runtime-v2
+trigger or closeout semantics. It runs frozen runtime-v1 and current runtime-v3
 read-only cases with identical prompts, records Codex JSONL token usage, and
-requires v2 to avoid skill/reference access and status output. Its v2 mutation
-control must still synchronize source, test evidence, and PKF knowledge.
+requires v3 to avoid PKF/skill/reference access and status output for a local
+read-only task. A separate knowledge-neutral mutation control must emit its
+direct `no-op` without Token Atlas access, while the semantic mutation control
+must still synchronize source, test evidence, and PKF knowledge.
 
-Run three repetitions with the pinned model and low reasoning, the smallest
-effort compatible with the host's advertised tool set:
+Run three repetitions with the same Luna/high configuration as the lifecycle
+evaluation:
 
 ```text
-python scripts/pkf_activation_eval.py --repetitions 3 --model gpt-5.5 --model-reasoning-effort low --format json
+python scripts/pkf_activation_eval.py --repetitions 3 --model gpt-5.6-luna --model-reasoning-effort high --format json
 ```
 
 This eval is internal maintainer tooling and must not be copied into the public
@@ -123,6 +125,12 @@ Publish total, cached, non-cached, and output tokens separately. Report
 correctness, strict validation, focused tests, latency, initialization cost,
 mutation premium, and both total-input and non-cached-input break-even. A
 negative saving is a valid finding; never add a minimum-savings pass gate.
+Treat path counts as trace mentions rather than confirmed reads, and publish
+tool calls, read/search commands, and tool-output characters to expose workflow
+churn and cached-context replay. Keep initialization, local read-only,
+cross-capability read-only, knowledge-neutral mutation, and semantic closeout
+results separable rather than attributing a combined lifecycle delta to PKF
+reads alone.
 Sanitize local paths, credentials, source contents, and raw traces. Pin both the
 target commit and public-skill digest so future skill revisions can rerun the
 same application baseline.

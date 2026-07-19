@@ -10,7 +10,8 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from pkf_validate import UsageError, validate_pkf
+from pkf_contract import PENDING_LEAF_MARKER, RUNTIME_VERSION
+from pkf_validate import UsageError, report_to_dict, validate_pkf
 from pkf_lib import parse_yaml_block, read_front_matter
 
 
@@ -126,10 +127,19 @@ class PkfValidateTests(unittest.TestCase):
         self.assertEqual(report.exit_code, 1)
         self.assertTrue(any("pkf.closeout must be one of" in finding.issue for finding in report.errors))
 
+    def test_missing_retrieval_mode_is_ci_blocking(self):
+        with self.copy_ai() as ai:
+            pkf = ai / "PKF.md"
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("  retrieval: adaptive\n", ""), encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 1)
+        self.assertTrue(any("pkf.retrieval must be one of" in finding.issue for finding in report.errors))
+
     def test_missing_runtime_version_requires_migration(self):
         with self.copy_ai() as ai:
             pkf = ai / "PKF.md"
-            pkf.write_text(pkf.read_text(encoding="utf-8").replace("  runtime_version: 2\n", ""), encoding="utf-8")
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("  runtime_version: 3\n", ""), encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
         self.assertEqual(report.exit_code, 1)
@@ -138,7 +148,7 @@ class PkfValidateTests(unittest.TestCase):
     def test_future_runtime_version_is_not_downgraded(self):
         with self.copy_ai() as ai:
             pkf = ai / "PKF.md"
-            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 2", "runtime_version: 3"), encoding="utf-8")
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 3", "runtime_version: 4"), encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
         self.assertEqual(report.exit_code, 1)
@@ -147,11 +157,11 @@ class PkfValidateTests(unittest.TestCase):
     def test_runtime_version_one_requires_mutation_gate_migration(self):
         with self.copy_ai() as ai:
             pkf = ai / "PKF.md"
-            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 2", "runtime_version: 1"), encoding="utf-8")
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 3", "runtime_version: 2"), encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
         self.assertEqual(report.exit_code, 1)
-        self.assertTrue(any("must be 2; found 1" in finding.issue for finding in report.errors))
+        self.assertTrue(any("must be 3; found 2" in finding.issue for finding in report.errors))
 
     def test_invalid_closeout_mode_is_ci_blocking(self):
         with self.copy_ai() as ai:
@@ -392,6 +402,28 @@ class PkfValidateTests(unittest.TestCase):
 
         self.assertTrue(any("empty source_symbols requires marker" in finding.issue for finding in report.errors))
 
+    def test_pending_leaf_is_valid_without_edit_map(self):
+        with self.copy_ai() as ai:
+            leaf = ai / "knowledge" / "backend" / "ui.md"
+            text = leaf.read_text(encoding="utf-8")
+            text = text.replace("pkf:\n  loads: []", "pkf:\n  materialization: pending\n  loads: []")
+            text = text.replace("- TODO: No source-backed facts.", PENDING_LEAF_MARKER)
+            leaf.write_text(text, encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertEqual(report.exit_code, 0)
+        self.assertTrue(any("explicitly unmaterialized" in item for item in report.passed))
+
+    def test_pending_leaf_rejects_declared_source_symbols(self):
+        with self.copy_ai() as ai:
+            leaf = ai / "knowledge" / "backend" / "api.md"
+            text = leaf.read_text(encoding="utf-8")
+            text = text.replace("pkf:\n  loads: []", "pkf:\n  materialization: pending\n  loads: []")
+            leaf.write_text(text, encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertTrue(any("pending leaf must not declare source_symbols" in finding.issue for finding in report.errors))
+
     def test_leaf_token_gate_warns_locally_and_fails_ci(self):
         with self.copy_ai() as ai:
             leaf = ai / "knowledge" / "backend" / "schema.md"
@@ -423,10 +455,58 @@ class PkfValidateTests(unittest.TestCase):
                 ai,
                 strictness="ci",
                 changed_paths=("src/backend/routes/customers.ts",),
+                scope="affected",
             )
 
         self.assertFalse(any("MissingRecord" in finding.issue for finding in report.errors))
         self.assertTrue(any("listCustomersRoute" in item for item in report.passed))
+        self.assertEqual(report.scope, "affected")
+        self.assertEqual(
+            report.checked_docs,
+            [".ai/knowledge/backend/INDEX.md", ".ai/knowledge/backend/api.md"],
+        )
+        self.assertFalse(any(entry.route == "startup" for entry in report.token_impact))
+
+    def test_affected_scope_requires_changed_path(self):
+        with self.copy_ai() as ai:
+            with self.assertRaises(UsageError):
+                validate_pkf(ai, scope="affected")
+
+    def test_affected_scope_escalates_for_routing_changes(self):
+        with self.copy_ai() as ai:
+            report = validate_pkf(
+                ai,
+                strictness="ci",
+                changed_paths=(".ai/knowledge/INDEX.md",),
+                scope="affected",
+            )
+
+        self.assertEqual(report.scope, "full")
+        self.assertIn(".ai/PKF.md", report.checked_docs)
+
+    def test_affected_scope_escalates_for_shared_knowledge(self):
+        with self.copy_ai() as ai:
+            report = validate_pkf(
+                ai,
+                strictness="ci",
+                changed_paths=(".ai/knowledge/dependencies.md",),
+                scope="affected",
+            )
+
+        self.assertEqual(report.scope, "full")
+        self.assertIn(".ai/knowledge/dependencies.md", report.checked_docs)
+
+    def test_summary_report_omits_pass_inventory(self):
+        with self.copy_ai() as ai:
+            report = validate_pkf(
+                ai,
+                changed_paths=("src/backend/routes/customers.ts",),
+                scope="affected",
+            )
+
+        payload = report_to_dict(report, detail="summary")
+        self.assertNotIn("passed", payload)
+        self.assertGreater(payload["passed_count"], 0)
 
     def test_unmapped_changed_path_warns(self):
         with self.copy_ai() as ai:
@@ -465,7 +545,8 @@ class PkfValidateTests(unittest.TestCase):
                 continue
             self.assertIn("## Retrieval Protocol (MANDATORY)", pkf.read_text(encoding="utf-8"), pkf)
             self.assertIn("## Closeout Protocol (MANDATORY)", pkf.read_text(encoding="utf-8"), pkf)
-            self.assertEqual(read_front_matter(pkf)["pkf"]["runtime_version"], 2, pkf)
+            self.assertEqual(read_front_matter(pkf)["pkf"]["runtime_version"], RUNTIME_VERSION, pkf)
+            self.assertEqual(read_front_matter(pkf)["pkf"]["retrieval"], "adaptive", pkf)
             self.assertEqual(read_front_matter(pkf)["pkf"]["closeout"], "adaptive", pkf)
             bootstrap = pkf.parent.parent / "AGENTS.md"
             self.assertTrue(bootstrap.is_file(), f"missing bootstrap for {pkf}")

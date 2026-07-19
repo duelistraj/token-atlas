@@ -105,7 +105,9 @@ If `.ai/` already exists but `PKF.md` is absent, preserve existing `.ai/` conten
 
 `PKF.md` must define:
 
-- Runtime contract version `pkf.runtime_version: 2`.
+- Runtime contract version `pkf.runtime_version: 3`.
+- Adaptive retrieval mode `pkf.retrieval: adaptive` by default, with
+  `pkf.retrieval: mandatory` accepted for compatibility.
 - Startup sequence.
 - Startup recovery when `.ai/PKF.md` is missing.
 - Source-of-truth rules.
@@ -152,6 +154,7 @@ Populate only:
 - Document purpose
 - Placeholders
 - Routing slots for future tasks
+- `pkf.materialization: pending`
 
 Do **not** analyze implementation.
 
@@ -182,7 +185,8 @@ For `.ai/PKF.md` only, add the closeout mode under the existing `pkf` mapping:
 
 ```yaml
 pkf:
-  runtime_version: 2
+  runtime_version: 3
+  retrieval: adaptive
   loads:
     - .ai/MEMORY.md
     - .ai/ARCHITECTURE.md
@@ -202,8 +206,12 @@ source_symbols:
     - SortableNoteRow
 ```
 
-For a leaf with no source-backed facts, use `source_symbols: {}` and the exact
-body marker `- TODO: No source-backed facts.`.
+Preserve existing materialized leaves. Create new skeleton leaves with
+`pkf.materialization: pending`, `source_symbols: {}`, and the exact body marker
+`- TODO: Pending source extraction.`. The subsequent hybrid extraction
+materializes public entry-point leaves. A completed leaf with no source-backed
+facts uses `pkf.materialization: complete` and the exact marker
+`- TODO: No source-backed facts.`.
 
 Populate only values verifiable from the repository structure.
 
@@ -276,29 +284,38 @@ avoid naming any specific vendor, agent, or model.
 ````markdown
 ## Retrieval Protocol (MANDATORY)
 
-The `.ai/` knowledge base is the primary way to locate code. Each durable fact
-has one authoritative leaf doc with machine-readable `source_symbols`, so routing
-is cheaper and more reliable than scanning the codebase.
+The `.ai/` knowledge base is an adaptive accelerator for tasks where routing can
+replace broad repository discovery. Source remains authoritative.
 
-### Hard precondition
+### Adaptive retrieval gate
 
-Before running any code search, or opening a source file for analysis or editing,
-route through `.ai/`:
+Do not read PKF merely to decide whether PKF is useful.
 
-1. Read `.ai/PKF.md` once per session, then reuse that acknowledgement unless the
-   file changes, contradicts source truth, or an uncached section is needed.
-2. Route through the cached `.ai/knowledge/INDEX.md`, refreshing it only under
-   the same conditions, and pick the owning module(s).
-3. Read one module `INDEX.md` and one or two task-specific leaves for a normal
-   task. Follow `pkf.related` only when the task expands.
-4. Open only the paths and symbols in `source_symbols`; use the leaf Edit Map's
-   targeted locator command before reading a large file.
+- For a likely single-capability task, use a cheap local probe of at most two
+  targeted `rg`/`sg` searches and three source files. If that resolves a known
+  path or symbol without broad search, bypass PKF and continue locally.
+- Activate PKF retrieval immediately for explicit cross-capability,
+  architecture, ownership, or repository-wide tasks.
+- Activate PKF retrieval when the cheap local probe reveals multiple
+  capabilities, ambiguous ownership, or the need for codebase-wide search.
+- When `pkf.retrieval` is `mandatory`, skip the local probe and activate PKF for
+  every repository-analysis task.
 
-Route to the **minimal set of leaf docs** for the fact kinds your change
-touches — a cross-cutting change legitimately reads several leaves, one slice
-each. **Negative constraint:** do not run codebase-wide search, or open source for
-analysis, until you have followed the route and the leaf docs proved missing or
-insufficient. Reading this file alone does not satisfy the protocol.
+### PKF activation
+
+After activation:
+
+1. Read `.ai/PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, and
+   `.ai/knowledge/INDEX.md` once, then cache them for the session.
+2. Select the owning module and read one module `INDEX.md` plus one or two
+   task-specific leaves. Follow `pkf.related` only when the task expands.
+3. If a selected leaf has `pkf.materialization: pending`, materialize only that
+   leaf from source before relying on it.
+4. Open only the paths and symbols in `source_symbols`; use the Edit Map's
+   targeted locator before reading a large file.
+
+Do not run codebase-wide search after activation until this route proves absent,
+incomplete, or inconsistent with source truth.
 
 ### Retrieval trace
 
@@ -338,11 +355,6 @@ After changing code, update each leaf doc that owns a fact you changed (add
 `pkf.related` links instead of duplicating a fact). If you cannot update the
 knowledge base in the same change, state exactly which leaf docs are now stale.
 
-### Planning and discovery
-
-Planning and discovery also start here: begin at `.ai/knowledge/INDEX.md`.
-Codebase-wide search is a fallback, not the first move.
-
 A normal route loads at most one module index and two leaves. A legitimate
 cross-cutting task may exceed the document count only when the trace explains why
 and each capability slice stays minimal.
@@ -363,9 +375,8 @@ protocol:
   silently. Do not capture a baseline, inspect Git, validate, or emit a closeout
   status.
 - If the turn intentionally changed a tracked file or created a non-ignored
-  repository file as task output, run PKF closeout exactly once before the
-  final response. Use Token Atlas when available; otherwise execute this
-  embedded protocol directly.
+  repository file as task output, apply the knowledge-impact gate exactly once
+  before the final response.
 
 Ignored caches, build outputs, and temporary files do not trigger closeout.
 Explicit Token Atlas workflows own their validation and do not recursively
@@ -392,15 +403,30 @@ If no baseline exists, synchronize only paths known to have changed during the
 turn and report ambiguous pre-existing dirty paths as `stale` rather than
 claiming them as synchronized.
 
+### Knowledge-impact gate
+
+- If the mutation did not change durable facts, evidence, or routing, return
+  `no-op` without loading Token Atlas, the PKF startup path, or validation.
+- Durable impact includes externally relevant behavior, API/schema, dependency
+  or architecture changes, ownership/routes, and the source symbols, tests,
+  styles, tokens, or locators that support an existing fact.
+- When impact exists, reuse the implementation context and turn-owned changed
+  paths. Do not rediscover the repository or replay the startup path.
+- If impact is uncertain or a changed path is unmapped, report the affected
+  knowledge as `stale` or escalate to the full maintenance workflow; never guess.
+
 ### Incremental synchronization
 
 - Keep changed durable facts, `source_symbols`, Edit Maps, tests, styles/tokens,
   and locator commands synchronized with source truth.
+- Route changed paths directly to their existing leaves. Read a module or root
+  index only for a new or unmapped path. Materialize an affected pending leaf.
 - Repair deletes and renames, and update indexes only when ownership or routing
   changed.
 - Optimize only affected routes that exceed a token budget, duplicate facts,
   load unrelated context, or required fallback search.
-- Run affected-slice advisory validation after changing `.ai/` knowledge.
+- Run affected-slice advisory validation with summary output after changing
+  `.ai/` knowledge. Do not emit successful-check inventories during closeout.
 - Use full maintenance, extraction, optimization, or validation only for module
   boundary changes, legacy migrations, unresolved drift, broad-load repair, or
   CI execution.
@@ -413,7 +439,8 @@ claiming them as synchronized.
 - If synchronization cannot finish, name the stale leaves instead of guessing.
 
 When the mutation gate runs, report one compact line. Emit nothing for a
-read-only bypass:
+read-only bypass. A knowledge-neutral mutation may report `no-op` directly from
+this embedded gate without loading Token Atlas:
 
 ```
 PKF closeout: <no-op|updated|stale|disabled|blocked> — <affected docs or reason>
@@ -432,17 +459,18 @@ snapshot as synchronized.
 This repository uses a Project Knowledge Framework (PKF) with a knowledge base
 under `.ai/`.
 
-Before running any code search, opening a source file for analysis, or making an
-edit, follow the **Retrieval Protocol in `.ai/PKF.md`**: route
-`PKF -> knowledge/INDEX -> module INDEX -> the minimal set of leaf docs -> source
-symbols`, and do not run codebase-wide search until that route proves
-insufficient. This applies to every task, not just the first.
+Use a cheap local probe of at most two targeted searches and three source files
+for a likely single-capability task. If it resolves the target, inspect source
+directly without reading PKF. Activate PKF retrieval and follow the **Retrieval
+Protocol in `.ai/PKF.md`** for cross-capability, architecture, ownership, or
+repository-wide tasks, or before the probe expands into broad search.
 
-After an intentional repository mutation, follow the **Closeout Protocol in
-`.ai/PKF.md`** exactly once before the final response. Read-only turns bypass
-closeout silently. Use Token Atlas when available; otherwise execute the
-embedded protocol directly. Do not rerun closeout because closeout changed
-`.ai/`.
+After an intentional repository mutation, first apply the knowledge-impact gate
+without loading PKF. Read-only turns bypass closeout silently. If no durable
+facts, evidence, or routing changed, report a knowledge-neutral `no-op` without
+loading Token Atlas or PKF. Otherwise follow the **Closeout Protocol in
+`.ai/PKF.md`** exactly once, update only affected leaves, and run affected-slice
+summary validation. Do not rerun closeout because closeout changed `.ai/`.
 ````
 
 ---
@@ -460,7 +488,7 @@ embedded protocol directly. Do not rerun closeout because closeout changed
 - Keep the process idempotent.
 - Keep indexes as routers, not long-form documentation.
 - Keep placeholders explicit and easy to remove during extraction.
-- `PKF.md` must embed both mandatory protocols; a neutral bootstrap must point every task at retrieval and closeout in `.ai/PKF.md`.
+- `PKF.md` must embed both mandatory protocols; a neutral bootstrap must apply the adaptive retrieval and knowledge-impact closeout gates without loading PKF first.
 
 ---
 
@@ -474,6 +502,6 @@ Phase 1 succeeds when:
 - Every document contains valid OKF metadata.
 - `knowledge/INDEX.md` routes to every module.
 - `PKF.md` routes to the knowledge base.
-- `PKF.md` sets a valid closeout mode, embeds both mandatory protocols, and a neutral bootstrap references retrieval and closeout in `.ai/PKF.md`.
+- `PKF.md` sets runtime version 3, adaptive retrieval, a valid closeout mode, and both mandatory protocols; a neutral bootstrap references retrieval and closeout in `.ai/PKF.md`.
 - No implementation knowledge has been extracted.
 - The repository is ready for Phase 2.

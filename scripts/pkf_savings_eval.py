@@ -48,8 +48,9 @@ NEUTRAL_AGENTS = """# AGENTS
 """
 
 INITIALIZE_PROMPT = (
-    "Use the token-atlas skill to initialize PKF and extract a complete, source-backed "
-    "knowledge base for this repository with profile=core, retrieval_exports=off, "
+    "Use the token-atlas skill to initialize PKF with hybrid extraction: materialize "
+    "shared architecture, routing, and public entry points from source, and mark other "
+    "planned leaves pending. Use profile=core, retrieval_exports=off, "
     "simulation=changed, token_budget=summary, and validation_strictness=ci. "
     "Do not change application source or tests."
 )
@@ -81,7 +82,7 @@ READ_ONLY_TASKS = (
         expected_answers={
             "targets_first_non_final_by_position": True,
             "can_target_final_list": False,
-            "shows_right_side_error_when_none": True,
+            "shows_error_when_none": True,
             "mutates_board_when_none": False,
         },
     ),
@@ -135,6 +136,13 @@ class Usage:
 
 
 @dataclass(frozen=True)
+class TraceMetrics:
+    tool_call_count: int
+    read_or_search_command_count: int
+    tool_output_chars: int
+
+
+@dataclass(frozen=True)
 class CodexResult:
     repetition: int
     arm: str
@@ -148,8 +156,11 @@ class CodexResult:
     accessed_closeout: bool
     emitted_closeout: bool
     fallback_search: bool
-    accessed_path_count: int
-    accessed_ai_path_count: int
+    mentioned_path_count: int
+    mentioned_ai_path_count: int
+    tool_call_count: int
+    read_or_search_command_count: int
+    tool_output_chars: int
     changed_path_count: int
     changed_expected_paths: bool | None
     focused_test_passed: bool | None
@@ -381,6 +392,31 @@ def parse_structured_answer(messages: Sequence[str]) -> Mapping[str, Any] | None
     return None
 
 
+def inspect_jsonl_trace(output: str) -> TraceMetrics:
+    tool_calls = 0
+    read_or_search_commands = 0
+    tool_output_chars = 0
+    read_or_search_tokens = ("rg ", "sg ", "sed ", "cat ", "head ", "tail ")
+    for raw_line in output.splitlines():
+        try:
+            event = json.loads(raw_line)
+        except json.JSONDecodeError:
+            continue
+        item = event.get("item")
+        if event.get("type") != "item.completed" or not isinstance(item, dict):
+            continue
+        item_type = str(item.get("type", ""))
+        if item_type in {"agent_message", "reasoning"}:
+            continue
+        tool_calls += 1
+        strings = flatten_strings(item)
+        tool_output_chars += sum(len(value) for value in strings)
+        lowered = " ".join(strings).lower()
+        if any(token in lowered for token in read_or_search_tokens):
+            read_or_search_commands += 1
+    return TraceMetrics(tool_calls, read_or_search_commands, tool_output_chars)
+
+
 def changed_paths(repo: Path) -> tuple[str, ...]:
     status = run_command(("git", "status", "--porcelain"), cwd=repo).stdout
     return tuple(line[3:].strip() for line in status.splitlines() if len(line) > 3)
@@ -482,6 +518,7 @@ def run_codex(
     duration_ms = int((time.monotonic() - started) * 1_000)
 
     usage, messages, event_text = parse_jsonl(stdout)
+    trace = inspect_jsonl_trace(stdout)
     structured = parse_structured_answer(messages) if task is not None else None
     answer = structured.get("answers") if isinstance(structured, dict) else None
     answer_correct = (
@@ -504,8 +541,11 @@ def run_codex(
         accessed_closeout="token-atlas/references/closeout.md" in event_text.lower(),
         emitted_closeout="pkf closeout:" in "\n".join(messages).lower(),
         fallback_search=detect_fallback_search(event_text),
-        accessed_path_count=len(accessed),
-        accessed_ai_path_count=sum(path.startswith(".ai/") for path in accessed),
+        mentioned_path_count=len(accessed),
+        mentioned_ai_path_count=sum(path.startswith(".ai/") for path in accessed),
+        tool_call_count=trace.tool_call_count,
+        read_or_search_command_count=trace.read_or_search_command_count,
+        tool_output_chars=trace.tool_output_chars,
         changed_path_count=len(changes),
         changed_expected_paths=None,
         focused_test_passed=None,
@@ -634,6 +674,16 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             for metric in metrics
         }
         entry["duration_ms"] = median([result.duration_ms for result in grouped])
+        for trace_metric in (
+            "tool_call_count",
+            "read_or_search_command_count",
+            "tool_output_chars",
+            "mentioned_path_count",
+            "mentioned_ai_path_count",
+        ):
+            entry[trace_metric] = median(
+                [getattr(result, trace_metric) for result in grouped]
+            )
         scored = [result for result in grouped if result.answer_correct is not None]
         entry["correctness_rate"] = (
             sum(result.answer_correct is True for result in scored) / len(scored)
@@ -983,22 +1033,36 @@ def render_markdown(report: Mapping[str, Any]) -> str:
                 f"{correctness_text} | {values['duration_ms']:.0f} |"
             )
 
+    lines.extend(
+        [
+            "",
+            "### Median workflow churn by task",
+            "",
+            "Path counts are trace mentions, not confirmed reads. Tool calls and tool-output "
+            "size are retained to explain cached-context replay.",
+            "",
+            "| Task | Arm | Tool calls | Read/search commands | Tool output chars | Mentioned paths | Mentioned `.ai` paths |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for task_id, arm_values in by_task.items():
+        for arm, values in arm_values.items():
+            lines.append(
+                f"| {task_labels.get(task_id, task_id)} | `{arm}` | "
+                f"{values.get('tool_call_count', 0):.0f} | {values.get('read_or_search_command_count', 0):.0f} | "
+                f"{values.get('tool_output_chars', 0):.0f} | {values.get('mentioned_path_count', 0):.0f} | "
+                f"{values.get('mentioned_ai_path_count', 0):.0f} |"
+            )
+
     savings = metrics["median_paired_read_only_savings"]
     break_even = metrics["break_even_read_only_tasks"]
     link_no_pkf = by_task["note_task_links"]["no_pkf"]
     link_pkf = by_task["note_task_links"]["pkf"]
     mutation_no_pkf = by_task["favorite_visibility_mutation"]["no_pkf"]
     mutation_pkf = by_task["favorite_visibility_mutation"]["pkf"]
-    boards_errors = [
-        error for error in report["errors"] if "/boards_add_task:" in error
-    ]
+    boards_errors = [error for error in report["errors"] if "/boards_add_task:" in error]
     boards_scoring_text = (
-        "The strict benchmark status is failed because "
-        f"{len(boards_errors)} Boards answers missed the expected `right-side` "
-        "toast-placement field. The local action calls `toast.error`, while placement is "
-        "inherited from the application's default Toaster configuration, so this field "
-        "mixes local behavior with a global dependency default. Token measurements are "
-        "retained, but the result is not a clean quality-equivalent win for either arm."
+        f"The strict benchmark status includes {len(boards_errors)} incorrect Boards answers."
         if boards_errors
         else "The Boards structured-answer gate passed in every recorded run."
     )

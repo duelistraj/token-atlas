@@ -64,18 +64,19 @@ ARCHITECTURE.md
 knowledge/INDEX.md
 ```
 
-Verify `PKF.md` sets `pkf.runtime_version: 2`. Missing or older versions require
-migration; report an unknown newer version as unsupported and never downgrade it.
+Verify `PKF.md` sets `pkf.runtime_version: 3` and `pkf.retrieval` is `adaptive`
+or `mandatory`. Missing or older versions require migration; report an unknown
+newer version as unsupported and never downgrade it.
 
 Also verify that `PKF.md` contains `## Retrieval Protocol (MANDATORY)` and the
-complete protocol: the hard precondition and ordered route, the negative
-constraint against premature codebase-wide search, fallback and verification,
-and knowledge-base synchronization. Verify that `pkf.closeout` is `adaptive` or
+complete protocol: the cheap local probe, adaptive activation, ordered route,
+fallback and verification, and knowledge-base synchronization. Verify that `pkf.closeout` is `adaptive` or
 `off`, `PKF.md` contains `## Closeout Protocol (MANDATORY)` with a silent
 read-only bypass and intentional-mutation gating
 and recursion prevention, and a neutral root `AGENTS.md`, or an existing
 agent-instruction entry point, references retrieval and closeout in `.ai/PKF.md`
-without naming a specific vendor, agent, or model.
+without naming a specific vendor, agent, or model. The bootstrap must also apply
+the knowledge-impact gate before loading closeout machinery.
 
 ---
 
@@ -95,6 +96,9 @@ Every module must contain:
 - `schema.md`
 - `business_rules.md`
 - `ui.md`
+
+Every leaf is complete or explicitly `pkf.materialization: pending`. Pending
+leaves must have empty `source_symbols` and the standardized pending marker.
 
 Module directories must be flat, directly under `.ai/knowledge/`. A nested
 module `INDEX.md` is a structural validation error.
@@ -221,7 +225,8 @@ Run `simulate.md` according to the selected `simulation` option.
 
 Verify that:
 
-- Every task begins at `knowledge/INDEX.md` after the PKF startup path.
+- Every activated PKF route begins at `knowledge/INDEX.md`; bypassed local tasks
+  do not load the startup path or root index.
 - Module `INDEX.md` files route correctly.
 - `pkf.loads` loads only the minimum required documents.
 - `pkf.related` references only meaningful optional documents.
@@ -395,6 +400,11 @@ Include:
 - Token Impact, when relevant
 
 Stop the PKF pipeline if any blocking errors exist in `ci` strictness. In advisory mode, report the same issues without implying default workflow failure.
+
+Routine semantic closeout uses `--scope affected --detail summary` with every
+turn-owned changed source or leaf path. Runtime, shared architecture, or index
+changes automatically require full validation. Full detail remains the default
+for explicit validation and CI.
 
 ---
 

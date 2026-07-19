@@ -25,9 +25,9 @@ Token Atlas is an AI context-optimization skill for coding agents. It extracts *
 
 3. The first run creates `.ai/` (runtime plus knowledge skeleton), embeds the
    Retrieval and Closeout Protocols in `PKF.md`, adds a neutral bootstrap,
-   extracts source-backed facts, optimizes routing, and validates. Subsequent
-   repository-changing turns run adaptive closeout automatically, while
-   read-only turns bypass the skill and closeout workflow entirely.
+   performs hybrid source extraction, optimizes routing, and validates.
+   Subsequent knowledge-impacting mutations run adaptive closeout automatically;
+   read-only and knowledge-neutral turns bypass Token Atlas work.
 
 ## Real-world examples
 
@@ -43,15 +43,18 @@ State options in plain language (`profile=…`, `retrieval_exports=…`, and so 
 | Trim a bloated context | "Use token-atlas to **optimize** routing and shrink the startup token budget." |
 | Audit stale docs | "Use token-atlas to **validate** and list facts that cite deleted or renamed files." |
 
-A healthy run lets agents start from `.ai/PKF.md`, follow routing to only the modules a task needs, and stay within the startup and per-module token budgets.
+A healthy run bypasses PKF for a cheaply resolved local task and activates
+`.ai/PKF.md` when routing can replace cross-capability or broad discovery.
 
 Leaves expose machine-readable `source_symbols` and compact Edit Maps, so a route
 ends at exact declarations, tests, styles, and targeted locator commands instead
-of merely naming a large source file. Startup guidance and indexes are cached for
-the session unless they change or contradict source truth.
+of merely naming a large source file. Activated guidance and indexes are cached
+for the session unless they change or contradict source truth.
 
-Initialization sets `pkf.runtime_version: 2` and `pkf.closeout: adaptive`. Set it to
-`pkf.closeout: "off"` in `.ai/PKF.md` to opt out. Hosts that support implicit
+Initialization sets `pkf.runtime_version: 3`, `pkf.retrieval: adaptive`, and
+`pkf.closeout: adaptive`. Hybrid extraction materializes routing and public
+entry points while leaving other leaves explicitly pending. Set closeout to
+`"off"` in `.ai/PKF.md` to opt out. Hosts that support implicit
 skill invocation may load Token Atlas automatically; other hosts execute the
 embedded, vendor-neutral protocol from the repository instructions.
 
@@ -80,9 +83,9 @@ module vocabulary.
 ## Lifecycle and profiles
 
 A run initializes on first use. Later intentional repository mutations pass
-through a lightweight closeout gate; read-only turns do not activate Token
-Atlas. Only relevant changes continue into incremental extraction,
-affected-route optimization, and advisory validation.
+through a knowledge-impact gate; read-only and knowledge-neutral turns do not
+activate Token Atlas. Only semantic or evidence changes continue into targeted
+extraction and affected-slice summary validation.
 
 ```mermaid
 flowchart LR
@@ -103,7 +106,7 @@ flowchart LR
 | Phase | Purpose |
 |-------|---------|
 | Initialize | Create the `.ai/` runtime and OKF skeleton (first run). |
-| Closeout | Gate intentional repository mutations and bypass read-only turns silently. |
+| Closeout | Gate mutations and bypass read-only or knowledge-neutral turns. |
 | Maintain | Map changed, renamed, and deleted files to affected docs. |
 | Extract | Add only source-backed facts to the narrowest document. |
 | Optimize | Tighten routing, remove duplication, and shrink automatic loads. |
@@ -189,7 +192,7 @@ An installed public package can validate its target repository directly:
 ```bash
 python <skill-root>/scripts/pkf_validate.py --path .ai --strictness advisory
 python <skill-root>/scripts/pkf_validate.py --path .ai --strictness ci --format json
-python <skill-root>/scripts/pkf_validate.py --path .ai --changed-path src/example.py
+python <skill-root>/scripts/pkf_validate.py --path .ai --scope affected --detail summary --changed-path src/example.py
 ```
 
 The portable approximate token estimator is the default. Pass `--model` only to

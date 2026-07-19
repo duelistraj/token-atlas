@@ -62,14 +62,14 @@ the repository.
 
 ## Runtime Migration
 
-The current runtime contract is `pkf.runtime_version: 2`. When an existing
+The current runtime contract is `pkf.runtime_version: 3`. When an existing
 `.ai/PKF.md` has no runtime version or an older version, migrate it in the same
-maintenance cycle. A version 1 migration must replace every-turn closeout
-wording in both the embedded protocol and neutral bootstrap with the silent
-read-only bypass and intentional-mutation gate, then set version 2. Add
-`pkf.closeout: adaptive` when closeout is missing, preserve an explicit `off`
-value, and validate before acknowledgment. Never downgrade or rewrite an
-unknown newer runtime; report it as unsupported instead.
+maintenance cycle. Preserve the version 2 mutation gate, replace mandatory
+every-task retrieval with the adaptive local-probe gate, add
+`pkf.retrieval: adaptive`, and add the knowledge-impact closeout gate. Mark
+unextracted skeleton leaves `pkf.materialization: pending`; treat existing
+source-backed leaves as complete. Preserve an explicit closeout `off` value and
+validate before acknowledgment. Never downgrade an unknown newer runtime.
 
 ---
 
@@ -129,11 +129,12 @@ or naming alone.
 
 ## Leaf Contract Migration
 
-When any existing module leaf lacks `source_symbols` or a valid Edit Map, migrate
-all module leaves in the same maintenance/optimization cycle. This one-time full
-knowledge migration is an intentional exception to incremental extraction:
-verify every symbol, standardize empty leaves, and validate before returning to
-incremental updates.
+During routine semantic closeout, migrate only an affected legacy leaf that
+lacks `source_symbols` or a valid Edit Map. A repository-wide leaf-contract
+migration requires an explicit migration request or CI profile; the existence
+of one legacy leaf must not expand an ordinary task into a whole-knowledge scan.
+Verify every migrated symbol from source and validate the affected slice before
+returning to incremental updates.
 
 ---
 

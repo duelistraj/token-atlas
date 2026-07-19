@@ -16,13 +16,17 @@ Only report findings unless the user asks for fixes.
 Validate:
 
 - `PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, and `knowledge/INDEX.md` exist.
-- `PKF.md` sets `pkf.runtime_version: 2`; missing or older runtimes require migration, and newer versions are reported as unsupported rather than downgraded.
+- `PKF.md` sets `pkf.runtime_version: 3` and `pkf.retrieval` to `adaptive` or
+  `mandatory`; missing or older runtimes require migration, and newer versions
+  are reported as unsupported rather than downgraded.
 - Every detected module has `INDEX.md`, `api.md`, `schema.md`, `business_rules.md`, and `ui.md`.
 - Every module is a flat directory directly under `.ai/knowledge/`; nested module indexes are invalid.
 - Shared docs exist: `glossary.md`, `dependencies.md`, `decision_log.md`.
 - Every participating `.ai/**/*.md` document has valid OKF front matter.
 - Every module leaf has a `source_symbols` path-to-symbol-list mapping; each path
   resolves, each symbol occurs in that source, and empty leaves use the standard marker.
+- Every module leaf is complete or explicitly `pkf.materialization: pending`.
+  Pending leaves have no source symbols and use the pending extraction marker.
 - Every implementation-bearing leaf has an Edit Map with specific behavior,
   declared source symbols, tests, styles/tokens, and a targeted locator per row;
   placeholder behavior labels and omitted declared symbols are defects.
@@ -33,9 +37,12 @@ Validate:
 - No duplicate authoritative facts exist.
 - Module names are target-repository-derived, placeholders are not promoted to modules, and coarse boundaries are reported when they mix independently routable capabilities satisfying the Module Boundary Contract.
 - Routing starts from `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
-- `PKF.md` embeds the Retrieval Protocol: the hard precondition and ordered route, the negative constraint against premature codebase-wide search, fallback/verification, and knowledge-base sync.
+- `PKF.md` embeds the Retrieval Protocol: the cheap local probe, adaptive PKF
+  activation, ordered route, fallback/verification, and knowledge-base sync.
 - `PKF.md` sets `pkf.closeout` to `adaptive` or `off` and embeds the mandatory Closeout Protocol with a silent read-only bypass, intentional-mutation gate, session acknowledgement, incremental sync, and recursion prevention.
-- A neutral bootstrap (a root `AGENTS.md`, or the repository's existing agent-instruction entry point) references retrieval and closeout in `.ai/PKF.md`, and no generated guidance names a specific vendor, agent, or model.
+- A neutral bootstrap applies the adaptive retrieval and knowledge-impact gates,
+  references retrieval and closeout in `.ai/PKF.md`, and names no vendor, agent,
+  or model.
 - Simulation output is present when enabled.
 - Token budget output is present at the selected detail level.
 - Startup, leaf, and representative normal task routes respect the 2,500, 1,500,
@@ -71,6 +78,11 @@ Use:
 - Token Impact
 
 Errors should include file, issue, recommended fix, source evidence or missing evidence, retrieval impact, and token impact when relevant.
+
+Routine semantic closeout uses `--scope affected --detail summary` with every
+turn-owned changed source or leaf path. Runtime, shared architecture, or index
+changes automatically require full validation. Full detail remains the default
+for explicit validation and CI.
 
 ## CI Exit Meaning
 

@@ -14,8 +14,14 @@ Prefer incremental extraction. Update only affected PKF/OKF documents whenever p
 
 ## Extraction Mode
 
-- If `.ai/` does not exist or was just initialized, perform full extraction.
-- If `.ai/` exists, perform incremental extraction from maintenance impact or Git changes.
+- If `.ai/` was just initialized, perform hybrid extraction: materialize shared
+  knowledge and leaves owning public package, service, CLI, API, or primary UI
+  entry points; leave other skeleton leaves pending.
+- If adaptive retrieval selects a pending leaf, perform on-demand extraction for
+  that leaf only.
+- If `.ai/` exists and source changed, perform incremental extraction from the
+  turn-owned changed paths or exceptional maintenance impact.
+- Perform full extraction only when explicitly requested or required by CI.
 
 ## Knowledge Mapping
 
@@ -48,6 +54,7 @@ Use compact evidence labels. Do not paste large source snippets.
 3. Read only the smallest source set needed to verify facts. Capture declarations,
    test symbols, and UI style selectors or tokens rather than file-only evidence.
 4. Update affected OKF documents. For every implementation-bearing leaf:
+   - Set `pkf.materialization: complete` after source-backed extraction succeeds.
    - Populate `source_symbols` as a path-to-symbol-list mapping.
    - Use `## Edit Map` as the primary retrieval index with columns `Behavior`,
      `Source symbols`, `Tests`, `Styles/tokens`, and `Locator`.
@@ -57,6 +64,10 @@ Use compact evidence labels. Do not paste large source snippets.
 6. Update `ARCHITECTURE.md`, root and module routing, and every affected `pkf.loads` or `pkf.related` edge.
 7. Remove a superseded module directory only after every durable fact and manual note is accounted for and no reference targets it.
 8. Run validation after extraction.
+
+For hybrid extraction, stop after shared knowledge, routing, and public entry
+points are materialized. Do not scan unrelated implementation merely to replace
+pending markers.
 
 ## Rules
 
@@ -69,5 +80,7 @@ Use compact evidence labels. Do not paste large source snippets.
   `business_rules.md`, keep only still-relevant decisions in `decision_log.md`,
   and remove chronological feature summaries.
 - Use `source_symbols: {}` plus `- TODO: No source-backed facts.` for an empty
-  leaf; do not invent placeholder symbols.
+  complete leaf. Use `pkf.materialization: pending`, `source_symbols: {}`, and
+  `- TODO: Pending source extraction.` for deferred knowledge; do not invent
+  placeholder symbols.
 - Keep modules flat and derive their names from the target repository; never introduce a reusable prescribed vocabulary.

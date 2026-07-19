@@ -19,9 +19,9 @@ This `.agents/skills/token-atlas/` copy is the internal development and benchmar
 
 ### 1. Recover PKF Startup
 
-At the beginning of every session, attempt to read `.ai/PKF.md`.
+At the beginning of every session, detect whether `.ai/PKF.md` exists without loading its contents. The neutral bootstrap owns the adaptive retrieval decision.
 
-If `.ai/PKF.md` is missing:
+If `.ai/PKF.md` is missing and Token Atlas was explicitly invoked:
 
 - Do not continue with repository analysis yet.
 - Execute `references/initialize.md` to create the PKF runtime and OKF skeleton.
@@ -72,16 +72,17 @@ If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
 - Execute `references/initialize.md`
 - Validate
-- Execute `references/extract.md` using **Full Extraction**
+- Execute `references/extract.md` using **Hybrid Extraction** for shared knowledge, routing, and public entry points
 - Validate
-- Execute `references/optimize.md`
+- Mark deferred leaves `pkf.materialization: pending`
+- Execute `references/optimize.md` only for materialized routes
 - Execute `references/simulate.md` only according to the selected `simulation` option
 - Execute `references/export.md` only when `retrieval_exports` is not `off`
 - Validate
 
-Otherwise:
+Otherwise, after an intentional mutation with durable knowledge impact:
 
-- After an intentional repository mutation, execute `references/closeout.md` first and stop on a no-op
+- Execute `references/closeout.md` first and stop on a no-op
 - Execute `references/maintenance.md` to detect changed paths, stale references, duplicate facts, and affected docs when closeout identifies an exceptional case
 - Execute `references/extract.md` using **Incremental Extraction**
 - Validate
@@ -124,13 +125,13 @@ symbols, tests, styles/tokens, and targeted locator commands.
 
 `pkf.related` means "useful if the task expands." Do not treat related documents as automatic context.
 
-During initialization, set `pkf.runtime_version: 2` and `pkf.closeout: adaptive`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Read-only turns bypass closeout silently. Capture the baseline before intentional repository mutations and acknowledge only successfully validated snapshots. The bootstrap routes every task through `.ai/PKF.md` and mutation-gates closeout; generated guidance must not name a specific vendor, agent, or model.
+During initialization, set `pkf.runtime_version: 3`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Initialize architecture, routing, dependencies, and public entry-point facts, and mark deferred leaves `pkf.materialization: pending`. The bootstrap allows a cheap local probe without loading PKF, activates PKF for cross-capability or broad-discovery work, and knowledge-impact-gates closeout. Generated guidance must not name a specific vendor, agent, or model.
 
 ---
 
 ## Incremental Maintenance
 
-Use `references/maintenance.md` in the default `core` profile whenever an existing PKF runtime is present.
+Use `references/maintenance.md` in the default `core` profile when closeout identifies exceptional drift, migration, or module-boundary work. Routine semantic closeout routes directly from turn-owned changed paths to affected leaves.
 
 Maintenance determines changed paths, affected modules, affected canonical docs, stale references, duplicate facts, and optional retrieval export invalidation.
 
@@ -259,8 +260,7 @@ Use an exact tokenizer when one is available locally for the target model. If no
 
 Default budgets and thresholds:
 
-- Read startup protocol and indexes once per session; refresh only after changes,
-  contradictions, or a need for an uncached section.
+- Read startup protocol and indexes only after adaptive retrieval activates; refresh only after changes, contradictions, or a need for an uncached section.
 - Use one module index and one or two leaves for a normal task.
 - Gate startup above 2,500 tokens, any leaf above 1,500 tokens, and a normal task
   route above 4,000 tokens. Warn locally and fail in CI.
@@ -297,7 +297,7 @@ Tooling must keep documented workflows authoritative. Scripts may validate argum
 - Store each durable fact in one narrow authoritative document. This governs where a fact is written, not how many documents a task reads: a cross-cutting change may route to several leaf documents, one slice each.
 - Keep capability modules flat and repository-derived; automatically migrate coarse boundaries only when evidence is unambiguous.
 - Prefer incremental maintenance and affected-document updates.
-- Migrate all legacy leaves in one pass when any leaf lacks the source-symbol/Edit Map contract.
+- Migrate only affected legacy leaves during routine work; reserve a repository-wide leaf-contract migration for an explicit migration request or CI.
 - Optimize for minimal AI context retrieval.
 - Keep routing deterministic and easy to validate.
 - Treat stale or unverified knowledge as a blocking issue when it could mislead an agent.

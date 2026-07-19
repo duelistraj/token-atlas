@@ -7,8 +7,9 @@ tags: [capability-one, schema]
 timestamp: 2026-07-12
 source_symbols: {}
 pkf:
+  materialization: pending
   loads: []
   related: []
 ---
 
-- TODO: No source-backed facts.
+- TODO: Pending source extraction.

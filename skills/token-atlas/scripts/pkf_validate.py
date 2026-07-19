@@ -26,6 +26,8 @@ from pkf_contract import (  # noqa: E402
     EXIT_CODES,
     GENERIC_EDIT_MAP_BEHAVIORS,
     LEAF_MODULE_DOCS,
+    LEAF_MATERIALIZATION_FIELD,
+    LEAF_MATERIALIZATION_MODES,
     LEAF_SOURCE_SYMBOLS_FIELD,
     LEGACY_CLOSEOUT_PHRASES,
     REQUIRED_FRONT_MATTER,
@@ -38,18 +40,27 @@ from pkf_contract import (  # noqa: E402
     TOKEN_THRESHOLDS,
     VALIDATION_STRICTNESS,
     PROTOCOL_REQUIREMENTS,
+    PENDING_LEAF_MARKER,
+    RETRIEVAL_DEFAULT,
+    RETRIEVAL_MODE_FIELD,
+    RETRIEVAL_MODES,
 )
 from pkf_lib import PkfParseError, listify, markdown_body, read_front_matter, rel  # noqa: E402
 from pkf_tokens import count_tokens  # noqa: E402
 
 
 ALLOWED_FORMATS = ("text", "json")
+ALLOWED_SCOPES = ("full", "affected")
+OUTPUT_DETAILS = ("full", "summary")
 RETRIEVAL_PROTOCOL_HEADING = "## Retrieval Protocol (MANDATORY)"
 BOOTSTRAP_FILE = "AGENTS.md"
 BOOTSTRAP_REFERENCE = ".ai/PKF.md"
 BOOTSTRAP_CLOSEOUT_REFERENCE = "Closeout Protocol"
 BOOTSTRAP_MUTATION_GATE = "After an intentional repository mutation"
 BOOTSTRAP_READ_ONLY_BYPASS = "Read-only turns bypass closeout silently"
+BOOTSTRAP_RETRIEVAL_GATE = "Use a cheap local probe"
+BOOTSTRAP_PKF_ACTIVATION = "Activate PKF retrieval"
+BOOTSTRAP_KNOWLEDGE_IMPACT = "durable facts, evidence, or routing"
 
 
 @dataclass
@@ -71,6 +82,8 @@ class TokenEntry:
 class ValidationReport:
     path: str
     strictness: str
+    scope: str
+    checked_docs: list[str] = field(default_factory=list)
     passed: list[str] = field(default_factory=list)
     warnings: list[ValidationFinding] = field(default_factory=list)
     errors: list[ValidationFinding] = field(default_factory=list)
@@ -99,11 +112,12 @@ def main() -> int:
             args.strictness,
             args.model,
             changed_paths=args.changed_path,
+            scope=args.scope,
         )
         if args.format == "json":
-            print(json.dumps(report_to_dict(report), indent=2, sort_keys=True))
+            print(json.dumps(report_to_dict(report, detail=args.detail), indent=2, sort_keys=True))
         else:
-            print(render_text(report))
+            print(render_text(report, detail=args.detail))
         return report.exit_code
     except UsageError as exc:
         print(f"pkf_validate: {exc}", file=sys.stderr)
@@ -121,6 +135,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--path", type=Path, default=Path(".ai"), help="Path to a .ai directory or repository containing .ai.")
     parser.add_argument("--strictness", choices=VALIDATION_STRICTNESS, default="advisory")
     parser.add_argument("--format", choices=ALLOWED_FORMATS, default="text")
+    parser.add_argument(
+        "--scope",
+        choices=ALLOWED_SCOPES,
+        default="full",
+        help="Validate the full runtime or only leaves/routes selected by --changed-path.",
+    )
+    parser.add_argument(
+        "--detail",
+        choices=OUTPUT_DETAILS,
+        default="full",
+        help="Use summary during routine closeout to omit successful-check output.",
+    )
     parser.add_argument(
         "--model",
         default=None,
@@ -146,13 +172,18 @@ def validate_pkf(
     model: str | None = None,
     *,
     changed_paths: Sequence[str] = (),
+    scope: str = "full",
 ) -> ValidationReport:
     if strictness not in VALIDATION_STRICTNESS:
         raise UsageError(f"invalid strictness: {strictness}")
+    if scope not in ALLOWED_SCOPES:
+        raise UsageError(f"invalid scope: {scope}")
+    if scope == "affected" and not changed_paths:
+        raise UsageError("affected scope requires at least one --changed-path")
 
     ai_dir = resolve_ai_dir(path)
     repo_root = ai_dir.parent
-    report = ValidationReport(path=str(ai_dir), strictness=strictness)
+    report = ValidationReport(path=str(ai_dir), strictness=strictness, scope=scope)
     normalized_changed_paths = normalize_changed_paths(changed_paths)
 
     if not ai_dir.exists():
@@ -163,6 +194,15 @@ def validate_pkf(
         error(report, rel(ai_dir, repo_root), "PKF path is not a directory")
         return report
 
+    if scope == "affected":
+        return validate_affected_slice(
+            ai_dir,
+            repo_root,
+            report,
+            normalized_changed_paths,
+            model,
+        )
+
     check_required_docs(ai_dir, repo_root, report)
     check_runtime_protocols(ai_dir, repo_root, report)
     check_neutral_bootstrap(repo_root, report)
@@ -170,6 +210,7 @@ def validate_pkf(
     modules = discover_modules(ai_dir)
     check_module_docs(ai_dir, repo_root, modules, report)
     front_matter = check_front_matter(ai_dir, repo_root, report)
+    report.checked_docs = sorted(rel(path, repo_root) for path in front_matter)
     check_runtime_config(ai_dir, repo_root, front_matter, report)
     affected_modules, mapped_changed_paths = check_leaf_contracts(
         ai_dir,
@@ -189,6 +230,84 @@ def validate_pkf(
         ai_dir,
         model,
         modules=affected_modules if normalized_changed_paths else None,
+    )
+    return report
+
+
+def validate_affected_slice(
+    ai_dir: Path,
+    repo_root: Path,
+    report: ValidationReport,
+    changed_paths: Sequence[str],
+    model: str | None,
+) -> ValidationReport:
+    full_validation_triggers = {
+        "AGENTS.md",
+        ".ai/PKF.md",
+        ".ai/MEMORY.md",
+        ".ai/ARCHITECTURE.md",
+        ".ai/knowledge/INDEX.md",
+    }
+    if any(
+        path in full_validation_triggers
+        or path.endswith("/INDEX.md")
+        or Path(path).parent.as_posix() == ".ai/knowledge"
+        for path in changed_paths
+    ):
+        return validate_pkf(
+            ai_dir,
+            report.strictness,
+            model,
+            changed_paths=changed_paths,
+            scope="full",
+        )
+
+    selected_leaves: set[Path] = set()
+    mapped_changed_paths: set[str] = set()
+    knowledge = ai_dir / "knowledge"
+    for leaf in sorted(knowledge.glob("*/*.md")):
+        if leaf.name not in LEAF_MODULE_DOCS:
+            continue
+        try:
+            meta = read_front_matter(leaf)
+        except PkfParseError:
+            meta = {}
+        source_symbols = meta.get(LEAF_SOURCE_SYMBOLS_FIELD)
+        source_symbols = source_symbols if isinstance(source_symbols, dict) else {}
+        matches = matching_changed_paths(leaf, repo_root, source_symbols, changed_paths)
+        if matches:
+            selected_leaves.add(leaf)
+            mapped_changed_paths.update(matches)
+
+    selected_docs = set(selected_leaves)
+    selected_docs.update(leaf.parent / "INDEX.md" for leaf in selected_leaves)
+    metadata = check_front_matter(
+        ai_dir,
+        repo_root,
+        report,
+        paths=sorted(path for path in selected_docs if path.is_file()),
+    )
+    report.checked_docs = sorted(rel(path, repo_root) for path in metadata)
+    modules = sorted({leaf.parent.name for leaf in selected_leaves})
+    affected_modules, contract_mapped_paths = check_leaf_contracts(
+        ai_dir,
+        repo_root,
+        modules,
+        metadata,
+        report,
+        changed_paths,
+    )
+    mapped_changed_paths.update(contract_mapped_paths)
+    for changed_path in sorted(set(changed_paths) - mapped_changed_paths):
+        warn(report, changed_path, "changed path has no matching implementation leaf source_symbols entry")
+    check_references(repo_root, metadata, report)
+    check_unrelated_loads(repo_root, metadata, report)
+    add_token_impact(
+        report,
+        ai_dir,
+        model,
+        modules=affected_modules,
+        include_startup=False,
     )
     return report
 
@@ -273,6 +392,18 @@ def check_neutral_bootstrap(repo_root: Path, report: ValidationReport) -> None:
         passed(report, "root bootstrap silently bypasses read-only closeout")
     else:
         error(report, BOOTSTRAP_FILE, "closeout bootstrap must silently bypass read-only turns")
+    if BOOTSTRAP_RETRIEVAL_GATE in normalized_text:
+        passed(report, "root bootstrap includes the cheap local retrieval probe")
+    else:
+        error(report, BOOTSTRAP_FILE, "bootstrap must gate PKF retrieval behind a cheap local probe")
+    if BOOTSTRAP_PKF_ACTIVATION in normalized_text:
+        passed(report, "root bootstrap defines PKF activation")
+    else:
+        error(report, BOOTSTRAP_FILE, "bootstrap must define when adaptive PKF retrieval activates")
+    if BOOTSTRAP_KNOWLEDGE_IMPACT in normalized_text:
+        passed(report, "root bootstrap knowledge-impact-gates closeout")
+    else:
+        error(report, BOOTSTRAP_FILE, "bootstrap must gate closeout on durable knowledge impact")
     lowered = text.lower()
     for phrase in LEGACY_CLOSEOUT_PHRASES:
         if phrase in lowered:
@@ -302,6 +433,17 @@ def check_runtime_config(
         error(report, rel(pkf_path, repo_root), issue)
     else:
         passed(report, f"PKF runtime version is current: {RUNTIME_VERSION}")
+
+    retrieval_mode = runtime.get(RETRIEVAL_MODE_FIELD)
+    if retrieval_mode not in RETRIEVAL_MODES:
+        allowed = ", ".join(RETRIEVAL_MODES)
+        error(
+            report,
+            rel(pkf_path, repo_root),
+            f"pkf.{RETRIEVAL_MODE_FIELD} must be one of: {allowed}; default is {RETRIEVAL_DEFAULT}",
+        )
+    else:
+        passed(report, f"PKF retrieval mode is valid: {retrieval_mode}")
 
     mode = runtime.get("closeout")
     if mode not in CLOSEOUT_MODES:
@@ -349,9 +491,16 @@ def check_module_docs(ai_dir: Path, repo_root: Path, modules: list[str], report:
             check_file(knowledge / module / doc, repo_root, report, f"module doc exists: .ai/knowledge/{module}/{doc}")
 
 
-def check_front_matter(ai_dir: Path, repo_root: Path, report: ValidationReport) -> dict[Path, dict[str, Any]]:
+def check_front_matter(
+    ai_dir: Path,
+    repo_root: Path,
+    report: ValidationReport,
+    *,
+    paths: Sequence[Path] | None = None,
+) -> dict[Path, dict[str, Any]]:
     metadata: dict[Path, dict[str, Any]] = {}
-    for md in sorted(ai_dir.rglob("*.md")):
+    candidates = sorted(ai_dir.rglob("*.md")) if paths is None else sorted(paths)
+    for md in candidates:
         display = rel(md, repo_root)
         try:
             meta = read_front_matter(md)
@@ -390,6 +539,8 @@ def check_leaf_contracts(
             leaf = ai_dir / "knowledge" / module / doc
             if not leaf.is_file():
                 continue
+            if changed_paths and leaf not in metadata:
+                continue
             display = rel(leaf, repo_root)
             meta = metadata.get(leaf, {})
             if LEAF_SOURCE_SYMBOLS_FIELD not in meta:
@@ -398,6 +549,24 @@ def check_leaf_contracts(
             source_symbols = meta.get(LEAF_SOURCE_SYMBOLS_FIELD)
             if not isinstance(source_symbols, dict):
                 error(report, display, f"{LEAF_SOURCE_SYMBOLS_FIELD} must be a mapping of source paths to symbol lists")
+                continue
+            pkf = meta.get("pkf")
+            materialization = (
+                pkf.get(LEAF_MATERIALIZATION_FIELD, "complete")
+                if isinstance(pkf, dict)
+                else "complete"
+            )
+            if materialization not in LEAF_MATERIALIZATION_MODES:
+                allowed = ", ".join(LEAF_MATERIALIZATION_MODES)
+                error(report, display, f"pkf.{LEAF_MATERIALIZATION_FIELD} must be one of: {allowed}")
+                continue
+            if materialization == "pending":
+                if source_symbols:
+                    error(report, display, "pending leaf must not declare source_symbols before extraction")
+                elif PENDING_LEAF_MARKER not in markdown_body(leaf):
+                    error(report, display, f"pending leaf requires marker: {PENDING_LEAF_MARKER}")
+                else:
+                    passed(report, f"pending leaf is explicitly unmaterialized: {display}")
                 continue
             if not source_symbols:
                 if EMPTY_LEAF_MARKER in markdown_body(leaf):
@@ -683,9 +852,11 @@ def add_token_impact(
     model: str | None,
     *,
     modules: set[str] | None = None,
+    include_startup: bool = True,
 ) -> None:
-    startup_files = [ai_dir / doc for doc in REQUIRED_RUNTIME_DOCS]
-    add_route_tokens(report, "startup", startup_files, TOKEN_THRESHOLDS["startup"], model)
+    if include_startup:
+        startup_files = [ai_dir / doc for doc in REQUIRED_RUNTIME_DOCS]
+        add_route_tokens(report, "startup", startup_files, TOKEN_THRESHOLDS["startup"], model)
 
     selected_modules = discover_modules(ai_dir) if modules is None else sorted(modules)
     for module in selected_modules:
@@ -785,29 +956,39 @@ def error(report: ValidationReport, file: str, issue: str) -> None:
     report.errors.append(ValidationFinding(file=file, issue=issue))
 
 
-def report_to_dict(report: ValidationReport) -> dict[str, Any]:
-    return {
+def report_to_dict(report: ValidationReport, *, detail: str = "full") -> dict[str, Any]:
+    value = {
         "path": report.path,
         "strictness": report.strictness,
+        "scope": report.scope,
         "status": report.status,
         "exit_code": report.exit_code,
-        "passed": report.passed,
+        "checked_docs": report.checked_docs,
+        "passed_count": len(report.passed),
         "warnings": [finding.__dict__ for finding in report.warnings],
         "errors": [finding.__dict__ for finding in report.errors],
         "token_impact": [entry.__dict__ for entry in report.token_impact],
     }
+    if detail == "full":
+        value["passed"] = report.passed
+    return value
 
 
-def render_text(report: ValidationReport) -> str:
+def render_text(report: ValidationReport, *, detail: str = "full") -> str:
     lines = [
         "PKF Validation",
         f"Path: {report.path}",
         f"Strictness: {report.strictness}",
+        f"Scope: {report.scope}",
         f"Status: {report.status}",
-        "",
-        "Passed:",
     ]
-    lines.extend(f"- {item}" for item in report.passed) if report.passed else lines.append("- none")
+    if report.checked_docs:
+        lines.append(f"Checked docs: {', '.join(report.checked_docs)}")
+    if detail == "full":
+        lines.extend(("", "Passed:"))
+        lines.extend(f"- {item}" for item in report.passed) if report.passed else lines.append("- none")
+    else:
+        lines.append(f"Passed checks: {len(report.passed)}")
     lines.append("")
     lines.append("Warnings:")
     lines.extend(f"- {item.file}: {item.issue}" for item in report.warnings) if report.warnings else lines.append("- none")
