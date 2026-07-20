@@ -53,8 +53,8 @@ Apply the Module Boundary Contract from `initialize.md`. A module whose leaves
 mix at least two independently routable, source-backed capabilities is a coarse
 boundary defect. When ownership is unambiguous, automatically finish the
 maintenance/extraction repartition by tightening root routing, module indexes,
-and cross-capability `pkf.related` edges. Do not split on document size, naming,
-or placeholders alone. Do not create nested modules.
+and keyed cross-capability `pkf.routes` entries. Do not split on document size,
+naming, or placeholders alone. Do not create nested modules.
 
 ## Token Budget
 

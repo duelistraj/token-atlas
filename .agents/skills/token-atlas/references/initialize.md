@@ -97,22 +97,28 @@ module names.
 After scaffolding:
 
 1. Populate only verified repository commands, shared architecture, dependencies,
-   routing, and public behavior facts.
-2. Materialize the source-backed leaves needed to represent each capability's
-   public behavior and the contracts that connect it to other capabilities.
-   Prefer the smallest set that lets representative cross-capability questions
-   route directly to exact symbols; do not impose a fixed per-capability leaf
-   cap.
-3. Leave unrelated implementation details and genuinely deferred surfaces with
+   routing, and public behavior facts. Treat bundled helper scripts as opaque
+   executables and never read their source during normal initialization.
+2. Materialize one primary source-backed public-behavior leaf per capability by
+   default. Materialize a second leaf only when a distinct public contract or an
+   explicit cross-capability route requires it.
+3. Record every verified cross-capability contract as a keyed entry under
+   `pkf.routes` in `.ai/knowledge/INDEX.md`. Each route contains `intent`, a
+   non-empty `triggers` list, the exact `modules`, and one to three complete leaf
+   paths in `loads`; its leaves must stay within the 4,000-token task budget. Do
+   not widen source analysis solely to enumerate possible routes; record only
+   contracts proven while extracting the bounded primary leaves or explicitly
+   required by the initialization request.
+4. Leave unrelated implementation details and genuinely deferred surfaces with
    `pkf.materialization: pending`,
    `source_symbols: {}`, and the exact body marker
    `- TODO: Pending source extraction.`.
-4. Every materialized leaf must map repository-relative paths to exact symbols
+5. Every materialized leaf must map repository-relative paths to exact symbols
    in `source_symbols` and include a targeted Edit Map. Public-behavior UI and
    business-rule leaves must inspect capability-local state/behavior helpers and
    focused tests; every source or test cited by the Edit Map must be included in
    `source_symbols`.
-5. A complete leaf with no source-backed facts uses
+6. A complete leaf with no source-backed facts uses
    `pkf.materialization: complete` and
    `- TODO: No source-backed facts.`.
 
@@ -123,7 +129,8 @@ initial knowledge inventory.
 ## Validation And Optional Work
 
 The scaffold helper performs the initial mechanical validation. After hybrid
-extraction, run one final validation at the selected strictness.
+extraction, run exactly one explicit final validation at the selected
+strictness. Author and reconcile all leaf metadata before this final invocation.
 
 Run affected validation again only if a subsequent optimization changes PKF
 files. In the default core profile:
@@ -162,6 +169,8 @@ exact repository-local commands embedded by the scaffold.
 - The deterministic scaffold validates and preserves existing instructions.
 - Shared routing, public behavior, and source-backed cross-capability contracts
   are verified.
+- Startup, architecture, root-index, and module-index `pkf.related` values are
+  empty; cross-capability routes load no more than three exact leaves.
 - Public-behavior implementation helpers and focused tests route directly to
   their materialized leaves.
 - Changed-route simulation covers every newly materialized route.

@@ -21,6 +21,8 @@ if str(SCRIPT_DIR) not in sys.path:
 from pkf_contract import (  # noqa: E402
     CLOSEOUT_MODES,
     CLOSEOUT_PROTOCOL_HEADING,
+    CROSS_ROUTES_FIELD,
+    CROSS_ROUTE_REQUIRED_FIELDS,
     EDIT_MAP_COLUMNS,
     EDIT_MAP_HEADING,
     EMPTY_LEAF_MARKER,
@@ -225,6 +227,7 @@ def validate_pkf(
     report.checked_docs = sorted(rel(path, repo_root) for path in front_matter)
     check_runtime_config(ai_dir, repo_root, front_matter, report)
     check_module_ownership(ai_dir, repo_root, modules, front_matter, report)
+    check_routing_surfaces(ai_dir, repo_root, modules, front_matter, report, model)
     affected_modules, mapped_changed_paths = check_leaf_contracts(
         ai_dir,
         repo_root,
@@ -597,6 +600,104 @@ def check_front_matter(
             else:
                 passed(report, f"pkf.{key} list: {display}")
     return metadata
+
+
+def check_routing_surfaces(
+    ai_dir: Path,
+    repo_root: Path,
+    modules: list[str],
+    metadata: dict[Path, dict[str, Any]],
+    report: ValidationReport,
+    model: str | None,
+) -> None:
+    startup_surfaces = [
+        ai_dir / "ARCHITECTURE.md",
+        ai_dir / "knowledge" / "INDEX.md",
+        *(ai_dir / "knowledge" / module / "INDEX.md" for module in modules),
+    ]
+    for surface in startup_surfaces:
+        pkf = metadata.get(surface, {}).get("pkf")
+        if not isinstance(pkf, dict):
+            continue
+        if listify(pkf.get("related")):
+            error(
+                report,
+                rel(surface, repo_root),
+                "routing/startup surfaces must keep pkf.related empty; use routing tables or pkf.routes",
+            )
+        else:
+            passed(report, f"bounded routing surface: {rel(surface, repo_root)}")
+
+    root_index = ai_dir / "knowledge" / "INDEX.md"
+    root_pkf = metadata.get(root_index, {}).get("pkf")
+    if not isinstance(root_pkf, dict):
+        return
+    routes = root_pkf.get(CROSS_ROUTES_FIELD, {})
+    if not isinstance(routes, dict):
+        error(report, rel(root_index, repo_root), f"pkf.{CROSS_ROUTES_FIELD} must be a mapping keyed by route id")
+        return
+    for route_id, route in sorted(routes.items(), key=lambda item: str(item[0])):
+        display = f"{rel(root_index, repo_root)}#pkf.routes.{route_id}"
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", str(route_id)):
+            error(report, display, "cross-route id must use lowercase kebab-case")
+            continue
+        if not isinstance(route, dict):
+            error(report, display, "cross route must be a mapping")
+            continue
+        missing = [field for field in CROSS_ROUTE_REQUIRED_FIELDS if field not in route]
+        if missing:
+            error(report, display, f"cross route missing fields: {', '.join(missing)}")
+            continue
+        intent = route.get("intent")
+        triggers = route.get("triggers")
+        route_modules = route.get("modules")
+        loads = route.get("loads")
+        if not isinstance(intent, str) or not intent.strip():
+            error(report, display, "cross route intent must be a non-empty string")
+        if not isinstance(triggers, list) or not triggers or not all(isinstance(item, str) and item.strip() for item in triggers):
+            error(report, display, "cross route triggers must be a non-empty string list")
+        if not isinstance(route_modules, list) or len(set(map(str, route_modules))) < 2:
+            error(report, display, "cross route modules must name at least two capabilities")
+            route_modules = []
+        unknown_modules = sorted(set(map(str, route_modules)) - set(modules))
+        if unknown_modules:
+            error(report, display, f"cross route names unknown modules: {', '.join(unknown_modules)}")
+        if not isinstance(loads, list) or not 1 <= len(loads) <= RETRIEVAL_BUDGET["cross_leaf_docs"]:
+            error(
+                report,
+                display,
+                f"cross route must load one to {RETRIEVAL_BUDGET['cross_leaf_docs']} leaves",
+            )
+            continue
+        load_paths: list[Path] = []
+        load_modules: set[str] = set()
+        for raw_target in loads:
+            target = str(raw_target)
+            target_path = resolve_doc_reference(root_index, repo_root, target)
+            target_module = module_for_token(target)
+            if (
+                target_path is None
+                or not target_path.is_file()
+                or target_module is None
+                or target_path.name not in LEAF_MODULE_DOCS
+            ):
+                error(report, display, f"cross route load must resolve to a module leaf: {target}")
+                continue
+            load_paths.append(target_path)
+            load_modules.add(target_module)
+            leaf_pkf = metadata.get(target_path, {}).get("pkf")
+            if not isinstance(leaf_pkf, dict) or leaf_pkf.get(LEAF_MATERIALIZATION_FIELD, "complete") != "complete":
+                error(report, display, f"cross route load must be materialized: {target}")
+        if load_modules != set(map(str, route_modules)):
+            error(report, display, "cross route modules must exactly match its loaded leaf modules")
+        if load_paths:
+            add_route_tokens(
+                report,
+                f"cross:{route_id}",
+                deduplicate_paths(load_paths),
+                TOKEN_THRESHOLDS["task"],
+                model,
+            )
 
 
 def check_leaf_contracts(
@@ -1042,19 +1143,26 @@ def error(report: ValidationReport, file: str, issue: str) -> None:
 
 
 def report_to_dict(report: ValidationReport, *, detail: str = "full") -> dict[str, Any]:
+    token_entries = (
+        report.token_impact
+        if detail == "full"
+        else [entry for entry in report.token_impact if entry.status != "passed"]
+    )
     value = {
         "path": report.path,
         "strictness": report.strictness,
         "scope": report.scope,
         "status": report.status,
         "exit_code": report.exit_code,
-        "checked_docs": report.checked_docs,
+        "checked_doc_count": len(report.checked_docs),
         "passed_count": len(report.passed),
         "warnings": [finding.__dict__ for finding in report.warnings],
         "errors": [finding.__dict__ for finding in report.errors],
-        "token_impact": [entry.__dict__ for entry in report.token_impact],
+        "token_impact_count": len(report.token_impact),
+        "token_impact": [entry.__dict__ for entry in token_entries],
     }
     if detail == "full":
+        value["checked_docs"] = report.checked_docs
         value["passed"] = report.passed
     return value
 
@@ -1067,8 +1175,10 @@ def render_text(report: ValidationReport, *, detail: str = "full") -> str:
         f"Scope: {report.scope}",
         f"Status: {report.status}",
     ]
-    if report.checked_docs:
+    if report.checked_docs and detail == "full":
         lines.append(f"Checked docs: {', '.join(report.checked_docs)}")
+    elif report.checked_docs:
+        lines.append(f"Checked docs: {len(report.checked_docs)}")
     if detail == "full":
         lines.extend(("", "Passed:"))
         lines.extend(f"- {item}" for item in report.passed) if report.passed else lines.append("- none")
@@ -1082,11 +1192,18 @@ def render_text(report: ValidationReport, *, detail: str = "full") -> str:
     lines.extend(f"- {item.file}: {item.issue}" for item in report.errors) if report.errors else lines.append("- none")
     lines.append("")
     lines.append("Token Impact:")
-    if report.token_impact:
+    token_entries = (
+        report.token_impact
+        if detail == "full"
+        else [entry for entry in report.token_impact if entry.status != "passed"]
+    )
+    if token_entries:
         lines.extend(
             f"- {entry.route}: {entry.tokens} tokens ({entry.estimator}), threshold {entry.threshold}, {entry.status}"
-            for entry in report.token_impact
+            for entry in token_entries
         )
+    elif report.token_impact and detail == "summary":
+        lines.append(f"- {len(report.token_impact)} routes checked; no threshold violations")
     else:
         lines.append("- none")
     return "\n".join(lines)

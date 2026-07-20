@@ -11,10 +11,7 @@ pkf:
   loads:
     - .ai/knowledge/backend/api.md
     - .ai/knowledge/frontend/ui.md
-  related:
-    - .ai/knowledge/backend/schema.md
-    - .ai/knowledge/backend/business_rules.md
-    - .ai/knowledge/backend/ui.md
+  related: []
 ---
 
 | Task | Required doc |

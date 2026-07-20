@@ -6,9 +6,9 @@ resource: .ai/knowledge/INDEX.md
 tags: [missing-runtime, routing]
 timestamp: 2026-07-08
 pkf:
+  routes: {}
   loads: []
-  related:
-    - .ai/knowledge/backend/INDEX.md
+  related: []
 ---
 
 | Intent or path | Load |

@@ -31,6 +31,10 @@ Validate:
   declared source symbols, tests, styles/tokens, and a targeted locator per row;
   placeholder behavior labels and omitted declared symbols are defects.
 - `pkf.loads` and `pkf.related` are lists and resolve to existing docs.
+- Architecture, root-index, and module-index `pkf.related` values are empty.
+- Root-index `pkf.routes`, when present, is keyed by route ID; every route has a
+  non-empty intent and triggers, names at least two exact modules, loads one to
+  three complete leaves, and stays within the 4,000-token task budget.
 - `resource` paths resolve or are marked `TODO`.
 - APIs, schemas, business rules, UI facts, commands, dependencies, and architecture match source truth.
 - Deleted or renamed evidence is not cited as current.
@@ -58,7 +62,7 @@ Run only in `ci`, `full`, `simulation: required`, or `simulation: all`:
 | Schema/model change | root index -> module index -> `schema.md` |
 | Business logic change | root index -> module index -> `business_rules.md` |
 | UI behavior change | root index -> module index -> `ui.md` |
-| Cross-cutting change | root index -> minimal set of module leaf docs via `pkf.related` |
+| Cross-cutting change | root-index `pkf.routes` -> one to three exact complete leaves |
 | Architecture understanding | root index -> `ARCHITECTURE.md` and relevant module index |
 | Dependency/tooling update | root index -> `dependencies.md` and affected module index |
 
@@ -82,7 +86,9 @@ Errors should include file, issue, recommended fix, source evidence or missing e
 Routine semantic closeout uses `--scope affected --detail summary` with every
 turn-owned changed source or leaf path. Runtime, shared architecture, or index
 changes automatically require full validation. Full detail remains the default
-for explicit validation and CI.
+for explicit validation and CI. Summary output contains counts, findings, and
+only token routes that violate a threshold; it omits successful token-route
+inventory.
 
 ## CI Exit Meaning
 

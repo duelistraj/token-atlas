@@ -7,9 +7,7 @@ tags: [broad-loads, architecture]
 timestamp: 2026-07-08
 pkf:
   loads: []
-  related:
-    - .ai/knowledge/backend/INDEX.md
-    - .ai/knowledge/frontend/INDEX.md
+  related: []
 ---
 
 | Path | Module | Purpose |

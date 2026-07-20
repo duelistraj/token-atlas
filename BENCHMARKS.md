@@ -1,5 +1,19 @@
 # Token Atlas Benchmarks
 
+## Current low-token regression gate
+
+Before another complete adaptive-attribution preflight, use the five-call
+`regression` suite: one initialization, the cross-capability probe/PKF pair, and
+the isolated closeout control/PKF pair. It must be dry-run inspected and requires
+the same explicit benchmark approval as every other suite. It publishes a full
+one-pass directional report but does not replace the 13-call `all` suite or a
+three-repetition headline result.
+
+The gate requires bounded `pkf.routes` retrieval, no Token Atlas workflow read
+during cross retrieval, one explicit post-extraction validation, no helper-source
+inspection, and mapped closeout with one route and one validation. Canonical
+comparison remains `gpt-5.6-luna` at high reasoning.
+
 ## Published one-pass preflight
 
 The complete adaptive-attribution `all` suite was run once against Tether Brain

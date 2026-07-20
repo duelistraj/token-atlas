@@ -31,6 +31,9 @@ If `.ai/PKF.md` is missing and Token Atlas was explicitly invoked:
 
 If `.ai/` exists but `.ai/PKF.md` is missing, treat the runtime as incomplete and run initialization before extraction.
 
+Do not activate this workflow for routine mapped closeout; the embedded repository
+protocol and route helper own that fast path.
+
 ### 2. Analyze Repository
 
 After startup recovery, determine:
@@ -72,7 +75,8 @@ If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
 - Execute `references/initialize.md`
 - Execute `references/extract.md` using **Hybrid Extraction** for shared knowledge,
-  routing, public behavior, and source-backed cross-capability contracts
+  bounded routing, one primary public-behavior leaf per capability by default,
+  and only additional leaves named by source-backed cross-capability routes
 - Mark deferred leaves `pkf.materialization: pending`
 - Validate once after hybrid extraction
 - Execute `references/optimize.md` only when validation reports a routing,
@@ -128,9 +132,10 @@ symbols, tests, styles/tokens, and targeted locator commands.
 
 `pkf.loads` means "load automatically for this task." Keep it minimal.
 
-`pkf.related` means "useful if the task expands." Do not treat related documents as automatic context.
+`pkf.related` means "useful if the task expands." Keep it empty on startup and
+index surfaces; do not treat leaf-level related documents as automatic context.
 
-During initialization, set `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`, install the dependency-free repository-local helpers under `.ai/tools/`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Initialize architecture, routing, dependencies, and public entry-point facts, include focused public-behavior tests in leaf routing metadata, and mark deferred leaves `pkf.materialization: pending`. The bootstrap allows a cheap local probe without loading PKF, activates PKF for cross-capability or broad-discovery work, and knowledge-impact-gates closeout. Generated guidance must not name a specific vendor, agent, or model.
+During initialization, set `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`, install the dependency-free repository-local helpers under `.ai/tools/`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Initialize architecture, bounded routing, dependencies, and public entry-point facts, include focused public-behavior tests in leaf routing metadata, and mark deferred leaves `pkf.materialization: pending`. Record source-backed cross-capability intents as keyed root-index `pkf.routes` entries containing one to three exact complete leaves. Treat runtime helpers as opaque executables during normal workflows. The bootstrap allows a cheap local probe without loading PKF, activates PKF for cross-capability or broad-discovery work, and knowledge-impact-gates closeout. Generated guidance must not name a specific vendor, agent, or model.
 
 ---
 
@@ -267,6 +272,9 @@ Default budgets and thresholds:
 
 - Read startup protocol and indexes only after adaptive retrieval activates; refresh only after changes, contradictions, or a need for an uncached section.
 - Use one module index and one or two leaves for a normal task.
+- Use one keyed `pkf.routes` entry and no more than three complete leaves for a
+  cross-capability task; keep the combined route within 4,000 tokens. Do not
+  widen initialization solely to enumerate possible routes.
 - Gate startup above 2,500 tokens, any leaf above 1,500 tokens, and a normal task
   route above 4,000 tokens. Warn locally and fail in CI.
 - Treat unrelated modules loaded automatically through `pkf.loads` as a blocking error.

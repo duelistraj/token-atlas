@@ -22,11 +22,18 @@ After activation:
 
 1. Read `.ai/PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, and
    `.ai/knowledge/INDEX.md` once and cache them for the session.
-2. Select the owning module and read one module `INDEX.md` plus one or two
-   task-specific leaves. Follow `pkf.related` only when the task expands.
+2. For a cross-capability intent, select one matching keyed `pkf.routes` entry
+   from the root index and read only its one to three listed complete leaves.
+   Otherwise select the owning module and read one module `INDEX.md` plus one or
+   two task-specific leaves.
 3. Materialize a selected pending leaf from source before relying on it.
 4. Open only the paths and symbols in `source_symbols` and use targeted
    locators before reading a large file.
+
+Do not load Token Atlas workflow instructions during retrieval. Keep
+`pkf.related` empty on startup and index surfaces; leaf-level related context is
+optional and is loaded only after routed evidence proves insufficient or
+contradictory.
 
 Do not run broad search after activation until the route proves absent,
 incomplete, or inconsistent with source truth. Record the route, targets,
@@ -92,6 +99,9 @@ the turn and report ambiguous pre-existing changes as `stale`.
   exceptional maintenance. Materialize affected pending leaves and repair
   deletes or renames there.
 - Update indexes only when ownership or routing changed.
+- Before validation, reconcile every turn-owned source and test path with each
+  returned leaf's `source_symbols` and Edit Map so all declared evidence and
+  symbols resolve.
 - Optimize only defective affected routes.
 - Run exactly one validation after changing knowledge with `python -S
   .ai/tools/pkf_validate.py --path .ai --scope <affected|full> --strictness

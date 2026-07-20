@@ -139,6 +139,10 @@ Verify:
 - Required metadata fields are present exactly once.
 - `pkf.loads` and `pkf.related` are lists.
 - `pkf.loads` and `pkf.related` entries resolve to existing documents.
+- Architecture, root-index, and module-index `pkf.related` values are empty.
+- Root-index `pkf.routes`, when present, is keyed by route ID; every route has
+  intent, triggers, at least two exact modules, one to three complete leaf loads,
+  and a combined cost no greater than 4,000 tokens.
 - `resource` paths resolve to existing repository paths or are marked `TODO`.
 - Every module leaf has a `source_symbols` path-to-symbol-list mapping; paths and
   literal symbols resolve, and empty leaves use the standard marker.
@@ -241,7 +245,7 @@ Run required scenarios only in `ci`, `full`, `simulation: required`, or `simulat
 | Schema/model change | Root index -> module index -> `schema.md` |
 | Business logic change | Root index -> module index -> `business_rules.md` |
 | UI behavior change | Root index -> module index -> `ui.md` |
-| Cross-cutting change | Root index -> minimal set of module leaf docs via `pkf.related` |
+| Cross-cutting change | Root index `pkf.routes` -> one to three exact complete leaves |
 | Architecture understanding | Root index -> `ARCHITECTURE.md` and relevant module index |
 | Dependency/tooling update | Root index -> `dependencies.md` and affected module index |
 

@@ -83,17 +83,19 @@ Record keywords and changed paths that influenced the classification.
 Use routing evidence in this order:
 
 1. Changed file paths matched by `ARCHITECTURE.md` or `knowledge/INDEX.md` path ownership.
-2. Module names and keywords in `knowledge/INDEX.md`.
-3. Module `INDEX.md` routing tables.
-4. `pkf.related` only as optional context.
+2. A matching keyed root-index `pkf.routes` entry for cross-capability intent.
+3. Module names and keywords in `knowledge/INDEX.md`.
+4. Module `INDEX.md` routing tables.
+5. Leaf-level `pkf.related` only as optional context.
 
 If multiple modules match, keep all plausible candidates but mark ambiguity.
 
 Do not load unrelated modules automatically.
 
 For a normal task, select one module index and one or two leaves, then return the
-exact `source_symbols` and Edit Map locator commands. Require an explicit budget
-exception for additional cross-cutting capability slices.
+exact `source_symbols` and Edit Map locator commands. A cross-capability task
+selects one explicit route containing one to three complete leaves within the
+4,000-token task budget and does not load adjacent indexes or related leaves.
 
 ---
 

@@ -7,8 +7,7 @@ tags: [deleted-evidence, architecture]
 timestamp: 2026-07-08
 pkf:
   loads: []
-  related:
-    - .ai/knowledge/backend/INDEX.md
+  related: []
 ---
 
 | Path | Module | Purpose |

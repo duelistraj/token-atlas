@@ -9,11 +9,7 @@ pkf:
   ownership_roots:
     - "src/backend"
   loads: []
-  related:
-    - .ai/knowledge/backend/api.md
-    - .ai/knowledge/backend/schema.md
-    - .ai/knowledge/backend/business_rules.md
-    - .ai/knowledge/backend/ui.md
+  related: []
 ---
 
 | Task | Required doc |

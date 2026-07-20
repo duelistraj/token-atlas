@@ -28,15 +28,18 @@ Classify intent as one or more:
 ## Selection Order
 
 1. Changed paths matched by `ARCHITECTURE.md` or `knowledge/INDEX.md`.
-2. Module names and keywords in `knowledge/INDEX.md`.
-3. Module `INDEX.md` routing tables.
-4. `pkf.related` only as optional context.
+2. A matching keyed `pkf.routes` entry for a cross-capability intent.
+3. Module names and keywords in `knowledge/INDEX.md`.
+4. Module `INDEX.md` routing tables.
+5. Leaf-level `pkf.related` only as optional context.
 
 Do not automatically load unrelated modules.
 
 For a normal task, select one module index and one or two leaves, then return the
-exact `source_symbols` and Edit Map locator commands. A cross-cutting task may use
-more slices only with an explicit budget exception.
+exact `source_symbols` and Edit Map locator commands. A cross-capability task
+must select one explicit route containing one to three complete leaves within
+the 4,000-token task budget. Do not load adjacent indexes or leaf-level
+`pkf.related` entries unless routed evidence is contradictory.
 
 ## Required Docs By Task
 
@@ -88,6 +91,8 @@ Report errors when:
 - A leaf lacks valid source symbols or a targeted Edit Map.
 - A normal route exceeds one module index, two leaves, or 4,000 tokens without a
   justified cross-cutting exception.
+- A cross-capability route is absent, loads more than three leaves, names pending
+  leaves, or exceeds 4,000 tokens.
 
 Report an ambiguous module-boundary warning when the evidence suggests a split
 but does not satisfy the Module Boundary Contract. Simulation never invents or

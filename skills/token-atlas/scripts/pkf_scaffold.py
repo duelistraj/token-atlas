@@ -230,6 +230,7 @@ def front_matter(
     pending: bool = False,
     leaf: bool = False,
     ownership_roots: list[str] | None = None,
+    cross_routes: bool = False,
 ) -> str:
     lines = [
         "---",
@@ -251,6 +252,8 @@ def front_matter(
         lines.append("  ownership_roots:")
         for item in ownership_roots:
             lines.append(f"    - {yaml_value(item)}")
+    if cross_routes:
+        lines.append("  routes: {}")
     lines.append("  loads:")
     for item in loads or []:
         lines.append(f"    - {yaml_value(item)}")
@@ -275,12 +278,21 @@ def runtime_doc(project_name: str, protocols: str) -> str:
     ) + f"# {project_name} Project Knowledge Framework\n\n{protocols.strip()}\n"
 
 
-def simple_doc(doc_type: str, title: str, description: str, body: str, *, related: list[str] | None = None) -> str:
+def simple_doc(
+    doc_type: str,
+    title: str,
+    description: str,
+    body: str,
+    *,
+    related: list[str] | None = None,
+    cross_routes: bool = False,
+) -> str:
     return front_matter(
         doc_type=doc_type,
         title=title,
         description=description,
         related=related,
+        cross_routes=cross_routes,
     ) + body.rstrip() + "\n"
 
 
@@ -292,7 +304,7 @@ def module_index(module: dict[str, Any]) -> str:
         doc_type="module-index",
         title=f"{title} Knowledge Index",
         description=f"Routes work owned by the {title} capability.",
-        related=[f".ai/knowledge/{module_id}/{name}" for name in MODULE_DOCS],
+        related=[],
         ownership_roots=list(module["source_roots"]),
     ) + (
         f"# {title}\n\nOwnership roots: {roots}\n\n"
@@ -397,7 +409,6 @@ def create_runtime(repo: Path, spec_path: Path, strictness: str, keep_spec: bool
 
     write(ai / "PKF.md", runtime_doc(project_name, protocols))
     write(ai / "MEMORY.md", simple_doc("memory", f"{project_name} Memory", "Stable repository-wide facts.", "# Memory\n\n- TODO: Add verified repository commands and invariants."))
-    module_links = [f".ai/knowledge/{module['id']}/INDEX.md" for module in modules]
     ownership_rows = "\n".join(
         f"| `{module['id']}` | {', '.join(f'`{root}`' for root in module['source_roots'])} |"
         for module in modules
@@ -407,7 +418,7 @@ def create_runtime(repo: Path, spec_path: Path, strictness: str, keep_spec: bool
         simple_doc(
             "architecture", f"{project_name} Architecture", "Structure-backed capability ownership.",
             "# Architecture\n\n| Capability | Ownership roots |\n| --- | --- |\n" + ownership_rows,
-            related=module_links,
+            related=[],
         ),
     )
     routing_rows = "\n".join(
@@ -418,8 +429,14 @@ def create_runtime(repo: Path, spec_path: Path, strictness: str, keep_spec: bool
         knowledge / "INDEX.md",
         simple_doc(
             "knowledge-index", f"{project_name} Knowledge Index", "Routes capabilities to minimal knowledge documents.",
-            "# Knowledge Index\n\n| Capability | Ownership roots | Route |\n| --- | --- | --- |\n" + routing_rows,
-            related=module_links,
+            (
+                "# Knowledge Index\n\n| Capability | Ownership roots | Route |\n| --- | --- | --- |\n"
+                + routing_rows
+                + "\n\n## Cross-capability routes\n\n"
+                "Source-backed cross-capability intents are keyed under `pkf.routes`; each route loads one to three exact complete leaves.\n"
+            ),
+            related=[],
+            cross_routes=True,
         ),
     )
     for filename, title, description in (

@@ -6,10 +6,9 @@ resource: .ai/knowledge/INDEX.md
 tags: [broad-loads, routing]
 timestamp: 2026-07-08
 pkf:
+  routes: {}
   loads: []
-  related:
-    - .ai/knowledge/backend/INDEX.md
-    - .ai/knowledge/frontend/INDEX.md
+  related: []
 ---
 
 | Intent or path | Load |

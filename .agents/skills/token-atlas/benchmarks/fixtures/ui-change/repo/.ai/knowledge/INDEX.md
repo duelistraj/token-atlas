@@ -6,9 +6,9 @@ resource: .ai/knowledge/INDEX.md
 tags: [ui-change, routing]
 timestamp: 2026-07-08
 pkf:
+  routes: {}
   loads: []
-  related:
-    - .ai/knowledge/frontend/INDEX.md
+  related: []
 ---
 
 | Intent or path | Load |

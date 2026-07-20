@@ -48,7 +48,10 @@ class ContractConsistencyTests(unittest.TestCase):
         self.assertEqual(LEAF_MATERIALIZATION_MODES, ("complete", "pending"))
         self.assertEqual(LEGACY_CLOSEOUT_PHRASES, ("every user turn", "every final response"))
         self.assertIn(f"one or two leaf", corpus.lower())
-        self.assertEqual(RETRIEVAL_BUDGET, {"module_indexes": 1, "leaf_docs": 2})
+        self.assertEqual(
+            RETRIEVAL_BUDGET,
+            {"module_indexes": 1, "leaf_docs": 2, "cross_leaf_docs": 3},
+        )
         for field in REQUIRED_FRONT_MATTER:
             self.assertRegex(corpus, rf"\b{re.escape(field)}\b")
 

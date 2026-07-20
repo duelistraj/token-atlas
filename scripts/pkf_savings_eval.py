@@ -25,6 +25,12 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from pkf_lib import PkfParseError, listify, read_front_matter  # noqa: E402
+
 PUBLIC_SKILL = ROOT / "skills" / "token-atlas"
 DEFAULT_TARGET_COMMIT = "5c458df3c737f0af2a2193186d98af90c45163f0"
 DEFAULT_MODEL = "gpt-5.6-luna"
@@ -33,7 +39,7 @@ DEFAULT_REPETITIONS = 3
 DEFAULT_TIMEOUT_SECONDS = 1_800
 DEFAULT_ARTIFACTS_ROOT = ROOT / "benchmarks" / "artifacts"
 ALLOWED_REASONING_EFFORTS = ("minimal", "low", "medium", "high", "xhigh")
-EVALUATION_SUITES = ("retrieval", "lifecycle", "closeout", "all")
+EVALUATION_SUITES = ("retrieval", "lifecycle", "closeout", "regression", "all")
 ARTIFACT_MODES = ("full", "public", "off")
 TARGET_NAME = "tether-brain"
 ISOLATED_CLOSEOUT_PATCH = ROOT / "benchmarks" / "patches" / "favorite-visibility.patch"
@@ -41,9 +47,18 @@ MUTATION_PATHS = (
     "frontend/src/notes/noteSectionState.ts",
     "frontend/src/notes/noteSectionState.test.ts",
 )
+EXPECTED_CROSS_ROUTE_ID = "note-task-links"
+EXPECTED_CROSS_ROUTE_LEAVES = frozenset(
+    {
+        ".ai/knowledge/notes/business_rules.md",
+        ".ai/knowledge/boards/business_rules.md",
+        ".ai/knowledge/workspace/business_rules.md",
+    }
+)
 INITIALIZATION_REFERENCE = {
-    "non_cached_input_tokens": 99_720,
-    "duration_ms": 516_944,
+    "non_cached_input_tokens": 132_263,
+    "output_tokens": 33_753,
+    "duration_ms": 718_301,
 }
 ARM_DEFINITIONS = {
     "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only.",
@@ -88,14 +103,19 @@ repository-wide work, use source-only discovery because no PKF is installed.
 """
 
 INITIALIZE_PROMPT = (
-    "Use the token-atlas skill and its deterministic scaffold helper to initialize "
+    "Use the token-atlas skill and initialize through the installed checkout-local helper at "
+    ".codex/skills/token-atlas/scripts/pkf_scaffold.py. Treat helper scripts as opaque "
+    "executables: do not read their source unless an invocation fails because the helper itself "
+    "is broken. "
     "PKF with hybrid extraction: review capability boundaries, materialize shared "
-    "architecture, routing, public behavior, and source-backed cross-capability "
-    "contracts needed for direct retrieval. Include capability-local public behavior "
-    "state/helpers and their focused tests in materialized leaf source_symbols; leave unrelated implementation leaves "
+    "architecture and bounded routing. Materialize one primary public-behavior leaf per "
+    "capability by default; add another only when an explicit validated cross-capability "
+    "route requires it. Record source-backed cross-capability routes under pkf.routes in "
+    ".ai/knowledge/INDEX.md. Include capability-local public behavior state/helpers and "
+    "their focused tests in materialized leaf source_symbols; leave unrelated implementation leaves "
     "pending. Use profile=core, retrieval_exports=off, "
     "simulation=changed, token_budget=summary, and validation_strictness=ci. "
-    "Do not change application source or tests."
+    "Run exactly one explicit post-extraction validation. Do not change application source or tests."
 )
 
 CLOSEOUT_CONTROL_PROMPT = """A benchmark harness already applied and tested this
@@ -112,9 +132,12 @@ repository mutation: favorited notes remain visible in All, remain excluded from
 their home category, and retain archive/favorite mutual exclusion. The turn-owned
 paths are frontend/src/notes/noteSectionState.ts and
 frontend/src/notes/noteSectionState.test.ts. Do not change application source or
-tests. Perform only the required PKF semantic closeout using the provided
-implementation context and changed paths; do not replay repository startup or
-rediscover the mutation.
+tests. Follow the repository bootstrap for routine mapped closeout: begin with
+the exact repository-local route helper, do not activate or read Token Atlas
+before the route result, reconcile both changed files with the returned leaf's
+source_symbols and Edit Map before validation, and emit the exact final
+`PKF closeout:` status line. Do not replay repository startup or rediscover the
+mutation.
 """
 
 MUTATION_PROMPT = """In this disposable benchmark checkout, change note visibility so a
@@ -259,9 +282,16 @@ class CodexResult:
     closeout_accessed_closeout: bool = False
     closeout_fallback_search: bool = False
     closeout_unexpected_read_path_count: int = 0
+    closeout_unexpected_read_paths: tuple[str, ...] = ()
     closeout_validation_call_count: int = 0
+    initialization_validation_call_count: int = 0
+    initialization_helper_source_read_count: int = 0
+    initialization_helper_source_read_paths: tuple[str, ...] = ()
     initialization_route_status: str = "not_applicable"
     initialization_unmatched_paths: tuple[str, ...] = ()
+    cross_route_id: str = "not_applicable"
+    cross_expected_document_paths: tuple[str, ...] = ()
+    cross_unexpected_document_paths: tuple[str, ...] = ()
 
 
 class EvaluationError(Exception):
@@ -467,8 +497,32 @@ TOOL_INPUT_FIELDS = frozenset(
 TOOL_OUTPUT_FIELDS = frozenset(
     {"output", "stdout", "stderr", "result", "content", "aggregated_output", "error"}
 )
-READ_OR_SEARCH_TOKENS = ("rg ", "sg ", "sed ", "cat ", "head ", "tail ", "find ", "git show")
-FALLBACK_PATTERNS = ("rg --files", "git ls-files", "find . ", "find ./", "grep -r")
+READ_OR_SEARCH_COMMANDS = frozenset(
+    {
+        "awk",
+        "cat",
+        "egrep",
+        "fd",
+        "fgrep",
+        "find",
+        "grep",
+        "head",
+        "jq",
+        "less",
+        "more",
+        "nl",
+        "rg",
+        "sed",
+        "sg",
+        "tail",
+        "tree",
+    }
+)
+SHELL_COMMANDS = frozenset({"bash", "dash", "fish", "sh", "zsh"})
+SHELL_CONTROL_TOKENS = frozenset({";", "&&", "||", "|", "&"})
+SHELL_RESERVED_PREFIXES = frozenset({"do", "else", "elif", "if", "then", "while", "until", "!"})
+PYTHON_COMMANDS = frozenset({"python", "python3"})
+HELPER_SOURCE_ROOTS = (".ai/tools", ".codex/skills/token-atlas/scripts")
 
 
 def named_field_strings(value: Any, names: frozenset[str]) -> list[str]:
@@ -486,17 +540,182 @@ def named_field_strings(value: Any, names: frozenset[str]) -> list[str]:
     return strings
 
 
-def trace_tool_inputs(output: str) -> str:
-    values: list[str] = []
-    for raw_line in output.splitlines():
-        try:
-            event = json.loads(raw_line)
-        except json.JSONDecodeError:
+def tokenize_shell(value: str) -> list[str]:
+    """Tokenize a command without executing it, preserving shell separators."""
+
+    try:
+        lexer = shlex.shlex(value, posix=True, punctuation_chars=";&|")
+        lexer.whitespace_split = True
+        lexer.commenters = ""
+        return list(lexer)
+    except ValueError:
+        return value.split()
+
+
+def unwrap_shell_command(value: str) -> list[str]:
+    """Return the inner script tokens for common `<shell> -c <script>` wrappers."""
+
+    try:
+        outer = shlex.split(value)
+    except ValueError:
+        outer = value.split()
+    if outer and Path(outer[0]).name in SHELL_COMMANDS:
+        for index, token in enumerate(outer[:-1]):
+            if token == "-c" or (token.startswith("-") and "c" in token[1:]):
+                return tokenize_shell(outer[index + 1])
+    return tokenize_shell(value)
+
+
+def command_invocations(value: str) -> list[tuple[str, ...]]:
+    """Split a shell input into command-position argv groups.
+
+    This is intentionally a conservative trace parser, not a shell evaluator.
+    It recognizes command boundaries well enough to distinguish `tail` from
+    `--detail` and an invoked validator from a search mentioning its filename.
+    """
+
+    tokens = unwrap_shell_command(value)
+    segments: list[list[str]] = [[]]
+    for token in tokens:
+        if token in SHELL_CONTROL_TOKENS or set(token) <= {";", "&", "|"}:
+            if segments[-1]:
+                segments.append([])
             continue
-        item = event.get("item")
-        if event.get("type") == "item.completed" and isinstance(item, dict):
-            values.extend(named_field_strings(item, TOOL_INPUT_FIELDS))
-    return "\n".join(values)
+        segments[-1].append(token)
+
+    invocations: list[tuple[str, ...]] = []
+    for raw_segment in segments:
+        segment = list(raw_segment)
+        while segment and (
+            segment[0] in SHELL_RESERVED_PREFIXES
+            or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", segment[0])
+        ):
+            segment.pop(0)
+        if segment and segment[0] == "for":
+            continue
+        if segment:
+            invocations.append(tuple(segment))
+    return invocations
+
+
+def invocation_name(invocation: Sequence[str]) -> str:
+    return Path(invocation[0]).name.lower() if invocation else ""
+
+
+def unwrap_env_invocation(invocation: Sequence[str]) -> tuple[str, ...]:
+    if invocation_name(invocation) != "env":
+        return tuple(invocation)
+    args = list(invocation[1:])
+    index = 0
+    options_with_values = {"-C", "-S", "-u", "--chdir", "--split-string", "--unset"}
+    while index < len(args):
+        token = args[index]
+        if token == "--":
+            return tuple(args[index + 1 :])
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", token):
+            index += 1
+            continue
+        if token in options_with_values:
+            index += 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        return tuple(args[index:])
+    return ()
+
+
+def is_read_or_search_invocation(invocation: Sequence[str]) -> bool:
+    invocation = unwrap_env_invocation(invocation)
+    name = invocation_name(invocation)
+    if name in READ_OR_SEARCH_COMMANDS:
+        return True
+    if name == "git":
+        return next((token for token in invocation[1:] if not token.startswith("-")), "") == "show"
+    return False
+
+
+def is_fallback_invocation(invocation: Sequence[str]) -> bool:
+    invocation = unwrap_env_invocation(invocation)
+    name = invocation_name(invocation)
+    args = tuple(invocation[1:])
+    if name == "rg":
+        return "--files" in args
+    if name == "git":
+        return next((token for token in args if not token.startswith("-")), "") == "ls-files"
+    if name == "find":
+        return bool(args and args[0] in {".", "./"})
+    if name in {"grep", "egrep", "fgrep"}:
+        return any(token == "-r" or (token.startswith("-") and "r" in token[1:]) for token in args)
+    return False
+
+
+def invoked_script_count(item: Mapping[str, Any], script_name: str) -> int:
+    count = 0
+    for value in named_field_strings(item, TOOL_INPUT_FIELDS):
+        for raw_invocation in command_invocations(value):
+            invocation = unwrap_env_invocation(raw_invocation)
+            name = invocation_name(invocation)
+            if name == script_name:
+                count += 1
+                continue
+            if name not in PYTHON_COMMANDS and not re.fullmatch(r"python\d+(?:\.\d+)*", name):
+                continue
+            script = next(
+                (
+                    token
+                    for token in invocation[1:]
+                    if not token.startswith("-") and token not in {"-m", "-c"}
+                ),
+                "",
+            )
+            if Path(script).name == script_name:
+                count += 1
+    return count
+
+
+def item_is_read_like(item: Mapping[str, Any]) -> bool:
+    input_strings = named_field_strings(item, TOOL_INPUT_FIELDS)
+    if any(
+        is_read_or_search_invocation(invocation)
+        for value in input_strings
+        for invocation in command_invocations(value)
+    ):
+        return True
+    item_type = str(item.get("type", "")).lower()
+    return item_type != "command_execution" and any(
+        token in item_type for token in ("read", "search", "query")
+    )
+
+
+def item_uses_fallback(item: Mapping[str, Any]) -> bool:
+    return any(
+        is_fallback_invocation(invocation)
+        for value in named_field_strings(item, TOOL_INPUT_FIELDS)
+        for invocation in command_invocations(value)
+    )
+
+
+def helper_source_read_paths(events: Sequence[Mapping[str, Any]]) -> tuple[str, ...]:
+    """Return helper files or directories passed to an actual read/search command."""
+
+    paths: set[str] = set()
+    for item in events:
+        if not item_is_read_like(item):
+            continue
+        for value in named_field_strings(item, TOOL_INPUT_FIELDS):
+            for invocation in command_invocations(value):
+                if not is_read_or_search_invocation(invocation):
+                    continue
+                for token in invocation[1:]:
+                    normalized = token.strip("'\" ,:").removeprefix("./")
+                    for root in HELPER_SOURCE_ROOTS:
+                        marker = f"/{root}"
+                        if marker in normalized:
+                            normalized = normalized[normalized.index(marker) + 1 :]
+                        if normalized == root or normalized.startswith(f"{root}/"):
+                            paths.add(normalized)
+    return tuple(sorted(paths))
 
 
 def completed_tool_events(output: str) -> list[dict[str, Any]]:
@@ -584,7 +803,6 @@ def inspect_tool_events(
     normalized_paths = tuple(sorted(set(known_paths), key=len, reverse=True))
     normalized_directories = set(known_directories)
     for item in events:
-        item_type = str(item.get("type", ""))
         tool_calls += 1
         input_strings = named_field_strings(item, TOOL_INPUT_FIELDS)
         output_strings = named_field_strings(item, TOOL_OUTPUT_FIELDS)
@@ -592,9 +810,7 @@ def inspect_tool_events(
         tool_output_chars += sum(len(value) for value in output_strings)
         input_text = " ".join(input_strings)
         lowered = input_text.lower()
-        read_like = any(token in f"{lowered} " for token in READ_OR_SEARCH_TOKENS) or any(
-            token in item_type.lower() for token in ("read", "search", "query")
-        )
+        read_like = item_is_read_like(item)
         if read_like:
             read_or_search_commands += 1
             if ".ai/" in lowered or " .ai" in lowered:
@@ -613,7 +829,7 @@ def inspect_tool_events(
                         searched_roots.add(".")
                     elif clean in normalized_directories:
                         searched_roots.add(clean)
-        if any(pattern in lowered for pattern in FALLBACK_PATTERNS):
+        if item_uses_fallback(item):
             fallback_search = True
     explicit_ai = {path for path in explicit_paths if path.startswith(".ai/")}
     explicit_skill = {
@@ -646,14 +862,9 @@ def explicit_read_paths_for_events(
     paths: set[str] = set()
     normalized_paths = tuple(sorted(set(known_paths), key=len, reverse=True))
     for item in events:
-        item_type = str(item.get("type", ""))
         input_strings = named_field_strings(item, TOOL_INPUT_FIELDS)
         input_text = " ".join(input_strings)
-        lowered = input_text.lower()
-        read_like = any(token in f"{lowered} " for token in READ_OR_SEARCH_TOKENS) or any(
-            token in item_type.lower() for token in ("read", "search", "query")
-        )
-        if not read_like:
+        if not item_is_read_like(item):
             continue
         for path in normalized_paths:
             if path in input_text:
@@ -661,11 +872,29 @@ def explicit_read_paths_for_events(
     return paths
 
 
+def configured_cross_route(repo: Path, route_id: str) -> tuple[str, tuple[str, ...]]:
+    index = repo / ".ai" / "knowledge" / "INDEX.md"
+    if not index.is_file():
+        return "missing", ()
+    try:
+        metadata = read_front_matter(index)
+    except PkfParseError:
+        return "invalid", ()
+    pkf = metadata.get("pkf")
+    routes = pkf.get("routes") if isinstance(pkf, Mapping) else None
+    if not isinstance(routes, Mapping):
+        return "missing", ()
+    route = routes.get(route_id)
+    if not isinstance(route, Mapping):
+        return "missing", ()
+    loads = tuple(sorted({str(value) for value in listify(route.get("loads")) if str(value)}))
+    return route_id, loads
+
+
 def parse_route_attempts(events: Sequence[Mapping[str, Any]]) -> tuple[dict[str, Any], ...]:
     attempts: list[dict[str, Any]] = []
     for event_index, item in enumerate(events):
-        inputs = " ".join(named_field_strings(item, TOOL_INPUT_FIELDS))
-        if "pkf_route.py" not in inputs:
+        if invoked_script_count(item, "pkf_route.py") == 0:
             continue
         parsed: Mapping[str, Any] | None = None
         for raw_output in named_field_strings(item, TOOL_OUTPUT_FIELDS):
@@ -742,8 +971,11 @@ def changed_paths(repo: Path) -> tuple[str, ...]:
 
 
 def tracked_paths(repo: Path) -> tuple[str, ...]:
-    output = run_command(("git", "ls-files"), cwd=repo).stdout
-    return tuple(line for line in output.splitlines() if line)
+    output = run_command(
+        ("git", "ls-files", "--cached", "--others", "--exclude-standard"),
+        cwd=repo,
+    ).stdout
+    return tuple(sorted({line for line in output.splitlines() if line}))
 
 
 def tracked_directories(paths: Sequence[str]) -> tuple[str, ...]:
@@ -1070,14 +1302,9 @@ def run_codex(
         else (False if task is not None else None)
     )
     accessed = detect_accessed_paths(event_text, repo_paths)
-    tool_inputs = trace_tool_inputs(stdout).lower()
     implementation_metrics = segment_metrics["implementation"]
     closeout_metrics = segment_metrics["closeout"]
-    closeout_inputs = "\n".join(
-        value
-        for item in segment_events["closeout"]
-        for value in named_field_strings(item, TOOL_INPUT_FIELDS)
-    ).lower()
+    all_read_paths = explicit_read_paths_for_events(tool_events, repo_paths)
     closeout_read_paths = explicit_read_paths_for_events(segment_events["closeout"], repo_paths)
     allowed_closeout_reads: set[str] = set()
     if route_attempts:
@@ -1090,9 +1317,29 @@ def run_codex(
         if path not in allowed_closeout_reads
     }
     closeout_validation_calls = sum(
-        "pkf_validate.py" in " ".join(named_field_strings(item, TOOL_INPUT_FIELDS))
+        invoked_script_count(item, "pkf_validate.py")
         for item in segment_events["closeout"]
     )
+    initialization_validation_calls = sum(
+        invoked_script_count(item, "pkf_validate.py") for item in tool_events
+    ) if task_id == "initialize" else 0
+    initialization_helper_reads = (
+        helper_source_read_paths(tool_events) if task_id == "initialize" else ()
+    )
+    cross_route_id = "not_applicable"
+    cross_expected_documents: tuple[str, ...] = ()
+    cross_unexpected_documents: tuple[str, ...] = ()
+    if task_id == "note_task_links" and arm == "pkf":
+        cross_route_id, cross_expected_documents = configured_cross_route(
+            repo,
+            EXPECTED_CROSS_ROUTE_ID,
+        )
+        leaf_reads = {
+            path
+            for path in all_read_paths
+            if path.startswith(".ai/knowledge/") and not path.endswith("/INDEX.md")
+        }
+        cross_unexpected_documents = tuple(sorted(leaf_reads - set(cross_expected_documents)))
     changes = changed_paths(repo)
     result = CodexResult(
         repetition=repetition,
@@ -1104,8 +1351,8 @@ def run_codex(
         usage=usage,
         answer=answer,
         answer_correct=answer_correct,
-        accessed_skill="token-atlas/skill.md" in tool_inputs,
-        accessed_closeout="token-atlas/references/closeout.md" in tool_inputs,
+        accessed_skill=bool(trace.explicit_skill_read_path_count),
+        accessed_closeout=any(path.endswith("token-atlas/references/closeout.md") for path in all_read_paths),
         used_route_helper=bool(route_attempts),
         emitted_closeout="pkf closeout:" in "\n".join(messages).lower(),
         retrieval_decision=classify_retrieval_decision(arm=arm, phase=phase, trace=trace),
@@ -1136,11 +1383,23 @@ def run_codex(
         implementation_explicit_ai_read_path_count=implementation_metrics.explicit_ai_read_path_count,
         implementation_explicit_skill_read_path_count=implementation_metrics.explicit_skill_read_path_count,
         implementation_fallback_search=implementation_metrics.fallback_search,
-        closeout_accessed_skill="token-atlas/skill.md" in closeout_inputs,
-        closeout_accessed_closeout="token-atlas/references/closeout.md" in closeout_inputs,
+        closeout_accessed_skill=any(
+            "/skills/token-atlas/" in f"/{path}" and path.endswith("/SKILL.md")
+            for path in closeout_read_paths
+        ),
+        closeout_accessed_closeout=any(
+            path.endswith("token-atlas/references/closeout.md") for path in closeout_read_paths
+        ),
         closeout_fallback_search=closeout_metrics.fallback_search,
         closeout_unexpected_read_path_count=len(unexpected_closeout_reads),
+        closeout_unexpected_read_paths=tuple(sorted(unexpected_closeout_reads)),
         closeout_validation_call_count=closeout_validation_calls,
+        initialization_validation_call_count=initialization_validation_calls,
+        initialization_helper_source_read_count=len(initialization_helper_reads),
+        initialization_helper_source_read_paths=initialization_helper_reads,
+        cross_route_id=cross_route_id,
+        cross_expected_document_paths=cross_expected_documents,
+        cross_unexpected_document_paths=cross_unexpected_documents,
     )
     if artifacts is not None:
         artifacts.record_call(
@@ -1334,12 +1593,23 @@ def build_schedule(repetitions: int, suite: str = "lifecycle") -> list[dict[str,
             for task in READ_ONLY_TASKS:
                 for arm in three_arm_order(repetition):
                     schedule.append({"repetition": repetition, "arm": arm, "task_id": task.task_id, "phase": "retrieval"})
+        if suite == "regression":
+            cross_task = next(task for task in READ_ONLY_TASKS if task.task_id == "note_task_links")
+            for arm in two_arm_order(repetition):
+                schedule.append(
+                    {
+                        "repetition": repetition,
+                        "arm": arm,
+                        "task_id": cross_task.task_id,
+                        "phase": "retrieval",
+                    }
+                )
         if suite in {"lifecycle", "all"}:
             for arm in two_arm_order(repetition):
                 schedule.append({"repetition": repetition, "arm": arm, "task_id": "favorite_visibility_mutation", "phase": "mutation"})
             for arm in two_arm_order(repetition):
                 schedule.append({"repetition": repetition, "arm": arm, "task_id": POST_MUTATION_TASK.task_id, "phase": "post_mutation"})
-        if suite in {"closeout", "all"}:
+        if suite in {"closeout", "regression", "all"}:
             for arm in two_arm_order(repetition):
                 schedule.append({"repetition": repetition, "arm": arm, "task_id": "isolated_closeout", "phase": "closeout"})
     return schedule
@@ -1388,6 +1658,12 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
         "mentioned_path_count",
         "mentioned_ai_path_count",
     )
+    attribution_metrics = (
+        "closeout_unexpected_read_path_count",
+        "closeout_validation_call_count",
+        "initialization_validation_call_count",
+        "initialization_helper_source_read_count",
+    )
     for (task_id, arm), grouped in sorted(groups.items()):
         entry = {
             metric: median(
@@ -1399,6 +1675,10 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
         for trace_metric in trace_metrics:
             entry[trace_metric] = median(
                 [getattr(result, trace_metric) for result in grouped]
+            )
+        for attribution_metric in attribution_metrics:
+            entry[attribution_metric] = median(
+                [getattr(result, attribution_metric) for result in grouped]
             )
         scored = [result for result in grouped if result.answer_correct is not None]
         entry["correctness_rate"] = (
@@ -1443,7 +1723,7 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             }
         by_task.setdefault(task_id, {})[arm] = entry
 
-    sum_metrics = (*usage_metrics, "duration_ms", *trace_metrics)
+    sum_metrics = (*usage_metrics, "duration_ms", *trace_metrics, *attribution_metrics)
     operational_by_repetition: list[dict[str, Any]] = []
     for repetition in sorted({result.repetition for result in results}):
         repeated = [result for result in results if result.repetition == repetition]
@@ -1638,14 +1918,28 @@ def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict
             add_check(f"local_{metric}_overhead", value, "<= 5%", value is not None and value <= 5.0)
     cross = comparisons.get("note_task_links", {}).get("probe_vs_pkf", {})
     if cross:
-        for metric in ("non_cached_input_tokens", "tool_call_count"):
-            value = cross.get(metric, {}).get("delta")
-            add_check(f"cross_capability_{metric}_delta", value, "< 0", value is not None and value < 0)
+        value = cross.get("non_cached_input_tokens", {}).get("delta")
+        add_check(
+            "cross_capability_non_cached_input_tokens_delta",
+            value,
+            "< 0",
+            value is not None and value < 0,
+        )
+        pkf_cross = metrics.get("by_task", {}).get("note_task_links", {}).get("pkf", {})
+        tool_calls = float(pkf_cross.get("tool_call_count", 0))
+        routed_docs = float(pkf_cross.get("routed_document_count", 0))
+        add_check("cross_capability_tool_calls", tool_calls, "<= 6", tool_calls <= 6)
+        add_check("cross_capability_routed_documents", routed_docs, "<= 3", routed_docs <= 3)
     initialized = metrics.get("by_task", {}).get("initialize", {}).get("pkf", {})
     for metric, reference in INITIALIZATION_REFERENCE.items():
         if metric in initialized:
             value = float(initialized[metric]) - reference
-            add_check(f"initialization_{metric}_delta", value, "< 0 versus runtime-v3 one-pass", value < 0)
+            add_check(f"initialization_{metric}_delta", value, "<= Preflight B", value <= 0)
+    if initialized:
+        validations = float(initialized.get("initialization_validation_call_count", 0))
+        helper_reads = float(initialized.get("initialization_helper_source_read_count", 0))
+        add_check("initialization_validation_calls", validations, "= 1", validations == 1)
+        add_check("initialization_helper_source_reads", helper_reads, "= 0", helper_reads == 0)
     isolated_closeout = metrics.get("by_task", {}).get("isolated_closeout", {}).get("pkf", {})
     if isolated_closeout:
         tool_calls = float(isolated_closeout.get("tool_call_count", 0))
@@ -1706,6 +2000,14 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
             errors.append(f"{label}: incorrect structured answer")
         if result.task_id == "initialize" and result.pkf_validation_passed is not True:
             errors.append(f"{label}: initialized PKF failed strict validation")
+        if result.task_id == "initialize" and result.initialization_validation_call_count != 1:
+            errors.append(
+                f"{label}: initialization must run exactly one explicit post-extraction validation "
+                f"(observed {result.initialization_validation_call_count})"
+            )
+        if result.task_id == "initialize" and result.initialization_helper_source_read_count:
+            paths = ", ".join(result.initialization_helper_source_read_paths)
+            errors.append(f"{label}: initialization read opaque helper source: {paths}")
         if result.task_id == "initialize" and result.initialization_route_status != "mapped":
             unmatched = ", ".join(result.initialization_unmatched_paths) or "unknown paths"
             errors.append(
@@ -1722,6 +2024,23 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
                 errors.append(f"{label}: cross-capability task did not activate PKF retrieval")
             if result.retrieval_decision != "activated":
                 errors.append(f"{label}: cross-capability PKF task was not classified as activated")
+            if result.explicit_skill_read_path_count:
+                errors.append(f"{label}: cross-capability retrieval loaded Token Atlas workflow instructions")
+            if result.cross_route_id != EXPECTED_CROSS_ROUTE_ID:
+                errors.append(
+                    f"{label}: missing explicit {EXPECTED_CROSS_ROUTE_ID!r} cross-capability route"
+                )
+            if set(result.cross_expected_document_paths) != EXPECTED_CROSS_ROUTE_LEAVES:
+                loads = ", ".join(result.cross_expected_document_paths) or "none"
+                errors.append(f"{label}: cross-capability route selected unexpected leaves: {loads}")
+            if result.cross_unexpected_document_paths:
+                paths = ", ".join(result.cross_unexpected_document_paths)
+                errors.append(f"{label}: cross-capability retrieval read outside its explicit route: {paths}")
+            if result.routed_document_count > 3:
+                errors.append(
+                    f"{label}: cross-capability retrieval exceeded three-leaf budget "
+                    f"({result.routed_document_count})"
+                )
         if result.task_id == "favorite_visibility_mutation":
             if result.changed_expected_paths is not True:
                 errors.append(f"{label}: mutation did not make the expected source/test change")
@@ -1744,7 +2063,10 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
                     if result.closeout_fallback_search:
                         errors.append(f"{label}: mapped mutation closeout used fallback discovery")
                     if result.closeout_unexpected_read_path_count:
-                        errors.append(f"{label}: mapped mutation closeout read paths outside returned leaves")
+                        paths = ", ".join(result.closeout_unexpected_read_paths)
+                        errors.append(
+                            f"{label}: mapped mutation closeout read paths outside returned leaves: {paths}"
+                        )
                     if result.closeout_validation_call_count != 1:
                         errors.append(f"{label}: mapped mutation closeout must run exactly one validation")
                 elif result.initial_route_status in {"partial", "unmapped"}:
@@ -1769,7 +2091,10 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
                     if result.closeout_fallback_search:
                         errors.append(f"{label}: mapped isolated closeout used fallback discovery")
                     if result.closeout_unexpected_read_path_count:
-                        errors.append(f"{label}: mapped isolated closeout read paths outside returned leaves")
+                        paths = ", ".join(result.closeout_unexpected_read_paths)
+                        errors.append(
+                            f"{label}: mapped isolated closeout read paths outside returned leaves: {paths}"
+                        )
                     if result.closeout_validation_call_count != 1:
                         errors.append(f"{label}: mapped isolated closeout must run exactly one validation")
                 elif result.initial_route_status in {"partial", "unmapped"}:
@@ -1854,7 +2179,7 @@ def execute(
 
             closeout_arms = (
                 prepare_closeout_arms(workspace, arms)
-                if args.suite in {"closeout", "all"}
+                if args.suite in {"closeout", "regression", "all"}
                 else {}
             )
 
@@ -1878,6 +2203,31 @@ def execute(
                             artifacts=artifacts,
                         )
                         results.append(result)
+
+            if args.suite == "regression":
+                task = next(task for task in READ_ONLY_TASKS if task.task_id == "note_task_links")
+                for arm in two_arm_order(repetition):
+                    print(
+                        f"[{repetition}/{args.repetitions}] {arm} {task.task_id}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    result, _ = run_codex(
+                        repetition=repetition,
+                        arm=arm,
+                        task_id=task.task_id,
+                        phase="retrieval",
+                        prompt=task.prompt,
+                        repo=arms[arm],
+                        model=args.model,
+                        reasoning_effort=args.model_reasoning_effort,
+                        timeout_seconds=args.timeout_seconds,
+                        workspace=workspace,
+                        sandbox="read-only",
+                        task=task,
+                        artifacts=artifacts,
+                    )
+                    results.append(result)
 
             if args.suite in {"lifecycle", "all"}:
                 for arm in two_arm_order(repetition):
@@ -1917,7 +2267,7 @@ def execute(
                     )
                     results.append(result)
 
-            if args.suite in {"closeout", "all"}:
+            if args.suite in {"closeout", "regression", "all"}:
                 for arm in two_arm_order(repetition):
                     print(f"[{repetition}/{args.repetitions}] {arm} isolated_closeout", file=sys.stderr, flush=True)
                     result, _ = run_codex(
@@ -1943,7 +2293,7 @@ def execute(
     metrics = aggregate_metrics(results)
     performance = performance_advisories(metrics, args.repetitions)
     report = {
-        "schema_version": 5,
+        "schema_version": 6,
         "run_id": artifacts.run_id,
         "artifact_manifest_path": "../manifest.json" if artifacts.mode != "off" else None,
         "benchmark": "token-atlas-adaptive-attribution",
@@ -2089,6 +2439,27 @@ def render_markdown(
                 f"{values['input_tokens']:.0f} | {values['non_cached_input_tokens']:.0f} | "
                 f"{values['output_tokens']:.0f} | {values['duration_ms']:.0f} | "
                 f"{values['tool_call_count']:.0f} | {values['routed_document_count']:.0f} | {correct} |"
+            )
+    lines.extend(("", "### Routing and validation evidence", ""))
+    for run in report["runs"]:
+        if run["task_id"] == "initialize":
+            helper_paths = ", ".join(run.get("initialization_helper_source_read_paths", [])) or "none"
+            lines.append(
+                f"- Initialization: {run.get('initialization_validation_call_count', 0)} explicit "
+                f"validation(s); opaque helper source reads: {helper_paths}."
+            )
+        elif run["task_id"] == "note_task_links" and run["arm"] == "pkf":
+            expected = ", ".join(run.get("cross_expected_document_paths", [])) or "none"
+            unexpected = ", ".join(run.get("cross_unexpected_document_paths", [])) or "none"
+            lines.append(
+                f"- Cross route `{run.get('cross_route_id', 'missing')}`: expected leaves {expected}; "
+                f"unexpected leaf reads {unexpected}."
+            )
+        elif run["task_id"] in {"favorite_visibility_mutation", "isolated_closeout"} and run["arm"] == "pkf":
+            unexpected = ", ".join(run.get("closeout_unexpected_read_paths", [])) or "none"
+            lines.append(
+                f"- `{run['task_id']}` closeout: {run.get('closeout_validation_call_count', 0)} "
+                f"validation(s); unexpected reads {unexpected}."
             )
     phase_costs = metrics.get("lifecycle_phase_cost_summary", {})
     lines.extend(("", "### Mutation phase attribution", ""))

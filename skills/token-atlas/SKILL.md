@@ -1,6 +1,6 @@
 ---
 name: token-atlas
-description: Generate and maintain repository-specific PKF runtime and OKF knowledge bases on demand or incrementally in target repositories. Use when explicitly asked to initialize, extract, maintain, optimize, validate, simulate, or export PKF/OKF knowledge, or when an initialized repository reports a partial, unmapped, pending, migration, or otherwise exceptional closeout route. Do not trigger for routine mapped closeout, read-only turns, knowledge-neutral mutations, or unrelated repositories.
+description: Generate and maintain repository-specific PKF runtime and OKF knowledge bases on demand or incrementally in target repositories. Use only when explicitly asked to initialize, extract, maintain, optimize, validate, simulate, export, or repair PKF/OKF knowledge. Repository bootstrap instructions own automatic retrieval and closeout routing; do not trigger this skill from generic closeout wording, routine mapped closeout, read-only turns, knowledge-neutral mutations, or unrelated repositories.
 ---
 
 # Token Atlas
@@ -16,6 +16,9 @@ watchers, daemons, global hooks, background jobs, or persistent runtime services
 ## Workflow Selection
 
 Start by detecting whether `.ai/PKF.md` exists. Read it only when an explicit Token Atlas workflow or the repository's adaptive retrieval gate activates PKF.
+
+Do not trigger for routine mapped closeout; the embedded repository protocol and
+route helper own that fast path.
 
 If `.ai/PKF.md` is missing, read `references/initialize.md` before repository analysis. If `.ai/PKF.md` exists, read `references/maintenance.md` before extraction only for exceptional drift, migration, or module-boundary work. Routine semantic closeout uses the embedded protocol, turn-owned changed paths, and repository-local route helper; read `references/closeout.md` only when the route is partial, unmapped, or exceptional.
 
@@ -58,21 +61,26 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - During maintenance, automatically repartition coarse modules when capability ownership is unambiguous. Preserve the current structure and report ambiguity instead of guessing.
 - During `initialize`, embed the adaptive Retrieval Protocol into `.ai/PKF.md`, and ensure a neutral bootstrap can decide whether to use PKF without loading it first.
 - Default the runtime to `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`. Permit `pkf.retrieval: mandatory` for compatibility and the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
-- Initialize in hybrid mode: materialize runtime, architecture, dependencies,
-  public behavior, and source-backed cross-capability contracts needed for
-  direct routing; mark unrelated or genuinely deferred leaves
-  `pkf.materialization: pending`.
+- Initialize in bounded hybrid mode: materialize runtime, architecture,
+  dependencies, one primary public-behavior leaf per capability by default, and
+  only the additional leaves named by source-backed `pkf.routes`; mark unrelated
+  or genuinely deferred leaves `pkf.materialization: pending`.
 - Use the bundled scaffold helper for fresh runtime mechanics. Review capability
   boundaries before creation; never let directory heuristics become durable
   ownership without source evidence.
 - Allow a cheap local source probe for a single-capability task. Activate PKF for explicit cross-capability, architecture, ownership, or repository-wide work, or when the probe cannot resolve the target without broad search.
 - Bypass closeout silently on read-only turns. Use implementation context to reject knowledge-neutral mutations before loading PKF or inspecting Git. For a durable knowledge-impacting mutation, capture a deterministic session baseline, synchronize only affected knowledge, acknowledge only successfully validated snapshots, and never recursively close out a closeout.
 - Keep all generated guidance vendor, agent, and model agnostic. Reference no specific assistant, tool, or model.
-- Keep `pkf.loads` minimal and put optional context in `pkf.related`.
+- Keep `pkf.loads` minimal. Keep `pkf.related` empty on startup and index
+  surfaces; leaf-level related context is optional and never automatic.
 - Require every module leaf to expose machine-readable `source_symbols`; use a compact Edit Map to connect behaviors to symbols, tests, styles, and targeted locator commands.
 - Require materialized public-behavior leaves to include their focused test evidence in `source_symbols`, and require module indexes to expose machine-readable `pkf.ownership_roots`.
 - Cache PKF protocol and index acknowledgements after activation. Do not load the startup path for a bypassed local task or routine semantic closeout.
 - Keep a normal task within one module index, one or two leaves, and the exact named symbols. Require an explicit reason for cross-cutting exceptions.
+- Store cross-capability retrieval under keyed `pkf.routes` in the root
+  knowledge index. Each route names its intent, triggers, modules, and one to
+  three exact complete leaves within the 4,000-token task budget. Do not widen
+  initialization solely to enumerate possible routes.
 - Do not load or generate `.ai/retrieval/` unless retrieval exports are enabled.
 - Report stale, unsupported, duplicate, or broad-loading knowledge as validation defects.
 - Prefer the bundled dependency-light validator for mechanical checks; keep source-truth and duplicate-authority judgments in the semantic validation workflow.
@@ -83,8 +91,10 @@ Use `ci` for strict validation, required simulations, and full token budget repo
   Token Atlas workflow instructions.
 - During fresh initialization, rely on the scaffold helper's mechanical check,
   run `simulation=changed` over newly materialized routes, and run one final
-  post-extraction validation. Optimize only reported defects and revalidate only
-  an affected slice when optimization changes knowledge.
+  post-extraction validation. Treat scaffold, route, and validator helpers as
+  opaque executables; do not read their source unless execution proves the
+  helper itself is broken. Optimize only reported defects and revalidate only an
+  affected slice when optimization changes knowledge.
 
 ## Output Expectations
 

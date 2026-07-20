@@ -536,7 +536,50 @@ class PkfValidateTests(unittest.TestCase):
 
         payload = report_to_dict(report, detail="summary")
         self.assertNotIn("passed", payload)
+        self.assertNotIn("checked_docs", payload)
+        self.assertEqual(payload["checked_doc_count"], len(report.checked_docs))
         self.assertGreater(payload["passed_count"], 0)
+        self.assertEqual(payload["token_impact_count"], len(report.token_impact))
+        self.assertTrue(all(entry["status"] != "passed" for entry in payload["token_impact"]))
+
+    def test_fallback_yaml_parser_handles_keyed_cross_routes(self):
+        lines = [
+            "pkf:",
+            "  routes:",
+            "    note-task-links:",
+            '      intent: "Note/task relationship"',
+            "      triggers: [note-task links, linked notes]",
+            "      modules: [notes, boards]",
+            "      loads: [.ai/knowledge/notes/business_rules.md, .ai/knowledge/boards/business_rules.md]",
+            "  loads: []",
+            "  related: []",
+        ]
+
+        metadata, index = parse_yaml_block(lines, 0, 0, Path("index.md"))
+
+        self.assertEqual(index, len(lines))
+        route = metadata["pkf"]["routes"]["note-task-links"]
+        self.assertEqual(route["modules"], ["notes", "boards"])
+        self.assertEqual(len(route["loads"]), 2)
+
+    def test_root_cross_routes_require_bounded_complete_leaf_loads(self):
+        with self.copy_ai() as ai:
+            root_index = ai / "knowledge" / "INDEX.md"
+            text = root_index.read_text(encoding="utf-8")
+            text = text.replace(
+                "  routes: {}",
+                "  routes:\n"
+                "    invalid-route:\n"
+                '      intent: "Cross capability"\n'
+                "      triggers: [cross]\n"
+                "      modules: [backend, missing]\n"
+                "      loads: [.ai/knowledge/backend/api.md, .ai/knowledge/backend/schema.md, .ai/knowledge/backend/business_rules.md, .ai/knowledge/backend/ui.md]",
+            )
+            root_index.write_text(text, encoding="utf-8")
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertTrue(any("one to 3 leaves" in finding.issue for finding in report.errors))
+        self.assertTrue(any("unknown modules" in finding.issue for finding in report.errors))
 
     def test_unmapped_changed_path_warns(self):
         with self.copy_ai() as ai:

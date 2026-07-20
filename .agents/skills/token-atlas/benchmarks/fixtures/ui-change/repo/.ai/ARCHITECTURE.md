@@ -7,8 +7,7 @@ tags: [ui-change, architecture]
 timestamp: 2026-07-08
 pkf:
   loads: []
-  related:
-    - .ai/knowledge/frontend/INDEX.md
+  related: []
 ---
 
 | Path | Module | Purpose |

@@ -71,12 +71,18 @@ class PkfSavingsEvalTests(unittest.TestCase):
         lifecycle = pkf_savings_eval.build_schedule(3, "lifecycle")
         retrieval = pkf_savings_eval.build_schedule(3, "retrieval")
         closeout = pkf_savings_eval.build_schedule(3, "closeout")
+        regression = pkf_savings_eval.build_schedule(3, "regression")
         all_tasks = pkf_savings_eval.build_schedule(3, "all")
 
         self.assertEqual(len(lifecycle), 15)
         self.assertEqual(len(retrieval), 21)
         self.assertEqual(len(closeout), 9)
+        self.assertEqual(len(regression), 15)
         self.assertEqual(len(all_tasks), 39)
+        self.assertEqual(
+            [item["task_id"] for item in regression[:5]],
+            ["initialize", "note_task_links", "note_task_links", "isolated_closeout", "isolated_closeout"],
+        )
         first_boards = [
             item["arm"]
             for item in retrieval
@@ -186,6 +192,75 @@ class PkfSavingsEvalTests(unittest.TestCase):
         self.assertEqual(metrics.explicit_ai_read_path_count, 0)
         self.assertEqual(metrics.ai_read_or_search_command_count, 0)
 
+    def test_trace_classifies_invoked_commands_instead_of_substrings(self):
+        events = [
+            {
+                "type": "command_execution",
+                "command": "python -S .ai/tools/pkf_validate.py --detail summary --changed-path src/state.ts",
+                "output": "{}",
+            },
+            {
+                "type": "command_execution",
+                "command": "rg -n pkf_validate.py .ai/tools/pkf_validate.py",
+                "output": "1:def main",
+            },
+            {
+                "type": "command_execution",
+                "command": "env PYTHONDONTWRITEBYTECODE=1 python -S .ai/tools/pkf_validate.py --detail summary",
+                "output": "{}",
+            },
+            {
+                "type": "command_execution",
+                "command": "env SEARCH_MODE=1 rg -n pkf_validate.py .ai/tools/pkf_validate.py",
+                "output": "1:def main",
+            },
+        ]
+
+        metrics = pkf_savings_eval.inspect_tool_events(
+            events,
+            known_paths=("src/state.ts", ".ai/tools/pkf_validate.py"),
+        )
+
+        self.assertEqual(metrics.read_or_search_command_count, 2)
+        self.assertEqual(pkf_savings_eval.invoked_script_count(events[0], "pkf_validate.py"), 1)
+        self.assertEqual(pkf_savings_eval.invoked_script_count(events[1], "pkf_validate.py"), 0)
+        self.assertEqual(pkf_savings_eval.invoked_script_count(events[2], "pkf_validate.py"), 1)
+        self.assertEqual(pkf_savings_eval.invoked_script_count(events[3], "pkf_validate.py"), 0)
+        self.assertEqual(
+            pkf_savings_eval.explicit_read_paths_for_events(events, ("src/state.ts", ".ai/tools/pkf_validate.py")),
+            {".ai/tools/pkf_validate.py"},
+        )
+
+    def test_helper_source_reads_include_directory_searches_but_not_invocations(self):
+        events = [
+            {
+                "type": "command_execution",
+                "command": "rg -n 'def main' .codex/skills/token-atlas/scripts",
+                "output": "pkf_scaffold.py:1:def main",
+            },
+            {
+                "type": "command_execution",
+                "command": "python -S .ai/tools/pkf_validate.py --detail summary",
+                "output": "{}",
+            },
+        ]
+
+        self.assertEqual(
+            pkf_savings_eval.helper_source_read_paths(events),
+            (".codex/skills/token-atlas/scripts",),
+        )
+
+    def test_route_parser_ignores_searches_that_only_mention_helper_source(self):
+        events = [
+            {
+                "type": "command_execution",
+                "command": "rg -n route .ai/tools/pkf_route.py",
+                "output": '{"status":"mapped","affected_leaves":[]}',
+            }
+        ]
+
+        self.assertEqual(pkf_savings_eval.parse_route_attempts(events), ())
+
     def test_prepare_arms_uses_same_commit_and_removes_pkf_from_baseline(self):
         with tempfile.TemporaryDirectory() as raw_temp:
             temp = Path(raw_temp)
@@ -235,6 +310,20 @@ class PkfSavingsEvalTests(unittest.TestCase):
                     text=True,
                 ).stdout,
                 "",
+            )
+
+    def test_trace_path_inventory_includes_untracked_initialized_runtime(self):
+        with tempfile.TemporaryDirectory() as raw_temp:
+            repo = Path(raw_temp)
+            (repo / "source.py").write_text("VALUE = 1\n", encoding="utf-8")
+            self.initialize_repo(repo)
+            generated = repo / ".ai" / "tools" / "pkf_validate.py"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("# generated helper\n", encoding="utf-8")
+
+            self.assertIn(
+                ".ai/tools/pkf_validate.py",
+                pkf_savings_eval.tracked_paths(repo),
             )
 
     def test_aggregate_reports_finite_break_even_for_positive_savings(self):
@@ -627,7 +716,8 @@ class PkfSavingsEvalTests(unittest.TestCase):
         closeout = (ROOT / "skills/token-atlas/references/closeout.md").read_text(encoding="utf-8")
         skill = (ROOT / "skills/token-atlas/SKILL.md").read_text(encoding="utf-8")
 
-        self.assertIn("do not impose a fixed per-capability leaf\n   cap", initialize)
+        self.assertIn("one primary source-backed public-behavior leaf per capability", initialize)
+        self.assertIn("`pkf.routes`", initialize)
         self.assertIn("Run `simulation=changed`", initialize)
         self.assertIn("Do not read the skill, this reference", closeout)
         self.assertIn("exactly one affected-slice advisory validation", closeout)

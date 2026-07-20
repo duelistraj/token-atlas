@@ -95,7 +95,7 @@ Apply the Module Boundary Contract in `initialize.md`. Treat a module as a
 coarse boundary defect when its leaves mix at least two independently routable,
 source-backed capabilities. When ownership is unambiguous, automatically finish
 the maintenance/extraction repartition by tightening root routing, module
-indexes, and cross-capability `pkf.related` edges.
+indexes, and keyed cross-capability `pkf.routes` entries.
 
 Do not split because of size, a name, a placeholder, or a roadmap entry alone.
 Do not create nested modules. Preserve and report the current boundary when the

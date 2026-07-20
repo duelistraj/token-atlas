@@ -20,11 +20,17 @@ once, repeating `--changed-path` for every turn-owned path:
 For `mapped`, read and update only returned leaves; do not load PKF startup
 documents, indexes, the Token Atlas skill, or workflow references. For `partial`,
 use returned leaves and only the module indexes named by `fallback_routes`. For
-`unmapped`, report the routing-coverage defect and use exceptional Token Atlas
-maintenance. After a knowledge update, run exactly one summary validation:
+`unmapped`, report the routing-coverage defect and explicitly invoke exceptional
+Token Atlas maintenance. Before validation, reconcile every turn-owned source
+and test path with the returned leaf's `source_symbols` and Edit Map. After a
+knowledge update, run exactly one summary validation:
 
 `python -S .ai/tools/pkf_validate.py --path .ai --scope <affected|full> --strictness advisory --format json --detail summary --changed-path <path>`
 
 These generated rules are the routine mapped subset of the **Closeout Protocol
 in `.ai/PKF.md`**; load that protocol only when the route is exceptional.
+
+For every non-silent closeout result, end with exactly:
+
+`PKF closeout: <no-op|updated|stale|disabled|blocked> — <docs or reason>`
 <!-- token-atlas:bootstrap:end -->

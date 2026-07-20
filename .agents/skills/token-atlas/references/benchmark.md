@@ -116,6 +116,7 @@ The runner provides split suites:
 | `retrieval` | 7 calls | Initialization plus both read-only tasks across source-only, probe-only, and PKF arms. |
 | `lifecycle` | 5 calls | Initialization plus mutation and post-mutation work across probe-only and PKF. |
 | `closeout` | 3 calls | Initialization plus an identical pre-applied mutation control and PKF closeout. |
+| `regression` | 5 calls | Token-limited gate: initialization, cross-capability probe/PKF pair, and isolated closeout control/PKF pair. |
 | `all` | 13 calls | All phases sharing one initialization. |
 
 The retrieval suite uses a Latin-square three-arm order; two-arm phases alternate
@@ -123,10 +124,16 @@ by repetition. The closeout suite applies the checked-in patch under
 `benchmarks/patches/` to identical clean workspaces and supplies the same changed
 paths and semantic summary to both calls.
 
+Use `regression` after initialization, retrieval-routing, attribution, or
+closeout changes. It is a targeted diagnostic suite, not a headline replacement
+for `all`.
+
 Pin the model and reasoning explicitly and inspect the call matrix before
 execution:
 
 ```text
+python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite regression --model gpt-5.6-luna --model-reasoning-effort high --repetitions 1 --dry-run
+python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite regression --model gpt-5.6-luna --model-reasoning-effort high --repetitions 1
 python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 1 --dry-run
 python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 1
 python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3 --dry-run
@@ -136,7 +143,11 @@ python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite a
 Publish total, cached, non-cached, and output tokens separately. Parse tool input
 and output separately and report explicit read targets, searched roots, `.ai`
 read/search calls, skill/reference reads, and unverified path mentions as
-different metrics. Keep initialization, local retrieval, cross-capability
+different metrics. Classify actual shell invocations rather than command-text
+substrings: a `--detail` argument is not `tail`, and searching a validator path
+is not a validator execution. Publish exact unexpected read paths, initialization
+validation counts, opaque-helper source reads, and selected cross-route leaves.
+Keep initialization, local retrieval, cross-capability
 retrieval, mutation, post-mutation, and closeout phases separable.
 
 The three arms have fixed meanings:
@@ -153,7 +164,9 @@ environment deltas; do not attribute those differences to PKF reads. Include
 materialized and pending leaf counts and the number of routed leaf documents.
 
 Correctness, zero local-task PKF reads, required cross-capability activation,
-focused tests, closeout, and validation are blocking quality gates. The desired
+an explicit one-to-three-leaf `note-task-links` route, zero cross-route skill or
+unlisted-leaf reads, one explicit initialization validation, zero opaque-helper
+source reads, focused tests, closeout, and validation are blocking quality gates. The desired
 5% local/operational token and latency overhead, positive cross-capability
 savings, and initialization improvement are advisory performance targets; a
 negative saving remains a valid result and never changes quality status.

@@ -13,6 +13,10 @@ capability-boundary judgment, knowledge-impact judgment, extraction, or
 optimization. If a target repo provides a workflow wrapper, it should remain a
 thin selector and must not become a second source of truth.
 
+Treat these helpers as opaque executables during normal workflows. Read their
+source only when an invocation demonstrates that the helper itself is broken;
+do not inspect implementation to discover documented arguments.
+
 ## Scaffold Helper
 
 For fresh initialization, create a bounded structural draft, review its

@@ -91,6 +91,10 @@ context. A valid `partial` or `unmapped` result is not a tooling failure.
   pending, or unmapped path; never replay the startup chain.
 - Update only leaves whose durable facts changed. Keep `source_symbols`, Edit
   Maps, tests, styles/tokens, and locator commands exact.
+- Before validation, reconcile every turn-owned source and test path with the
+  returned leaf's `source_symbols`, and ensure every declared symbol and Edit Map
+  evidence entry still resolves. Validation is the final check, not a discovery
+  loop.
 - Treat an affected `pkf.materialization: pending` leaf as exceptional
   maintenance: load the extraction guidance, materialize it from source, and
   mark it `complete`. This is not the routine mapped fast path.
