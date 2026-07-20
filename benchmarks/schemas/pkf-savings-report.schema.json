@@ -8,6 +8,7 @@
     "benchmark",
     "benchmark_spec",
     "phases_selected",
+    "source_only_diagnostic",
     "baseline",
     "target",
     "environment",
@@ -16,7 +17,7 @@
     "errors"
   ],
   "properties": {
-    "schema_version": {"const": 9},
+    "schema_version": {"const": 10},
     "run_id": {"type": "string"},
     "benchmark": {"type": "string"},
     "benchmark_spec": {
@@ -32,8 +33,17 @@
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": {"enum": ["retrieval", "mutation", "post_mutation", "closeout"]}
+      "items": {
+        "enum": [
+          "simple_retrieval",
+          "cross_capability_retrieval",
+          "mutation",
+          "post_mutation",
+          "closeout"
+        ]
+      }
     },
+    "source_only_diagnostic": {"type": "boolean"},
     "baseline": {
       "type": "object",
       "required": ["runtime_sha256"],

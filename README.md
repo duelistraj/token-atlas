@@ -3,11 +3,23 @@
 Token Atlas is an AI context-optimization skill for coding agents. It extracts **verified** repository knowledge into a compact `.ai/` knowledge base, so agents load the *smallest* reliable context for each task instead of the whole repo.
 
 - Repository source is truth; `.ai/` Markdown is canonical AI knowledge; retrieval exports are derived.
-- Initializes on demand, then maintains incrementally through an adaptive
-  end-of-turn protocol — no daemons, watchers, or global hooks.
+- Full maintains knowledge through an adaptive end-of-turn protocol; Lite
+  updates shared knowledge inline during implementation.
 - Portable: copy one folder into any repo and invoke it by name.
 
-## Quick start (for end users)
+## Choose an edition
+
+| Edition | Best for | Runtime behavior |
+| --- | --- | --- |
+| [Token Atlas](skills/token-atlas/) | Large repositories and frequent cross-capability retrieval | Complete PKF routes, authoritative leaves, adaptive retrieval, and semantic closeout |
+| [Token Atlas Lite](skills/token-atlas-lite/) | Lean shared architecture, decisions, terminology, dependencies, and memory | Six Markdown knowledge files, inline updates during implementation, and no separate closeout |
+
+Lite loads only `INDEX.md` and a memory file capped at 1,000 approximate tokens
+at session start. It does not generate PKF routes, leaves, retrieval exports, or
+repository-local tools. Lite and Full are separate public skills; no automatic
+edition migration is provided.
+
+## Full Token Atlas quick start
 
 1. Copy the public skill package into your repo at your agent's skill-discovery path (for example `.agents/skills/`):
 
@@ -31,6 +43,22 @@ Token Atlas is an AI context-optimization skill for coding agents. It extracts *
    only when validation finds a routing defect.
    Subsequent knowledge-impacting mutations run adaptive closeout automatically;
    read-only and knowledge-neutral turns bypass Token Atlas work.
+
+## Token Atlas Lite quick start
+
+1. Copy `skills/token-atlas-lite/` into the target repository's skill-discovery
+   path.
+2. Ask: "Use **token-atlas-lite** to initialize the lean knowledge base for this
+   repository."
+3. Initialization produces `.ai/token-atlas-lite.json`, `INDEX.md`,
+   `ARCHITECTURE.md`, `DECISIONS.md`, `GLOSSARY.md`, `DEPENDENCIES.md`, and
+   `MEMORY.md`. Later implementation tasks update affected knowledge inline from
+   facts already verified for the task; explicit refresh and validation remain
+   available on demand.
+
+Lite records repository evidence as `path::optional.locator`. User-confirmed
+decisions may be recorded directly, but rationale is never inferred without
+source evidence or explicit confirmation.
 
 ## Real-world examples
 
@@ -146,9 +174,10 @@ coverage, noncontributing route leaves, and unrelated automatic loads are
 errors.
 
 See [the published benchmarks](BENCHMARKS.md) for pinned real-repository
-measurements. The current harness separates generic source discovery, the local
-probe policy, PKF retrieval, mutation lifecycle, and isolated closeout instead
-of attributing all differences to PKF reads. Canonical run bundles live under
+measurements. The current harness uses the local-probe policy as its primary
+baseline and separates PKF retrieval, mutation lifecycle, and isolated closeout
+instead of attributing all differences to PKF reads. Generic source-only
+discovery is an opt-in attribution diagnostic. Canonical run bundles live under
 `benchmarks/artifacts/<run-id>/`: sanitized public reports are versioned, while
 exact traces and PKF snapshots remain in a gitignored local-only subtree.
 
@@ -166,11 +195,12 @@ exact traces and PKF snapshots remain in a gitignored local-only subtree.
 
 ## Repository layout
 
-This repository maintains the skill itself and ships two surfaces:
+This repository maintains the products and ships these surfaces:
 
 | Path | Purpose |
 |------|---------|
 | `skills/token-atlas/` | Public package with skill guidance, templates, and dependency-light scaffold, route, and validation helpers. |
+| `skills/token-atlas-lite/` | Standalone public Lite package with initialization, inline-maintenance, refresh, and validation guidance. |
 | `.agents/skills/token-atlas/` | Internal development and benchmark copy. |
 
 > This is the skill-maintenance repo. Do not run Token Atlas against it; the internal copy is for development and benchmarking only.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare Token Atlas PKF lifecycle cost with a source-only repository baseline."""
+"""Compare Token Atlas PKF lifecycle cost with an adaptive local-probe baseline."""
 
 from __future__ import annotations
 
@@ -39,15 +39,36 @@ DEFAULT_REPETITIONS = 3
 DEFAULT_TIMEOUT_SECONDS = 1_800
 DEFAULT_ARTIFACTS_ROOT = ROOT / "benchmarks" / "artifacts"
 DEFAULT_BASELINES_ROOT = ROOT / "benchmarks" / "baselines"
-REPORT_SCHEMA_VERSION = 9
+REPORT_SCHEMA_VERSION = 10
 ALLOWED_REASONING_EFFORTS = ("minimal", "low", "medium", "high", "xhigh")
-EVALUATION_PHASES = ("retrieval", "mutation", "post_mutation", "closeout")
+RETRIEVAL_PHASE_MODES = {
+    "simple_retrieval": "local",
+    "cross_capability_retrieval": "cross_capability",
+}
+EVALUATION_PHASES = (*RETRIEVAL_PHASE_MODES, "mutation", "post_mutation", "closeout")
+RUN_ID_PHASE_LABELS = {
+    "simple_retrieval": "simple",
+    "cross_capability_retrieval": "cross",
+    "mutation": "mutation",
+    "post_mutation": "post",
+    "closeout": "closeout",
+}
 ARTIFACT_MODES = ("full", "public", "off")
 ARM_DEFINITIONS = {
     "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only.",
     "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
     "pkf": "PKF installed with adaptive retrieval and repository-local semantic closeout; an individual task may bypass retrieval.",
 }
+
+
+def evaluation_arms(*, include_source_only: bool) -> tuple[str, ...]:
+    return (
+        ("source_only", "probe_only", "pkf")
+        if include_source_only
+        else ("probe_only", "pkf")
+    )
+
+
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 PKF_ROUTE_MARKER_PATTERN = re.compile(
     r"^PKF route: (?P<routes>[a-z0-9][a-z0-9-]*(?: \+ [a-z0-9][a-z0-9-]*)*); "
@@ -233,7 +254,15 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--phases",
         required=True,
-        help="Comma-separated explicit phases: retrieval,mutation,post_mutation,closeout.",
+        help=(
+            "Comma-separated explicit phases: simple_retrieval,"
+            "cross_capability_retrieval,mutation,post_mutation,closeout."
+        ),
+    )
+    parser.add_argument(
+        "--include-source-only",
+        action="store_true",
+        help="Add source_only to selected retrieval phases as an attribution diagnostic.",
     )
     parser.add_argument("--jobs", type=int, default=0, help="Maximum parallel calls; 0 runs every ready job.")
     parser.add_argument("--state-from", type=Path)
@@ -539,12 +568,13 @@ def prepare_arms(
     target_commit: str,
     baseline: Path,
     workspace_links: Sequence[str] = (),
+    include_source_only: bool = False,
 ) -> dict[str, Path]:
     exported = workspace / "exported"
     export_target(target_repo, target_commit, exported)
     strip_pkf(exported)
     arms: dict[str, Path] = {}
-    for arm in ("source_only", "probe_only", "pkf"):
+    for arm in evaluation_arms(include_source_only=include_source_only):
         repo = workspace / arm
         shutil.copytree(exported, repo, symlinks=True)
         if arm == "pkf":
@@ -1319,18 +1349,24 @@ def make_run_id(args: argparse.Namespace, spec: BenchmarkSpec | None = None) -> 
     if args.run_id:
         return args.run_id
     timestamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    value = "-".join(
+    phase_label = "-".join(RUN_ID_PHASE_LABELS[phase] for phase in args.phases)
+    if args.include_source_only:
+        phase_label += "-source-diag"
+    prefix = "-".join(
         (
             "token-atlas",
             slug(args.model),
             slug(args.model_reasoning_effort),
             slug(spec.benchmark_id if spec is not None else "benchmark"),
-            slug("-".join(args.phases)),
-            slug(run_class(args.repetitions)),
-            timestamp,
+            phase_label,
         )
     )
-    return value[:128].rstrip("-.")
+    suffix = f"-{slug(run_class(args.repetitions))}-{timestamp}"
+    available = 128 - len(suffix)
+    if len(prefix) > available:
+        digest = hashlib.sha256(prefix.encode("utf-8")).hexdigest()[:8]
+        prefix = prefix[: available - len(digest) - 1].rstrip("-.") + f"-{digest}"
+    return prefix + suffix
 
 
 def repository_diff(repo: Path, *, pkf_only: bool) -> str:
@@ -1518,7 +1554,7 @@ class ArtifactStore:
 
 
 def classify_retrieval_decision(*, arm: str, phase: str, trace: TraceMetrics) -> str:
-    if arm != "pkf" or phase not in {"retrieval", "post_mutation"}:
+    if arm != "pkf" or phase not in {*RETRIEVAL_PHASE_MODES, "post_mutation"}:
         return "not_applicable"
     if trace.explicit_ai_read_path_count or trace.explicit_skill_read_path_count:
         return "activated"
@@ -1926,7 +1962,9 @@ def score_mutation(
     )
 
 
-def three_arm_order(repetition: int) -> tuple[str, ...]:
+def retrieval_arm_order(repetition: int, *, include_source_only: bool) -> tuple[str, ...]:
+    if not include_source_only:
+        return two_arm_order(repetition)
     orders = (
         ("source_only", "probe_only", "pkf"),
         ("probe_only", "pkf", "source_only"),
@@ -1943,15 +1981,35 @@ def build_schedule(
     repetitions: int,
     phases: Sequence[str],
     spec: BenchmarkSpec,
+    *,
+    include_source_only: bool = False,
 ) -> list[dict[str, Any]]:
     schedule: list[dict[str, Any]] = []
-    if "retrieval" in phases and not spec.retrieval_tasks:
-        raise EvaluationError("selected retrieval phase has no tasks in benchmark spec")
+    tasks_by_retrieval_phase = {
+        phase: tuple(
+            task for task in spec.retrieval_tasks if task.retrieval_mode == retrieval_mode
+        )
+        for phase, retrieval_mode in RETRIEVAL_PHASE_MODES.items()
+    }
+    for phase in RETRIEVAL_PHASE_MODES:
+        if phase in phases and not tasks_by_retrieval_phase[phase]:
+            raise EvaluationError(f"selected {phase} phase has no matching tasks in benchmark spec")
     for repetition in range(1, repetitions + 1):
-        if "retrieval" in phases:
-            for task in spec.retrieval_tasks:
-                for arm in three_arm_order(repetition):
-                    schedule.append({"repetition": repetition, "arm": arm, "task_id": task.task_id, "phase": "retrieval"})
+        for phase in RETRIEVAL_PHASE_MODES:
+            if phase not in phases:
+                continue
+            for task in tasks_by_retrieval_phase[phase]:
+                for arm in retrieval_arm_order(
+                    repetition, include_source_only=include_source_only
+                ):
+                    schedule.append(
+                        {
+                            "repetition": repetition,
+                            "arm": arm,
+                            "task_id": task.task_id,
+                            "phase": phase,
+                        }
+                    )
         if "mutation" in phases:
             if spec.mutation is None:
                 raise EvaluationError("selected mutation phase is absent from benchmark spec")
@@ -2118,11 +2176,16 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
 
     sum_metrics = (*usage_metrics, "duration_ms", *trace_metrics, *attribution_metrics)
     operational_by_repetition: list[dict[str, Any]] = []
+    observed_arms = tuple(
+        arm
+        for arm in ("source_only", "probe_only", "pkf")
+        if any(result.arm == arm for result in results)
+    )
     for repetition in sorted({result.repetition for result in results}):
         repeated = [result for result in results if result.repetition == repetition]
         has_integrated_mutation = any(result.phase == "mutation" for result in repeated)
         entry: dict[str, Any] = {"repetition": repetition}
-        for arm in ("source_only", "probe_only", "pkf"):
+        for arm in observed_arms:
             arm_results = [
                 result
                 for result in repeated
@@ -2215,7 +2278,7 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
         for task_id in {
             result.task_id
             for result in results
-            if result.phase in {"retrieval", "post_mutation"}
+            if result.phase in {*RETRIEVAL_PHASE_MODES, "post_mutation"}
         }:
             result_by_arm = {
                 result.arm: result
@@ -2237,11 +2300,13 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
                         )
 
     comparisons: dict[str, Any] = {}
+    diagnostic_comparisons: dict[str, Any] = {}
     for task_id, arm_values in by_task.items():
         task_comparisons: dict[str, Any] = {}
-        for label, baseline_arm, candidate_arm in (
-            ("source_vs_probe", "source_only", "probe_only"),
-            ("probe_vs_pkf", "probe_only", "pkf"),
+        task_diagnostics: dict[str, Any] = {}
+        for label, baseline_arm, candidate_arm, destination in (
+            ("probe_vs_pkf", "probe_only", "pkf", task_comparisons),
+            ("source_vs_probe", "source_only", "probe_only", task_diagnostics),
         ):
             if baseline_arm not in arm_values or candidate_arm not in arm_values:
                 continue
@@ -2255,12 +2320,15 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
                     "delta": candidate - baseline,
                     "percent": ((candidate - baseline) / baseline * 100.0) if baseline else None,
                 }
-            task_comparisons[label] = comparison
+            destination[label] = comparison
         comparisons[task_id] = task_comparisons
+        if task_diagnostics:
+            diagnostic_comparisons[task_id] = task_diagnostics
 
     return {
         "by_task": by_task,
         "comparisons": comparisons,
+        "diagnostic_comparisons": diagnostic_comparisons,
         "operational_by_repetition": operational_by_repetition,
         "lifecycle_phase_costs_by_repetition": lifecycle_phase_costs,
         "lifecycle_phase_cost_summary": lifecycle_phase_summary,
@@ -2654,7 +2722,18 @@ def execute(
 ) -> dict[str, Any]:
     runtime_root = args.runtime_root.resolve()
     runtime_root.mkdir(parents=True, exist_ok=True)
-    schedule = build_schedule(args.repetitions, args.phases, spec)
+    schedule = build_schedule(
+        args.repetitions,
+        args.phases,
+        spec,
+        include_source_only=args.include_source_only,
+    )
+    scheduled_arms = tuple(
+        arm
+        for arm in ("source_only", "probe_only", "pkf")
+        if any(item["arm"] == arm for item in schedule)
+    )
+    source_only_diagnostic = "source_only" in scheduled_arms
     schedule_by_id = {item["call_id"]: item for item in schedule}
     results_by_id: dict[str, CodexResult] = {}
     started = time.monotonic()
@@ -2674,6 +2753,7 @@ def execute(
                 target_commit=target["commit"],
                 baseline=baseline,
                 workspace_links=spec.workspace_links,
+                include_source_only=source_only_diagnostic,
             )
 
         retrieval_by_id = {task.task_id: task for task in spec.retrieval_tasks}
@@ -2719,7 +2799,7 @@ def execute(
                 peak_active = max(peak_active, active)
             try:
                 print(f"[{call_id}] {phase} {arm}/{task_id}", file=sys.stderr, flush=True)
-                if phase == "retrieval":
+                if phase in RETRIEVAL_PHASE_MODES:
                     task = retrieval_by_id[task_id]
                     result, _ = run_codex(
                         repetition=repetition, arm=arm, task_id=task_id, phase=phase,
@@ -2820,8 +2900,12 @@ def execute(
             "schema_version": spec.schema_version,
         },
         "evaluation_kind": "real_repository_performance",
-        "arm_definitions": ARM_DEFINITIONS,
+        "arm_definitions": {
+            arm: ARM_DEFINITIONS[arm]
+            for arm in scheduled_arms
+        },
         "phases_selected": list(args.phases),
+        "source_only_diagnostic": source_only_diagnostic,
         "run_class": run_class(args.repetitions),
         "replicated": args.repetitions >= 3,
         "status": "failed" if errors else ("preliminary" if args.repetitions < 3 else "completed"),
@@ -2851,7 +2935,7 @@ def execute(
             "state_from": publishable_path(args.state_from, "external-state") if args.state_from is not None else None,
         },
         "methodology": {
-            "arms": ["source_only", "probe_only", "pkf"],
+            "arms": list(scheduled_arms),
             "task_ids": sorted({item["task_id"] for item in schedule}),
             "schedule": schedule,
             "initialization": "excluded; the immutable one-time baseline is reused",
@@ -2882,8 +2966,8 @@ def render_markdown(
         f"## Adaptive attribution benchmark — {report['benchmark']} — {run_label}",
         "",
         (
-            "This benchmark separates generic source discovery, the adaptive local-probe "
-            "policy, and PKF knowledge on the selected repository at commit "
+            "This benchmark compares the adaptive local-probe policy with PKF knowledge "
+            "on the selected repository at commit "
             f"`{target['commit']}`. The target-specific tasks come only from the external "
             "benchmark specification."
         ),
@@ -2913,9 +2997,9 @@ def render_markdown(
         (
             "### Method",
             "",
-            "`source_only` has no PKF or probe policy, `probe_only` isolates the bounded "
-            "local-probe policy without PKF, and `pkf` installs adaptive retrieval and "
-            "semantic closeout but may bypass PKF for an individual task. Token counts come "
+            "`probe_only` isolates the bounded local-probe policy without PKF, and `pkf` "
+            "installs adaptive retrieval and semantic closeout but may bypass PKF for an "
+            "individual task. Token counts come "
             "from Codex JSONL; total and non-cached input are "
             "reported separately and are not pricing estimates. Tool input and output are "
             "parsed separately. Explicit read targets are distinct from unverified path mentions.",
@@ -2926,6 +3010,12 @@ def render_markdown(
             "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         )
     )
+    if report.get("source_only_diagnostic"):
+        lines.insert(
+            lines.index(f"### {usage_heading}"),
+            "`source_only` was enabled as an optional diagnostic control with neither PKF nor the bounded probe policy.",
+        )
+        lines.insert(lines.index(f"### {usage_heading}"), "")
     phase_by_task = {
         run["task_id"]: run["phase"] for run in report["runs"]
     }
@@ -3051,6 +3141,20 @@ def render_markdown(
                 f"- `{task_id}` {label}: input {input_delta:+.0f}, non-cached "
                 f"{non_cached_delta:+.0f}, duration {duration_delta:+.0f} ms."
             )
+    diagnostics = metrics.get("diagnostic_comparisons", {})
+    if report.get("source_only_diagnostic"):
+        lines.extend(("", "### Source-only diagnostic deltas", ""))
+        if diagnostics:
+            for task_id, comparisons in sorted(diagnostics.items()):
+                values = comparisons["source_vs_probe"]
+                lines.append(
+                    f"- `{task_id}` source_vs_probe: input "
+                    f"{values['input_tokens']['delta']:+.0f}, non-cached "
+                    f"{values['non_cached_input_tokens']['delta']:+.0f}, duration "
+                    f"{values['duration_ms']['delta']:+.0f} ms."
+                )
+        else:
+            lines.append("- No paired source-only diagnostic result was recorded.")
     lines.extend(("", "### Phase performance scorecard", ""))
     lines.append(
         f"Evidence strength: **{report['performance'].get('evidence_strength', 'unknown')}**. "
@@ -3127,7 +3231,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         target = verify_target(args.target_repo, args.target_commit)
         spec = load_benchmark_spec(args.benchmark_spec)
         baseline, baseline_manifest = resolve_baseline(args, target)
-        schedule = build_schedule(args.repetitions, args.phases, spec)
+        schedule = build_schedule(
+            args.repetitions,
+            args.phases,
+            spec,
+            include_source_only=args.include_source_only,
+        )
+        scheduled_arms = [
+            arm
+            for arm in ("source_only", "probe_only", "pkf")
+            if any(item["arm"] == arm for item in schedule)
+        ]
         if args.dry_run:
             output = {
                 "dry_run": True,
@@ -3137,6 +3251,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "model": args.model,
                 "reasoning_effort": args.model_reasoning_effort,
                 "phases_selected": list(args.phases),
+                "source_only_diagnostic": "source_only" in scheduled_arms,
+                "arms": scheduled_arms,
                 "jobs": args.jobs,
                 "state_from": str(args.state_from.resolve()) if args.state_from is not None else None,
                 "run_class": run_class(args.repetitions),

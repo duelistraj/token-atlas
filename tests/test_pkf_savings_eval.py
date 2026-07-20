@@ -1,5 +1,7 @@
 import importlib.util
 import concurrent.futures
+import contextlib
+import io
 import json
 import subprocess
 import sys
@@ -24,7 +26,7 @@ class PkfSavingsEvalTests(unittest.TestCase):
             "repetition": 1,
             "arm": "probe_only",
             "task_id": "local-read",
-            "phase": "retrieval",
+            "phase": "simple_retrieval",
             "returncode": 0,
             "duration_ms": 100,
             "usage": pkf_savings_eval.Usage(1_000, 200, 50),
@@ -94,26 +96,40 @@ class PkfSavingsEvalTests(unittest.TestCase):
 
     def test_schedule_splits_explicit_phases_and_counterbalances_arms(self):
         spec = self.benchmark_spec()
-        retrieval = pkf_savings_eval.build_schedule(3, ("retrieval",), spec)
+        simple = pkf_savings_eval.build_schedule(3, ("simple_retrieval",), spec)
+        cross = pkf_savings_eval.build_schedule(3, ("cross_capability_retrieval",), spec)
+        diagnostic = pkf_savings_eval.build_schedule(
+            3, ("simple_retrieval",), spec, include_source_only=True
+        )
         mutation = pkf_savings_eval.build_schedule(3, ("mutation",), spec)
         closeout = pkf_savings_eval.build_schedule(3, ("closeout",), spec)
         all_tasks = pkf_savings_eval.build_schedule(
-            3, ("retrieval", "mutation", "post_mutation", "closeout"), spec
+            3,
+            (
+                "simple_retrieval",
+                "cross_capability_retrieval",
+                "mutation",
+                "post_mutation",
+                "closeout",
+            ),
+            spec,
         )
 
-        self.assertEqual(len(retrieval), 18)
+        self.assertEqual(len(simple), 6)
+        self.assertEqual(len(cross), 6)
+        self.assertEqual(len(diagnostic), 9)
         self.assertEqual(len(mutation), 6)
         self.assertEqual(len(closeout), 6)
-        self.assertEqual(len(all_tasks), 36)
+        self.assertEqual(len(all_tasks), 30)
         self.assertNotIn("initialize", {item["task_id"] for item in all_tasks})
         first_boards = [
             item["arm"]
-            for item in retrieval
+            for item in diagnostic
             if item["repetition"] == 1 and item["task_id"] == "local-read"
         ]
         second_boards = [
             item["arm"]
-            for item in retrieval
+            for item in diagnostic
             if item["repetition"] == 2 and item["task_id"] == "local-read"
         ]
         self.assertEqual(first_boards, ["source_only", "probe_only", "pkf"])
@@ -125,17 +141,50 @@ class PkfSavingsEvalTests(unittest.TestCase):
             "--benchmark-spec", "/tmp/spec.json",
             "--model", "model-id",
             "--model-reasoning-effort", "high",
-            "--phases", "retrieval,closeout",
+            "--phases", "simple_retrieval,closeout",
         ))
 
         self.assertEqual(args.target_commit, "HEAD")
         self.assertEqual(args.model, "model-id")
         self.assertEqual(args.model_reasoning_effort, "high")
         self.assertEqual(args.repetitions, 3)
-        self.assertEqual(args.phases, ("retrieval", "closeout"))
+        self.assertEqual(args.phases, ("simple_retrieval", "closeout"))
+        self.assertFalse(args.include_source_only)
         self.assertEqual(args.jobs, 0)
         self.assertEqual(args.artifact_mode, "full")
         self.assertEqual(args.artifacts_root, pkf_savings_eval.DEFAULT_ARTIFACTS_ROOT)
+        generated_run_id = pkf_savings_eval.make_run_id(args, self.benchmark_spec())
+        self.assertIn("simple-closeout", generated_run_id)
+        self.assertRegex(generated_run_id, r"-replicated-\d{8}T\d{6}Z$")
+        self.assertLessEqual(len(generated_run_id), 128)
+
+    def test_cli_source_only_is_opt_in_and_legacy_retrieval_is_rejected(self):
+        args = pkf_savings_eval.parse_args((
+            "--target-repo", "/tmp/target",
+            "--benchmark-spec", "/tmp/spec.json",
+            "--model", "model-id",
+            "--model-reasoning-effort", "high",
+            "--phases", "cross_capability_retrieval",
+            "--include-source-only",
+        ))
+
+        self.assertTrue(args.include_source_only)
+        self.assertIn("source-diag", pkf_savings_eval.make_run_id(args, self.benchmark_spec()))
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            pkf_savings_eval.parse_args(
+                (
+                    "--target-repo",
+                    "/tmp/target",
+                    "--benchmark-spec",
+                    "/tmp/spec.json",
+                    "--model",
+                    "model-id",
+                    "--model-reasoning-effort",
+                    "high",
+                    "--phases",
+                    "retrieval",
+                )
+            )
 
     def test_external_benchmark_spec_owns_repository_specific_tasks(self):
         spec = pkf_savings_eval.load_benchmark_spec(
@@ -149,7 +198,7 @@ class PkfSavingsEvalTests(unittest.TestCase):
         self.assertEqual(spec.workspace_links, ("frontend/node_modules",))
         self.assertEqual(len(spec.digest), 64)
 
-    def test_schema_nine_and_benchmark_spec_schemas_are_explicit(self):
+    def test_schema_ten_and_benchmark_spec_schemas_are_explicit(self):
         report_schema = json.loads(
             (ROOT / "benchmarks" / "schemas" / "pkf-savings-report.schema.json").read_text(encoding="utf-8")
         )
@@ -157,9 +206,10 @@ class PkfSavingsEvalTests(unittest.TestCase):
             (ROOT / "benchmarks" / "schemas" / "benchmark-spec.schema.json").read_text(encoding="utf-8")
         )
 
-        self.assertEqual(report_schema["properties"]["schema_version"]["const"], 9)
+        self.assertEqual(report_schema["properties"]["schema_version"]["const"], 10)
         self.assertEqual(spec_schema["properties"]["schema_version"]["const"], 1)
         self.assertNotIn("minimality_status", json.dumps(report_schema))
+        self.assertNotIn("retrieval", report_schema["properties"]["phases_selected"]["items"]["enum"])
 
     def test_parse_jsonl_extracts_usage_and_structured_answer(self):
         answer = {
@@ -485,6 +535,7 @@ class PkfSavingsEvalTests(unittest.TestCase):
                 target_commit=commit,
                 baseline=baseline,
                 workspace_links=("vendor-cache",),
+                include_source_only=True,
             )
 
             self.assertFalse((arms["source_only"] / ".ai").exists())
@@ -597,19 +648,19 @@ class PkfSavingsEvalTests(unittest.TestCase):
 
         self.assertEqual(
             pkf_savings_eval.classify_retrieval_decision(
-                arm="pkf", phase="retrieval", trace=empty
+                arm="pkf", phase="simple_retrieval", trace=empty
             ),
             "bypassed",
         )
         self.assertEqual(
             pkf_savings_eval.classify_retrieval_decision(
-                arm="pkf", phase="retrieval", trace=activated
+                arm="pkf", phase="cross_capability_retrieval", trace=activated
             ),
             "activated",
         )
         self.assertEqual(
             pkf_savings_eval.classify_retrieval_decision(
-                arm="probe_only", phase="retrieval", trace=activated
+                arm="probe_only", phase="simple_retrieval", trace=activated
             ),
             "not_applicable",
         )
@@ -728,14 +779,22 @@ class PkfSavingsEvalTests(unittest.TestCase):
         self.assertNotIn("cross_minimality_status", public)
 
     def test_run_class_keeps_one_pass_separate_from_replicated_results(self):
-        self.assertEqual(pkf_savings_eval.REPORT_SCHEMA_VERSION, 9)
+        self.assertEqual(pkf_savings_eval.REPORT_SCHEMA_VERSION, 10)
         self.assertEqual(pkf_savings_eval.run_class(1), "one_pass_preflight")
         self.assertEqual(pkf_savings_eval.run_class(2), "diagnostic")
         self.assertEqual(pkf_savings_eval.run_class(3), "replicated")
 
     def test_initialization_is_not_a_recurring_phase(self):
         schedule = pkf_savings_eval.build_schedule(
-            1, ("retrieval", "mutation", "post_mutation", "closeout"), self.benchmark_spec()
+            1,
+            (
+                "simple_retrieval",
+                "cross_capability_retrieval",
+                "mutation",
+                "post_mutation",
+                "closeout",
+            ),
+            self.benchmark_spec(),
         )
         self.assertFalse(any(item["phase"] == "setup" for item in schedule))
 
@@ -766,18 +825,35 @@ class PkfSavingsEvalTests(unittest.TestCase):
     def test_public_result_omits_answer_and_markdown_discloses_limitations(self):
         result = self.make_result(answer={"private": "value"})
         public = pkf_savings_eval.public_result(result)
-        probe = self.make_result(task_id="cross-read", usage=pkf_savings_eval.Usage(100, 80, 4))
+        source = self.make_result(
+            arm="source_only",
+            task_id="cross-read",
+            phase="cross_capability_retrieval",
+            usage=pkf_savings_eval.Usage(120, 90, 4),
+        )
+        probe = self.make_result(
+            task_id="cross-read",
+            phase="cross_capability_retrieval",
+            usage=pkf_savings_eval.Usage(100, 80, 4),
+        )
         candidate = self.make_result(
             arm="pkf",
             task_id="cross-read",
+            phase="cross_capability_retrieval",
             usage=pkf_savings_eval.Usage(80, 70, 5),
             explicit_ai_read_path_count=1,
             retrieval_decision="activated",
         )
-        metrics = pkf_savings_eval.aggregate_metrics((probe, candidate))
+        metrics = pkf_savings_eval.aggregate_metrics((source, probe, candidate))
+        self.assertNotIn("source_vs_probe", metrics["comparisons"]["cross-read"])
+        self.assertIn(
+            "source_vs_probe",
+            metrics["diagnostic_comparisons"]["cross-read"],
+        )
         report = {
             "benchmark": "generic-lifecycle",
-            "phases_selected": ["retrieval"],
+            "phases_selected": ["cross_capability_retrieval"],
+            "source_only_diagnostic": True,
             "run_class": "replicated",
             "replicated": True,
             "status": "completed",
@@ -793,7 +869,11 @@ class PkfSavingsEvalTests(unittest.TestCase):
                 "peak_parallel_calls": 3,
             },
             "metrics": metrics,
-            "runs": [pkf_savings_eval.public_result(probe), pkf_savings_eval.public_result(candidate)],
+            "runs": [
+                pkf_savings_eval.public_result(source),
+                pkf_savings_eval.public_result(probe),
+                pkf_savings_eval.public_result(candidate),
+            ],
             "errors": [],
         }
 
@@ -811,6 +891,7 @@ class PkfSavingsEvalTests(unittest.TestCase):
             markdown,
         )
         self.assertIn("source_only", markdown)
+        self.assertIn("### Source-only diagnostic deltas", markdown)
         self.assertIn("probe_only", markdown)
         self.assertIn("Explicit read targets", markdown)
         self.assertIn("Only paired tasks whose PKF arm actually activated", markdown)
@@ -821,7 +902,8 @@ class PkfSavingsEvalTests(unittest.TestCase):
         metrics = pkf_savings_eval.aggregate_metrics((probe, candidate))
         report = {
             "benchmark": "generic-lifecycle",
-            "phases_selected": ["retrieval"],
+            "phases_selected": ["simple_retrieval"],
+            "source_only_diagnostic": False,
             "run_class": "one_pass_preflight",
             "replicated": False,
             "status": "preliminary",
@@ -848,6 +930,7 @@ class PkfSavingsEvalTests(unittest.TestCase):
         self.assertIn("### Single-pass usage by task", markdown)
         self.assertIn("Evidence strength: **directional**", markdown)
         self.assertIn("cannot replace a fresh three-repetition result", markdown)
+        self.assertNotIn("Source-only diagnostic deltas", markdown)
 
     def test_materialization_inventory_counts_complete_pending_and_unknown_leaves(self):
         with tempfile.TemporaryDirectory() as raw_temp:

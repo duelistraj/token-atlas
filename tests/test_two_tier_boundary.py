@@ -48,6 +48,38 @@ class TwoTierBoundaryTests(unittest.TestCase):
         for token in ("codex", "bench", "benchmark", "gpt-5", "pkf.ps1"):
             self.assertNotIn(token, text)
 
+    def test_lite_is_a_standalone_public_only_skill(self):
+        lite = ROOT / "skills" / "token-atlas-lite"
+        actual = {path.relative_to(lite).as_posix() for path in lite.rglob("*") if path.is_file()}
+        expected = {
+            "SKILL.md",
+            "agents/openai.yaml",
+            "references/contract.md",
+            "references/initialize.md",
+            "references/refresh.md",
+            "references/validation.md",
+            "scripts/lite_validate.py",
+        }
+
+        self.assertEqual(actual, expected)
+        self.assertFalse((ROOT / ".agents" / "skills" / "token-atlas-lite").exists())
+        metadata = (lite / "agents" / "openai.yaml").read_text(encoding="utf-8")
+        self.assertIn("allow_implicit_invocation: false", metadata)
+
+    def test_lite_validator_runs_without_site_packages(self):
+        validator = ROOT / "skills" / "token-atlas-lite" / "scripts" / "lite_validate.py"
+
+        completed = subprocess.run(
+            [sys.executable, "-S", str(validator), "--path", str(ROOT), "--format", "json"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn('"edition": "lite"', completed.stdout)
+        self.assertIn('"status": "failed"', completed.stdout)
+
     def test_public_validator_modules_match_canonical_scripts(self):
         public = ROOT / "skills" / "token-atlas" / "scripts"
         canonical = ROOT / "scripts"

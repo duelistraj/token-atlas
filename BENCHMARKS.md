@@ -1,18 +1,20 @@
 # Token Atlas Benchmarks
 
-## Current low-token regression gate
+## Current lifecycle runner
 
-Before another complete adaptive-attribution preflight, use the five-call
-`regression` suite: one initialization, the cross-capability probe/PKF pair, and
-the isolated closeout control/PKF pair. It must be dry-run inspected and requires
-the same explicit benchmark approval as every other suite. It publishes a full
-one-pass directional report but does not replace the 13-call `all` suite or a
-three-repetition headline result.
+PKF initialization is a separate one-time baseline operation. Performance runs
+reuse that sealed baseline and explicitly select any combination of
+`simple_retrieval`, `cross_capability_retrieval`, `mutation`, `post_mutation`,
+and `closeout`. Ready calls run concurrently; post-mutation alone waits for its
+matching mutation state. Isolated closeout uses a separately patched workspace
+so its cost is not contaminated by implementation work.
 
-The gate requires bounded `pkf.routes` retrieval, no Token Atlas workflow read
-during cross retrieval, one explicit post-extraction validation, no helper-source
-inspection, and mapped closeout with one route and one validation. Canonical
-comparison remains `gpt-5.6-luna` at high reasoning.
+The primary comparison is `probe_only` versus `pkf`. Generic `source_only`
+discovery is available only through `--include-source-only` and is reported as
+an attribution diagnostic rather than a headline baseline. A one-repetition run
+remains a published directional preflight; three repetitions remain the normal
+standard for replicated claims. Every performance run still requires explicit
+approval.
 
 ## Published one-pass preflight
 

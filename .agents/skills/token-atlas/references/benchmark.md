@@ -149,7 +149,8 @@ baseline and explicit comma-separated `--phases` selected from:
 
 | Phase | Calls per repetition | State |
 | --- | ---: | --- |
-| `retrieval` | Each configured task across `source_only`, `probe_only`, and `pkf` | Clean baseline |
+| `simple_retrieval` | Configured local tasks across `probe_only` and `pkf` | Clean baseline |
+| `cross_capability_retrieval` | Configured cross-capability tasks across `probe_only` and `pkf` | Clean baseline |
 | `mutation` | Configured mutation across `probe_only` and `pkf` | Saves reusable state in full artifact mode |
 | `post_mutation` | Configured read across `probe_only` and `pkf` | Depends on same-run mutation or `--state-from` |
 | `closeout` | Pre-applied control and PKF closeout | Clean baseline plus configured patch |
@@ -158,20 +159,27 @@ There is no performance `--suite` and no implicit `all`. The `quick`, `core`,
 and `full` suites belong only to deterministic fixture conformance. Select every
 performance phase explicitly when desired. Independent calls run concurrently;
 `--jobs 0` uses all ready jobs, while a positive value caps parallelism.
-Post-mutation work starts as soon as its matching mutation finishes. Each call
+Post-mutation work starts as soon as its matching mutation finishes and uses a
+fresh agent call over that arm's saved mutation state. Isolated closeout starts
+from a separate clean workspace with the configured patch pre-applied, so
+implementation work cannot contaminate closeout-only attribution. Each call
 uses an isolated workspace and a deterministic call ID.
 
 ```text
-python scripts/pkf_savings_eval.py --target-repo /path/to/repository --target-commit <commit> --benchmark-spec /path/to/spec.json --phases retrieval --model <model-id> --model-reasoning-effort <effort> --repetitions 1 --dry-run
-python scripts/pkf_savings_eval.py --target-repo /path/to/repository --target-commit <commit> --benchmark-spec /path/to/spec.json --phases retrieval,mutation,post_mutation,closeout --model <model-id> --model-reasoning-effort <effort> --repetitions 1
+python scripts/pkf_savings_eval.py --target-repo /path/to/repository --target-commit <commit> --benchmark-spec /path/to/spec.json --phases simple_retrieval --model <model-id> --model-reasoning-effort <effort> --repetitions 1 --dry-run
+python scripts/pkf_savings_eval.py --target-repo /path/to/repository --target-commit <commit> --benchmark-spec /path/to/spec.json --phases simple_retrieval,cross_capability_retrieval,mutation,post_mutation,closeout --model <model-id> --model-reasoning-effort <effort> --repetitions 1
 python scripts/pkf_savings_eval.py --target-repo /path/to/repository --target-commit <commit> --benchmark-spec /path/to/spec.json --phases post_mutation --state-from /path/to/prior-run/private/states --model <model-id> --model-reasoning-effort <effort> --repetitions 1
 ```
 
-The three arms have fixed meanings:
+The primary arms have fixed meanings:
 
-- `source_only`: sanitized target instructions, no PKF, and no adaptive probe policy.
 - `probe_only`: the same target instructions plus bounded adaptive local-probe policy, with no PKF installed.
 - `pkf`: the same pinned source plus the immutable baseline and adaptive closeout; a task may still bypass retrieval.
+
+`source_only` is an optional retrieval-only attribution control enabled with
+`--include-source-only`. It has sanitized target instructions but neither PKF
+nor the bounded probe policy. Exclude it from primary savings, quality claims,
+and normal published comparisons; report source-versus-probe deltas separately.
 
 Publish total, cached, non-cached, and output tokens separately. Non-cached
 input is the primary performance metric; duration and tools are telemetry.
@@ -187,7 +195,7 @@ gates. Leaf and token counts are observations, not ceilings.
 
 Three repetitions remain the default for replicated claims. One repetition is a
 publishable preliminary preflight and must not be pooled into a later replicated
-run. New lifecycle reports use schema version 9. Existing artifacts remain
+run. New lifecycle reports use schema version 10. Existing artifacts remain
 unchanged.
 
 By default each run writes incrementally to
