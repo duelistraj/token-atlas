@@ -30,6 +30,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from pkf_lib import PkfParseError, listify, read_front_matter  # noqa: E402
+from pkf_tokens import count_tokens  # noqa: E402
 
 PUBLIC_SKILL = ROOT / "skills" / "token-atlas"
 DEFAULT_TARGET_COMMIT = "5c458df3c737f0af2a2193186d98af90c45163f0"
@@ -47,25 +48,16 @@ MUTATION_PATHS = (
     "frontend/src/notes/noteSectionState.ts",
     "frontend/src/notes/noteSectionState.test.ts",
 )
-EXPECTED_CROSS_ROUTE_ID = "note-task-links"
-EXPECTED_CROSS_ROUTE_LEAVES = frozenset(
-    {
-        ".ai/knowledge/notes/business_rules.md",
-        ".ai/knowledge/boards/business_rules.md",
-        ".ai/knowledge/workspace/business_rules.md",
-    }
-)
-INITIALIZATION_REFERENCE = {
-    "non_cached_input_tokens": 132_263,
-    "output_tokens": 33_753,
-    "duration_ms": 718_301,
-}
 ARM_DEFINITIONS = {
     "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only.",
     "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
     "pkf": "PKF installed with adaptive retrieval and repository-local semantic closeout; an individual task may bypass retrieval.",
 }
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
+PKF_ROUTE_MARKER_PATTERN = re.compile(
+    r"^PKF route: (?P<routes>[a-z0-9][a-z0-9-]*(?: \+ [a-z0-9][a-z0-9-]*)*); "
+    r"(?P<leaves>[1-9][0-9]*) unique leaves; fallback=(?P<fallback>yes|no)$"
+)
 
 SOURCE_ONLY_AGENTS = """# AGENTS
 
@@ -108,10 +100,12 @@ INITIALIZE_PROMPT = (
     "executables: do not read their source unless an invocation fails because the helper itself "
     "is broken. "
     "PKF with hybrid extraction: review capability boundaries, materialize shared "
-    "architecture and bounded routing. Materialize one primary public-behavior leaf per "
-    "capability by default; add another only when an explicit validated cross-capability "
-    "route requires it. Record source-backed cross-capability routes under pkf.routes in "
-    ".ai/knowledge/INDEX.md. Include capability-local public behavior state/helpers and "
+    "architecture and bounded routing. Materialize every verified public behavior, important "
+    "mutation entrypoint, and cross-capability contract needed for direct source-backed "
+    "retrieval; do not impose a fixed leaf count per capability. Record narrow atomic "
+    "cross-capability routes under pkf.routes in .ai/knowledge/INDEX.md and compose multiple "
+    "routes for broader intents. Give every route requirement IDs and a load_coverage mapping; "
+    "every leaf must uniquely cover at least one requirement. Include capability-local public behavior state/helpers and "
     "their focused tests in materialized leaf source_symbols; leave unrelated implementation leaves "
     "pending. Use profile=core, retrieval_exports=off, "
     "simulation=changed, token_budget=summary, and validation_strictness=ci. "
@@ -177,7 +171,11 @@ READ_ONLY_TASKS = (
             "Answer this cross-capability repository question without changing files: who "
             "may read or modify note-task links, are completed tasks linkable, and what does "
             "trashing then restoring a linked task, list, or board do to the relationship? "
-            "Return the requested structured answer with concise source evidence."
+            "Return the requested structured answer with concise source evidence. If PKF "
+            "retrieval activates, include exactly one evidence string in this form: `PKF "
+            "route: <route-id> + <route-id>; <N> unique leaves; fallback=<yes|no>`. List only "
+            "the selected keyed route IDs, deduplicate their combined leaves, and omit the "
+            "marker when PKF is unavailable or bypassed."
         ),
         expected_answers={
             "owners_can_modify": True,
@@ -232,6 +230,7 @@ class TraceMetrics:
     searched_root_count: int
     ai_read_or_search_command_count: int
     routed_document_count: int
+    fallback_invocation_count: int
     fallback_search: bool
 
 
@@ -264,6 +263,7 @@ class CodexResult:
     searched_root_count: int
     ai_read_or_search_command_count: int
     routed_document_count: int
+    fallback_invocation_count: int
     changed_path_count: int
     changed_expected_paths: bool | None
     focused_test_passed: bool | None
@@ -289,9 +289,23 @@ class CodexResult:
     initialization_helper_source_read_paths: tuple[str, ...] = ()
     initialization_route_status: str = "not_applicable"
     initialization_unmatched_paths: tuple[str, ...] = ()
-    cross_route_id: str = "not_applicable"
-    cross_expected_document_paths: tuple[str, ...] = ()
+    route_marker_emitted: bool = False
+    cross_route_marker_status: str = "not_applicable"
+    cross_route_ids: tuple[str, ...] = ()
+    cross_route_unique_leaf_count: int = 0
+    cross_route_fallback: bool | None = None
+    cross_configured_document_paths: tuple[str, ...] = ()
+    cross_observed_document_paths: tuple[str, ...] = ()
+    cross_missing_route_ids: tuple[str, ...] = ()
+    cross_missing_document_paths: tuple[str, ...] = ()
     cross_unexpected_document_paths: tuple[str, ...] = ()
+    cross_requirement_count: int = 0
+    cross_covered_requirement_count: int = 0
+    cross_coverage_status: str = "not_applicable"
+    cross_minimality_status: str = "not_applicable"
+    cross_redundant_document_paths: tuple[str, ...] = ()
+    cross_estimated_tokens: int = 0
+    cross_token_estimator: str = "not_applicable"
 
 
 class EvaluationError(Exception):
@@ -688,14 +702,6 @@ def item_is_read_like(item: Mapping[str, Any]) -> bool:
     )
 
 
-def item_uses_fallback(item: Mapping[str, Any]) -> bool:
-    return any(
-        is_fallback_invocation(invocation)
-        for value in named_field_strings(item, TOOL_INPUT_FIELDS)
-        for invocation in command_invocations(value)
-    )
-
-
 def helper_source_read_paths(events: Sequence[Mapping[str, Any]]) -> tuple[str, ...]:
     """Return helper files or directories passed to an actual read/search command."""
 
@@ -800,6 +806,7 @@ def inspect_tool_events(
     searched_roots: set[str] = set()
     ai_read_or_search_commands = 0
     fallback_search = False
+    fallback_invocations = 0
     normalized_paths = tuple(sorted(set(known_paths), key=len, reverse=True))
     normalized_directories = set(known_directories)
     for item in events:
@@ -829,8 +836,14 @@ def inspect_tool_events(
                         searched_roots.add(".")
                     elif clean in normalized_directories:
                         searched_roots.add(clean)
-        if item_uses_fallback(item):
+        item_fallback_invocations = sum(
+            is_fallback_invocation(invocation)
+            for value in named_field_strings(item, TOOL_INPUT_FIELDS)
+            for invocation in command_invocations(value)
+        )
+        if item_fallback_invocations:
             fallback_search = True
+            fallback_invocations += item_fallback_invocations
     explicit_ai = {path for path in explicit_paths if path.startswith(".ai/")}
     explicit_skill = {
         path for path in explicit_paths if "/skills/token-atlas/" in f"/{path}" or path.startswith(".codex/skills/token-atlas/")
@@ -851,6 +864,7 @@ def inspect_tool_events(
         searched_root_count=len(searched_roots),
         ai_read_or_search_command_count=ai_read_or_search_commands,
         routed_document_count=len(routed_documents),
+        fallback_invocation_count=fallback_invocations,
         fallback_search=fallback_search,
     )
 
@@ -872,23 +886,146 @@ def explicit_read_paths_for_events(
     return paths
 
 
-def configured_cross_route(repo: Path, route_id: str) -> tuple[str, tuple[str, ...]]:
+def parse_pkf_route_marker(structured: Mapping[str, Any] | None) -> dict[str, Any]:
+    empty = {
+        "status": "missing",
+        "route_ids": (),
+        "unique_leaf_count": 0,
+        "fallback": None,
+    }
+    if not isinstance(structured, Mapping):
+        return empty
+    evidence = structured.get("evidence")
+    if not isinstance(evidence, list):
+        return empty
+    candidates = [
+        value for value in evidence if isinstance(value, str) and value.startswith("PKF route:")
+    ]
+    if not candidates:
+        return empty
+    if len(candidates) != 1:
+        return {**empty, "status": "multiple"}
+    match = PKF_ROUTE_MARKER_PATTERN.fullmatch(candidates[0])
+    if match is None:
+        return {**empty, "status": "malformed"}
+    route_ids = tuple(match.group("routes").split(" + "))
+    if len(set(route_ids)) != len(route_ids):
+        return {**empty, "status": "duplicate_routes"}
+    return {
+        "status": "valid",
+        "route_ids": route_ids,
+        "unique_leaf_count": int(match.group("leaves")),
+        "fallback": match.group("fallback") == "yes",
+    }
+
+
+def configured_cross_routes(
+    repo: Path,
+    route_ids: Sequence[str],
+) -> dict[str, Any]:
+    empty = {
+        "loads": (),
+        "missing_route_ids": tuple(route_ids),
+        "requirement_count": 0,
+        "covered_requirement_count": 0,
+        "coverage_status": "incomplete" if route_ids else "unknown",
+        "minimality_status": "unknown",
+        "redundant_loads": (),
+        "estimated_tokens": 0,
+        "token_estimator": "approximate",
+    }
     index = repo / ".ai" / "knowledge" / "INDEX.md"
     if not index.is_file():
-        return "missing", ()
+        return empty
     try:
         metadata = read_front_matter(index)
     except PkfParseError:
-        return "invalid", ()
+        return empty
     pkf = metadata.get("pkf")
     routes = pkf.get("routes") if isinstance(pkf, Mapping) else None
     if not isinstance(routes, Mapping):
-        return "missing", ()
-    route = routes.get(route_id)
-    if not isinstance(route, Mapping):
-        return "missing", ()
-    loads = tuple(sorted({str(value) for value in listify(route.get("loads")) if str(value)}))
-    return route_id, loads
+        return empty
+    loads: set[str] = set()
+    missing: list[str] = []
+    requirements: set[str] = set()
+    coverage_by_load: dict[str, set[str]] = {}
+    metadata_known = True
+    metadata_valid = True
+    for route_id in route_ids:
+        route = routes.get(route_id)
+        if not isinstance(route, Mapping):
+            missing.append(route_id)
+            metadata_valid = False
+            continue
+        route_loads = {str(value) for value in listify(route.get("loads")) if str(value)}
+        loads.update(route_loads)
+        route_requirements = route.get("requirements")
+        load_coverage = route.get("load_coverage")
+        if route_requirements is None and load_coverage is None:
+            metadata_known = False
+            continue
+        if (
+            not isinstance(route_requirements, list)
+            or not route_requirements
+            or not isinstance(load_coverage, Mapping)
+            or {str(value) for value in load_coverage} != route_loads
+        ):
+            metadata_valid = False
+            continue
+        scoped_requirements = {
+            f"{route_id}:{value}" for value in route_requirements if isinstance(value, str) and value
+        }
+        if len(scoped_requirements) != len(route_requirements):
+            metadata_valid = False
+        requirements.update(scoped_requirements)
+        for load, raw_coverage in load_coverage.items():
+            if not isinstance(raw_coverage, list) or not raw_coverage:
+                metadata_valid = False
+                continue
+            scoped_coverage = {
+                f"{route_id}:{value}" for value in raw_coverage if isinstance(value, str) and value
+            }
+            if not scoped_coverage <= scoped_requirements:
+                metadata_valid = False
+            coverage_by_load.setdefault(str(load), set()).update(scoped_coverage & scoped_requirements)
+
+    covered = set().union(*coverage_by_load.values()) if coverage_by_load else set()
+    provider_counts = {
+        requirement: sum(requirement in values for values in coverage_by_load.values())
+        for requirement in requirements
+    }
+    redundant = tuple(
+        sorted(
+            load
+            for load in loads
+            if metadata_known
+            and not any(provider_counts.get(requirement) == 1 for requirement in coverage_by_load.get(load, set()))
+        )
+    )
+    if not metadata_known:
+        coverage_status = "unknown"
+        minimality_status = "unknown"
+    elif metadata_valid and not missing and requirements == covered:
+        coverage_status = "complete"
+        minimality_status = "minimal" if not redundant else "redundant"
+    else:
+        coverage_status = "incomplete"
+        minimality_status = "redundant" if redundant else "invalid"
+
+    load_files = [repo / load for load in sorted(loads) if (repo / load).is_file()]
+    text = "\n".join(path.read_text(encoding="utf-8") for path in load_files)
+    estimated_tokens, estimator = count_tokens(text, None)
+    return {
+        "loads": tuple(sorted(loads)),
+        "missing_route_ids": tuple(missing),
+        "requirement_count": len(requirements),
+        "covered_requirement_count": len(covered),
+        "coverage_status": coverage_status,
+        "minimality_status": minimality_status,
+        "redundant_loads": redundant,
+        "estimated_tokens": estimated_tokens,
+        "token_estimator": estimator,
+    }
 
 
 def parse_route_attempts(events: Sequence[Mapping[str, Any]]) -> tuple[dict[str, Any], ...]:
@@ -1295,6 +1432,7 @@ def run_codex(
         known_directories=tracked_directories(repo_paths),
     )
     structured = parse_structured_answer(messages) if task is not None else None
+    route_marker = parse_pkf_route_marker(structured)
     answer = structured.get("answers") if isinstance(structured, dict) else None
     answer_correct = (
         dict(answer) == dict(task.expected_answers)
@@ -1326,20 +1464,52 @@ def run_codex(
     initialization_helper_reads = (
         helper_source_read_paths(tool_events) if task_id == "initialize" else ()
     )
-    cross_route_id = "not_applicable"
-    cross_expected_documents: tuple[str, ...] = ()
+    cross_route_marker_status = "not_applicable"
+    cross_route_ids: tuple[str, ...] = ()
+    cross_route_unique_leaf_count = 0
+    cross_route_fallback: bool | None = None
+    cross_configured_documents: tuple[str, ...] = ()
+    cross_observed_documents: tuple[str, ...] = ()
+    cross_missing_route_ids: tuple[str, ...] = ()
+    cross_missing_documents: tuple[str, ...] = ()
     cross_unexpected_documents: tuple[str, ...] = ()
+    cross_requirement_count = 0
+    cross_covered_requirement_count = 0
+    cross_coverage_status = "not_applicable"
+    cross_minimality_status = "not_applicable"
+    cross_redundant_documents: tuple[str, ...] = ()
+    cross_estimated_tokens = 0
+    cross_token_estimator = "not_applicable"
     if task_id == "note_task_links" and arm == "pkf":
-        cross_route_id, cross_expected_documents = configured_cross_route(
+        cross_route_marker_status = str(route_marker["status"])
+        cross_route_ids = tuple(route_marker["route_ids"])
+        cross_route_unique_leaf_count = int(route_marker["unique_leaf_count"])
+        cross_route_fallback = route_marker["fallback"]
+        configured = configured_cross_routes(
             repo,
-            EXPECTED_CROSS_ROUTE_ID,
+            cross_route_ids,
         )
+        cross_configured_documents = tuple(configured["loads"])
+        cross_missing_route_ids = tuple(configured["missing_route_ids"])
+        cross_requirement_count = int(configured["requirement_count"])
+        cross_covered_requirement_count = int(configured["covered_requirement_count"])
+        cross_coverage_status = str(configured["coverage_status"])
+        cross_minimality_status = str(configured["minimality_status"])
+        cross_redundant_documents = tuple(configured["redundant_loads"])
+        cross_estimated_tokens = int(configured["estimated_tokens"])
+        cross_token_estimator = str(configured["token_estimator"])
         leaf_reads = {
             path
             for path in all_read_paths
             if path.startswith(".ai/knowledge/") and not path.endswith("/INDEX.md")
         }
-        cross_unexpected_documents = tuple(sorted(leaf_reads - set(cross_expected_documents)))
+        cross_observed_documents = tuple(sorted(leaf_reads))
+        cross_missing_documents = tuple(
+            sorted(set(cross_configured_documents) - leaf_reads)
+        )
+        cross_unexpected_documents = tuple(
+            sorted(leaf_reads - set(cross_configured_documents))
+        )
     changes = changed_paths(repo)
     result = CodexResult(
         repetition=repetition,
@@ -1369,6 +1539,7 @@ def run_codex(
         searched_root_count=trace.searched_root_count,
         ai_read_or_search_command_count=trace.ai_read_or_search_command_count,
         routed_document_count=trace.routed_document_count,
+        fallback_invocation_count=trace.fallback_invocation_count,
         changed_path_count=len(changes),
         changed_expected_paths=None,
         focused_test_passed=None,
@@ -1397,9 +1568,23 @@ def run_codex(
         initialization_validation_call_count=initialization_validation_calls,
         initialization_helper_source_read_count=len(initialization_helper_reads),
         initialization_helper_source_read_paths=initialization_helper_reads,
-        cross_route_id=cross_route_id,
-        cross_expected_document_paths=cross_expected_documents,
+        route_marker_emitted=route_marker["status"] != "missing",
+        cross_route_marker_status=cross_route_marker_status,
+        cross_route_ids=cross_route_ids,
+        cross_route_unique_leaf_count=cross_route_unique_leaf_count,
+        cross_route_fallback=cross_route_fallback,
+        cross_configured_document_paths=cross_configured_documents,
+        cross_observed_document_paths=cross_observed_documents,
+        cross_missing_route_ids=cross_missing_route_ids,
+        cross_missing_document_paths=cross_missing_documents,
         cross_unexpected_document_paths=cross_unexpected_documents,
+        cross_requirement_count=cross_requirement_count,
+        cross_covered_requirement_count=cross_covered_requirement_count,
+        cross_coverage_status=cross_coverage_status,
+        cross_minimality_status=cross_minimality_status,
+        cross_redundant_document_paths=cross_redundant_documents,
+        cross_estimated_tokens=cross_estimated_tokens,
+        cross_token_estimator=cross_token_estimator,
     )
     if artifacts is not None:
         artifacts.record_call(
@@ -1655,6 +1840,7 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
         "searched_root_count",
         "ai_read_or_search_command_count",
         "routed_document_count",
+        "fallback_invocation_count",
         "mentioned_path_count",
         "mentioned_ai_path_count",
     )
@@ -1694,6 +1880,36 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             status: sum(result.initial_route_status == status for result in grouped)
             for status in ("mapped", "partial", "unmapped", "not_run", "invalid")
         }
+        if task_id == "note_task_links" and arm == "pkf":
+            entry["cross_route_count"] = median(
+                [len(result.cross_route_ids) for result in grouped]
+            )
+            entry["cross_unique_leaf_count"] = median(
+                [result.cross_route_unique_leaf_count for result in grouped]
+            )
+            entry["cross_requirement_count"] = median(
+                [result.cross_requirement_count for result in grouped]
+            )
+            entry["cross_covered_requirement_count"] = median(
+                [result.cross_covered_requirement_count for result in grouped]
+            )
+            entry["cross_redundant_leaf_count"] = median(
+                [len(result.cross_redundant_document_paths) for result in grouped]
+            )
+            entry["cross_estimated_tokens"] = median(
+                [result.cross_estimated_tokens for result in grouped]
+            )
+            entry["cross_coverage_statuses"] = {
+                status: sum(result.cross_coverage_status == status for result in grouped)
+                for status in ("complete", "incomplete", "unknown")
+            }
+            entry["cross_minimality_statuses"] = {
+                status: sum(result.cross_minimality_status == status for result in grouped)
+                for status in ("minimal", "redundant", "invalid", "unknown")
+            }
+            entry["cross_fallback_rate"] = (
+                sum(result.cross_route_fallback is True for result in grouped) / len(grouped)
+            )
         segmented = [result.trace_segments for result in grouped if result.trace_segments]
         if segmented:
             entry["trace_segments"] = {
@@ -1712,6 +1928,7 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
                         "explicit_ai_read_path_count",
                         "explicit_skill_read_path_count",
                         "routed_document_count",
+                        "fallback_invocation_count",
                     )
                 } | {
                     "fallback_rate": (
@@ -1906,76 +2123,158 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
 
 def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict[str, Any]:
     comparisons = metrics.get("comparisons", {})
-    checks: list[dict[str, Any]] = []
+    phases: dict[str, dict[str, Any]] = {
+        "local_bypass": {
+            "purpose": "PKF-inactive local work should remain near probe-only cost.",
+            "checks": [],
+            "measurements": {},
+        },
+        "cross_retrieval": {
+            "purpose": "Activated PKF should replace broad cross-capability discovery.",
+            "checks": [],
+            "measurements": {},
+        },
+        "mutation_implementation": {
+            "purpose": "Implementation stays source-first; closeout cost is attributed separately.",
+            "checks": [],
+            "measurements": {},
+        },
+        "closeout": {
+            "purpose": "Required knowledge maintenance is measured as a maintenance premium.",
+            "checks": [],
+            "measurements": {},
+        },
+        "initialization": {
+            "purpose": "One-time setup is reported for coverage and runaway detection, not historical cost parity.",
+            "checks": [],
+            "measurements": {},
+        },
+        "amortization": {
+            "purpose": "Break-even estimates relate setup and maintenance premiums to activated retrieval savings.",
+            "checks": [],
+            "measurements": {},
+        },
+    }
 
-    def add_check(name: str, value: float | None, target: str, met: bool | None) -> None:
-        checks.append({"name": name, "value": value, "target": target, "met": met})
-
-    local = comparisons.get("boards_add_task", {}).get("probe_vs_pkf", {})
-    if local:
-        for metric in ("input_tokens", "non_cached_input_tokens", "duration_ms"):
-            value = local.get(metric, {}).get("percent")
-            add_check(f"local_{metric}_overhead", value, "<= 5%", value is not None and value <= 5.0)
-    cross = comparisons.get("note_task_links", {}).get("probe_vs_pkf", {})
-    if cross:
-        value = cross.get("non_cached_input_tokens", {}).get("delta")
-        add_check(
-            "cross_capability_non_cached_input_tokens_delta",
-            value,
-            "< 0",
-            value is not None and value < 0,
+    def add_check(
+        phase: str,
+        name: str,
+        value: float | None,
+        target: str,
+        met: bool | None,
+    ) -> None:
+        phases[phase]["checks"].append(
+            {"phase": phase, "name": name, "value": value, "target": target, "met": met}
         )
-        pkf_cross = metrics.get("by_task", {}).get("note_task_links", {}).get("pkf", {})
-        tool_calls = float(pkf_cross.get("tool_call_count", 0))
-        routed_docs = float(pkf_cross.get("routed_document_count", 0))
-        add_check("cross_capability_tool_calls", tool_calls, "<= 6", tool_calls <= 6)
-        add_check("cross_capability_routed_documents", routed_docs, "<= 3", routed_docs <= 3)
-    initialized = metrics.get("by_task", {}).get("initialize", {}).get("pkf", {})
-    for metric, reference in INITIALIZATION_REFERENCE.items():
-        if metric in initialized:
-            value = float(initialized[metric]) - reference
-            add_check(f"initialization_{metric}_delta", value, "<= Preflight B", value <= 0)
-    if initialized:
-        validations = float(initialized.get("initialization_validation_call_count", 0))
-        helper_reads = float(initialized.get("initialization_helper_source_read_count", 0))
-        add_check("initialization_validation_calls", validations, "= 1", validations == 1)
-        add_check("initialization_helper_source_reads", helper_reads, "= 0", helper_reads == 0)
-    isolated_closeout = metrics.get("by_task", {}).get("isolated_closeout", {}).get("pkf", {})
-    if isolated_closeout:
-        tool_calls = float(isolated_closeout.get("tool_call_count", 0))
-        routed_docs = float(isolated_closeout.get("routed_document_count", 0))
-        mapped_count = isolated_closeout.get("initial_route_statuses", {}).get("mapped", 0)
-        if mapped_count:
-            add_check("mapped_closeout_tool_calls", tool_calls, "<= 6", tool_calls <= 6)
-            add_check("mapped_closeout_routed_documents", routed_docs, "<= 2", routed_docs <= 2)
-    phase_costs = metrics.get("lifecycle_phase_cost_summary", {})
-    if phase_costs:
-        implementation = phase_costs["implementation"]
-        composed = phase_costs["composed_probe_plus_closeout"]
-        for metric in ("input_tokens", "non_cached_input_tokens", "duration_ms"):
-            baseline = float(implementation.get(metric, 0))
-            candidate = float(composed.get(metric, 0))
-            value = ((candidate - baseline) / baseline * 100.0) if baseline else None
+
+    for task_id in ("boards_add_task", POST_MUTATION_TASK.task_id):
+        local = comparisons.get(task_id, {}).get("probe_vs_pkf", {})
+        if not local:
+            continue
+        for metric in ("non_cached_input_tokens", "duration_ms", "tool_call_count"):
+            value = local.get(metric, {}).get("percent")
             add_check(
-                f"composed_mutation_{metric}_overhead",
+                "local_bypass",
+                f"{task_id}_{metric}_overhead",
                 value,
                 "<= 5%",
                 value is not None and value <= 5.0,
             )
-    operational = metrics.get("operational_by_repetition", [])
-    for metric in ("input_tokens", "non_cached_input_tokens", "duration_ms"):
-        probe = median([entry["probe_only"][metric] for entry in operational])
-        pkf = median([entry["pkf"][metric] for entry in operational])
-        if probe:
-            value = (pkf - probe) / probe * 100.0
-            add_check(f"operational_{metric}_overhead", value, "<= 5%", value <= 5.0)
-    met = bool(checks) and all(check["met"] for check in checks)
-    status = "advisory_met" if met else "advisory_missed"
-    if repetitions < 3:
-        status = f"preliminary_{status}"
+        phases["local_bypass"]["measurements"][task_id] = {
+            metric: local.get(metric, {})
+            for metric in ("input_tokens", "non_cached_input_tokens", "duration_ms", "tool_call_count")
+        }
+    cross = comparisons.get("note_task_links", {}).get("probe_vs_pkf", {})
+    if cross:
+        non_cached_delta = cross.get("non_cached_input_tokens", {}).get("delta")
+        add_check(
+            "cross_retrieval",
+            "cross_capability_non_cached_input_tokens_delta",
+            non_cached_delta,
+            "< 0",
+            non_cached_delta is not None and non_cached_delta < 0,
+        )
+        tool_delta = cross.get("tool_call_count", {}).get("delta")
+        add_check(
+            "cross_retrieval",
+            "cross_capability_tool_call_delta",
+            tool_delta,
+            "< 0",
+            tool_delta is not None and tool_delta < 0,
+        )
+        pkf_cross = metrics.get("by_task", {}).get("note_task_links", {}).get("pkf", {})
+        phases["cross_retrieval"]["measurements"] = {
+            "input_tokens": cross.get("input_tokens", {}),
+            "non_cached_input_tokens": cross.get("non_cached_input_tokens", {}),
+            "output_tokens": cross.get("output_tokens", {}),
+            "duration_ms": cross.get("duration_ms", {}),
+            "tool_call_count": cross.get("tool_call_count", {}),
+            "routed_document_count": float(pkf_cross.get("routed_document_count", 0)),
+            "route_count": float(pkf_cross.get("cross_route_count", 0)),
+            "unique_leaf_count": float(pkf_cross.get("cross_unique_leaf_count", 0)),
+            "requirement_count": float(pkf_cross.get("cross_requirement_count", 0)),
+            "covered_requirement_count": float(pkf_cross.get("cross_covered_requirement_count", 0)),
+            "redundant_leaf_count": float(pkf_cross.get("cross_redundant_leaf_count", 0)),
+            "estimated_route_tokens": float(pkf_cross.get("cross_estimated_tokens", 0)),
+            "fallback_rate": float(pkf_cross.get("cross_fallback_rate", 0)),
+        }
+    initialized = metrics.get("by_task", {}).get("initialize", {}).get("pkf", {})
+    if initialized:
+        phases["initialization"]["measurements"] = {
+            metric: float(initialized.get(metric, 0))
+            for metric in (
+                "input_tokens",
+                "non_cached_input_tokens",
+                "output_tokens",
+                "duration_ms",
+                "tool_call_count",
+                "initialization_validation_call_count",
+                "initialization_helper_source_read_count",
+                "fallback_invocation_count",
+            )
+        }
+    isolated_closeout = metrics.get("by_task", {}).get("isolated_closeout", {}).get("pkf", {})
+    if isolated_closeout:
+        tool_calls = float(isolated_closeout.get("tool_call_count", 0))
+        mapped_count = isolated_closeout.get("initial_route_statuses", {}).get("mapped", 0)
+        if mapped_count:
+            add_check(
+                "closeout",
+                "mapped_closeout_tool_calls",
+                tool_calls,
+                "<= 6",
+                tool_calls <= 6,
+            )
+    phase_costs = metrics.get("lifecycle_phase_cost_summary", {})
+    if phase_costs:
+        phases["mutation_implementation"]["measurements"] = {
+            "implementation": phase_costs["implementation"],
+            "integrated_observed": phase_costs["integrated_observed"],
+        }
+        phases["closeout"]["measurements"] = {
+            "closeout": phase_costs["closeout"],
+            "closeout_control": phase_costs["closeout_control"],
+            "closeout_incremental": phase_costs["closeout_incremental"],
+            "composed_probe_plus_closeout": phase_costs["composed_probe_plus_closeout"],
+        }
+    phases["amortization"]["measurements"] = {
+        "break_even_activated_tasks": metrics.get("break_even_activated_tasks", {})
+    }
+
+    checks = [check for phase in phases.values() for check in phase["checks"]]
+    for phase in phases.values():
+        phase_checks = phase["checks"]
+        if phase_checks:
+            base = "met" if all(check["met"] for check in phase_checks) else "missed"
+            phase["status"] = f"directional_{base}" if repetitions < 3 else f"replicated_{base}"
+        elif phase["measurements"]:
+            phase["status"] = "measured"
+        else:
+            phase["status"] = "not_measured"
     return {
-        "status": status,
+        "status": "preliminary" if repetitions < 3 else "reported",
         "evidence_strength": "replicated" if repetitions >= 3 else "directional",
+        "phases": phases,
         "checks": checks,
     }
 
@@ -2008,6 +2307,11 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
         if result.task_id == "initialize" and result.initialization_helper_source_read_count:
             paths = ", ".join(result.initialization_helper_source_read_paths)
             errors.append(f"{label}: initialization read opaque helper source: {paths}")
+        if result.task_id == "initialize" and result.fallback_invocation_count > 1:
+            errors.append(
+                f"{label}: initialization repeated broad repository scans "
+                f"({result.fallback_invocation_count} fallback-style invocations)"
+            )
         if result.task_id == "initialize" and result.initialization_route_status != "mapped":
             unmatched = ", ".join(result.initialization_unmatched_paths) or "unknown paths"
             errors.append(
@@ -2019,6 +2323,10 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
                 errors.append(f"{label}: local task explicitly read PKF or Token Atlas paths")
             if result.arm == "pkf" and result.retrieval_decision != "bypassed":
                 errors.append(f"{label}: local PKF task was not classified as bypassed")
+            if result.route_marker_emitted:
+                errors.append(f"{label}: bypassed local task emitted a PKF route marker")
+        if result.arm != "pkf" and result.route_marker_emitted:
+            errors.append(f"{label}: non-PKF arm emitted a PKF route marker")
         if result.task_id == "note_task_links" and result.arm == "pkf":
             if result.explicit_ai_read_path_count < 1:
                 errors.append(f"{label}: cross-capability task did not activate PKF retrieval")
@@ -2026,21 +2334,42 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
                 errors.append(f"{label}: cross-capability PKF task was not classified as activated")
             if result.explicit_skill_read_path_count:
                 errors.append(f"{label}: cross-capability retrieval loaded Token Atlas workflow instructions")
-            if result.cross_route_id != EXPECTED_CROSS_ROUTE_ID:
+            if result.cross_route_marker_status != "valid":
                 errors.append(
-                    f"{label}: missing explicit {EXPECTED_CROSS_ROUTE_ID!r} cross-capability route"
+                    f"{label}: cross-capability retrieval route marker was "
+                    f"{result.cross_route_marker_status}"
                 )
-            if set(result.cross_expected_document_paths) != EXPECTED_CROSS_ROUTE_LEAVES:
-                loads = ", ".join(result.cross_expected_document_paths) or "none"
-                errors.append(f"{label}: cross-capability route selected unexpected leaves: {loads}")
+            if not result.cross_route_ids:
+                errors.append(f"{label}: cross-capability retrieval selected no keyed routes")
+            if result.cross_missing_route_ids:
+                route_ids = ", ".join(result.cross_missing_route_ids)
+                errors.append(f"{label}: route marker named undefined routes: {route_ids}")
+            if result.cross_coverage_status != "complete":
+                errors.append(
+                    f"{label}: configured route requirement coverage is {result.cross_coverage_status}"
+                )
+            if result.cross_minimality_status != "minimal":
+                errors.append(
+                    f"{label}: configured route minimality is {result.cross_minimality_status}"
+                )
+            if result.cross_redundant_document_paths:
+                paths = ", ".join(result.cross_redundant_document_paths)
+                errors.append(f"{label}: configured route contains redundant leaves: {paths}")
+            if not result.cross_configured_document_paths:
+                errors.append(f"{label}: selected routes configured no leaf documents")
+            if result.cross_route_unique_leaf_count != len(result.cross_configured_document_paths):
+                errors.append(
+                    f"{label}: route marker reported {result.cross_route_unique_leaf_count} unique leaves "
+                    f"but configuration resolves {len(result.cross_configured_document_paths)}"
+                )
+            if result.cross_route_fallback is not False or result.fallback_search:
+                errors.append(f"{label}: configured cross-capability retrieval used fallback discovery")
+            if result.cross_missing_document_paths:
+                paths = ", ".join(result.cross_missing_document_paths)
+                errors.append(f"{label}: cross-capability retrieval skipped configured leaves: {paths}")
             if result.cross_unexpected_document_paths:
                 paths = ", ".join(result.cross_unexpected_document_paths)
                 errors.append(f"{label}: cross-capability retrieval read outside its explicit route: {paths}")
-            if result.routed_document_count > 3:
-                errors.append(
-                    f"{label}: cross-capability retrieval exceeded three-leaf budget "
-                    f"({result.routed_document_count})"
-                )
         if result.task_id == "favorite_visibility_mutation":
             if result.changed_expected_paths is not True:
                 errors.append(f"{label}: mutation did not make the expected source/test change")
@@ -2293,10 +2622,11 @@ def execute(
     metrics = aggregate_metrics(results)
     performance = performance_advisories(metrics, args.repetitions)
     report = {
-        "schema_version": 6,
+        "schema_version": 7,
         "run_id": artifacts.run_id,
         "artifact_manifest_path": "../manifest.json" if artifacts.mode != "off" else None,
         "benchmark": "token-atlas-adaptive-attribution",
+        "evaluation_kind": "real_repository_performance",
         "arm_definitions": ARM_DEFINITIONS,
         "suite": args.suite,
         "run_class": run_class(args.repetitions),
@@ -2337,7 +2667,14 @@ def execute(
                 "probe-only mutation measures implementation, isolated PKF closeout measures closeout, "
                 "and integrated PKF mutation remains the observed combined total"
             ),
-            "initialization_reference": INITIALIZATION_REFERENCE,
+            "initialization_objective": (
+                "maximize verified public-behavior and routing coverage while enforcing one final "
+                "validation, opaque helpers, and bounded atomic routes; no historical cost target"
+            ),
+            "performance_interpretation": (
+                "phase-specific advisory targets remain separate from blocking quality gates; "
+                "closeout is reported as a required maintenance premium"
+            ),
             "ambient_user_config": "ignored; authentication copied only",
             "raw_traces_published": False,
         },
@@ -2446,14 +2783,24 @@ def render_markdown(
             helper_paths = ", ".join(run.get("initialization_helper_source_read_paths", [])) or "none"
             lines.append(
                 f"- Initialization: {run.get('initialization_validation_call_count', 0)} explicit "
-                f"validation(s); opaque helper source reads: {helper_paths}."
+                f"validation(s); opaque helper source reads: {helper_paths}; fallback-style broad "
+                f"scan invocations: {run.get('fallback_invocation_count', 0)}."
             )
         elif run["task_id"] == "note_task_links" and run["arm"] == "pkf":
-            expected = ", ".join(run.get("cross_expected_document_paths", [])) or "none"
+            route_ids = " + ".join(run.get("cross_route_ids", [])) or "none"
+            configured = ", ".join(run.get("cross_configured_document_paths", [])) or "none"
+            observed = ", ".join(run.get("cross_observed_document_paths", [])) or "none"
+            missing = ", ".join(run.get("cross_missing_document_paths", [])) or "none"
             unexpected = ", ".join(run.get("cross_unexpected_document_paths", [])) or "none"
             lines.append(
-                f"- Cross route `{run.get('cross_route_id', 'missing')}`: expected leaves {expected}; "
-                f"unexpected leaf reads {unexpected}."
+                f"- Cross routes `{route_ids}` ({run.get('cross_route_marker_status', 'missing')} marker, "
+                f"{run.get('cross_route_unique_leaf_count', 0)} reported unique leaves, "
+                f"coverage={run.get('cross_coverage_status', 'unknown')}, "
+                f"minimality={run.get('cross_minimality_status', 'unknown')}, "
+                f"requirements={run.get('cross_covered_requirement_count', 0)}/"
+                f"{run.get('cross_requirement_count', 0)}, "
+                f"estimated tokens={run.get('cross_estimated_tokens', 0)}): configured {configured}; "
+                f"observed {observed}; missing {missing}; unexpected {unexpected}."
             )
         elif run["task_id"] in {"favorite_visibility_mutation", "isolated_closeout"} and run["arm"] == "pkf":
             unexpected = ", ".join(run.get("closeout_unexpected_read_paths", [])) or "none"
@@ -2514,6 +2861,13 @@ def render_markdown(
         f"saving: `{knowledge_savings.get('input_tokens', 0):.0f}`; median non-cached "
         f"input saving: `{knowledge_savings.get('non_cached_input_tokens', 0):.0f}`."
     )
+    break_even = metrics.get("break_even_activated_tasks", {})
+    lines.append(
+        f"Estimated break-even activated tasks: input "
+        f"`{break_even.get('input_tokens') if break_even.get('input_tokens') is not None else 'not reached'}`, "
+        f"non-cached input "
+        f"`{break_even.get('non_cached_input_tokens') if break_even.get('non_cached_input_tokens') is not None else 'not reached'}`."
+    )
     lines.extend(("", "### Bypassed environment deltas", ""))
     bypassed = metrics.get("bypassed_pkf_environment_deltas", {})
     if bypassed:
@@ -2535,18 +2889,19 @@ def render_markdown(
                 f"- `{task_id}` {label}: input {input_delta:+.0f}, non-cached "
                 f"{non_cached_delta:+.0f}, duration {duration_delta:+.0f} ms."
             )
-    lines.extend(("", "### Performance advisories", ""))
+    lines.extend(("", "### Phase performance scorecard", ""))
     lines.append(
-        f"Evidence strength: **{report['performance'].get('evidence_strength', 'unknown')}**."
+        f"Evidence strength: **{report['performance'].get('evidence_strength', 'unknown')}**. "
+        "These targets are advisory and do not change the quality verdict."
     )
-    lines.append("")
-    if report["performance"]["checks"]:
-        for check in report["performance"]["checks"]:
+    for phase_name, phase in report["performance"].get("phases", {}).items():
+        lines.extend(("", f"- `{phase_name}` — **{phase['status']}**: {phase['purpose']}"))
+        for check in phase.get("checks", []):
             state = "met" if check["met"] else "missed"
             value = "n/a" if check["value"] is None else f"{check['value']:.2f}"
-            lines.append(f"- {check['name']}: {state} (`{value}`, target {check['target']}).")
-    else:
-        lines.append("- No performance checks apply to the selected suite.")
+            lines.append(
+                f"  - {check['name']}: {state} (`{value}`, target {check['target']})."
+            )
     lines.extend(("", "### Limitations", ""))
     lines.extend(
         (

@@ -134,19 +134,17 @@ Full workflow details live in the reference docs: [initialize](skills/token-atla
 
 ## How it keeps context small
 
-- **Routing over duplication.** `pkf.loads` holds only what a task needs
-  automatically; root-index `pkf.routes` selects one to three exact leaves for
-  cross-capability work; leaf `pkf.related` remains optional context.
+- **Routing over duplication.** `pkf.loads` holds only what a task needs automatically; each atomic root-index `pkf.routes` entry maps requirements to the leaves that uniquely cover them, and broad tasks compose matching routes with a deduplicated minimum-sufficient union; leaf `pkf.related` remains optional context.
 - **Source-backed only.** Every fact cites real evidence, so deleted or renamed evidence invalidates the fact on the next maintain — no invented or stale knowledge.
 
-Token usage is measured with an exact tokenizer when available, otherwise estimated as `ceil(character_count / 4)` (marked approximate). Validation flags routes that grow too heavy:
+Token usage is measured with an exact tokenizer when available, otherwise estimated as `ceil(character_count / 4)` (marked approximate). Task-route size is telemetry; structural documents retain maintainability thresholds:
 
 | Signal | Threshold | Result |
 |--------|-----------|--------|
 | Startup path (`PKF.md` through the indexes) | above ~2,500 tokens | Warning locally; error in CI |
 | Single module leaf | above ~1,500 tokens | Warning locally; error in CI |
-| Normal task (one index, one or two leaves) | above ~4,000 tokens | Warning locally; error in CI |
-| Cross-capability route (one to three exact leaves) | above ~4,000 tokens | Warning locally; error in CI |
+| Task route | actual unique leaves and estimated tokens | Telemetry only |
+| Route requirement coverage | incomplete or a leaf has no unique contribution | Error |
 | Unrelated module loaded automatically | any occurrence | Error |
 
 Warnings are advisory locally and become blocking under `validation_strictness: ci`.

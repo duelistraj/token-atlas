@@ -1,10 +1,14 @@
-# Benchmark - Token Atlas Skill Evals
+# Token Atlas Conformance Evals and Performance Benchmarks
 
 ## Purpose
 
-Benchmark Token Atlas with deterministic fixture-based evals.
+Evaluate Token Atlas with deterministic fixture-based conformance checks and a
+separate real-repository performance benchmark.
 
-Benchmarks measure whether the skill creates and maintains accurate, source-backed, minimal-context PKF and OKF knowledge. They are not primarily raw speed tests.
+Conformance fixtures measure whether the skill creates and maintains accurate,
+source-backed, minimal-context PKF and OKF knowledge. The pinned Tether Brain
+lifecycle harness measures end-to-end performance; do not treat synthetic
+fixture timings as real-repository savings.
 
 Do not benchmark by running Token Atlas against the token-atlas skill repository itself.
 
@@ -60,7 +64,7 @@ Use `quick` for local smoke checks, `core` for normal development, and `full` be
 
 ---
 
-## Benchmark Dimensions
+## Conformance Dimensions
 
 Score each fixture on these dimensions:
 
@@ -78,7 +82,10 @@ Score each fixture on these dimensions:
 | Tooling | Wrapper commands remain thin workflow selectors and preserve documented exit codes. |
 | Module boundaries | Generated modules are flat, target-derived capabilities; coarse modules migrate only with unambiguous evidence and placeholders remain excluded. |
 
-Performance timing may be recorded, but it must not replace these correctness and retrieval-quality checks.
+Performance timing may be recorded, but it must not replace these correctness
+and retrieval-quality checks. Fixture reports use `evaluation_kind:
+conformance`; the lifecycle harness uses `evaluation_kind:
+real_repository_performance`.
 
 ### Activation Gate Eval
 
@@ -124,9 +131,10 @@ by repetition. The closeout suite applies the checked-in patch under
 `benchmarks/patches/` to identical clean workspaces and supplies the same changed
 paths and semantic summary to both calls.
 
-Use `regression` after initialization, retrieval-routing, attribution, or
-closeout changes. It is a targeted diagnostic suite, not a headline replacement
-for `all`.
+Use `regression` as an optional developer smoke check after initialization,
+retrieval-routing, attribution, or closeout changes. It is not a formal
+preflight or a headline replacement for `all`. The formal one-pass preflight is
+`--suite all --repetitions 1` and publishes all 13 calls.
 
 Pin the model and reasoning explicitly and inspect the call matrix before
 execution:
@@ -163,13 +171,27 @@ was `activated`. Report PKF-arm tasks that bypassed retrieval separately as
 environment deltas; do not attribute those differences to PKF reads. Include
 materialized and pending leaf counts and the number of routed leaf documents.
 
-Correctness, zero local-task PKF reads, required cross-capability activation,
-an explicit one-to-three-leaf `note-task-links` route, zero cross-route skill or
-unlisted-leaf reads, one explicit initialization validation, zero opaque-helper
-source reads, focused tests, closeout, and validation are blocking quality gates. The desired
-5% local/operational token and latency overhead, positive cross-capability
-savings, and initialization improvement are advisory performance targets; a
-negative saving remains a valid result and never changes quality status.
+Correctness, zero local-task PKF reads, required cross-capability activation, a valid compact route marker, selected route IDs that exist in `pkf.routes`, complete requirement coverage, zero redundant leaves, exact reads of the deduplicated configured leaf union, zero fallback or cross-route skill reads, one explicit initialization validation, zero opaque-helper source reads, focused tests, route-specific closeout, and validation are blocking quality gates.
+Do not hard-code a benchmark-specific route ID, leaf names, or a global task-route leaf cap.
+
+Performance uses a phase scorecard rather than a universal 5% verdict:
+
+- Local bypass targets no more than 5% overhead in non-cached input, duration,
+  and tool calls relative to `probe_only`.
+- Cross-capability retrieval targets lower non-cached input and fewer tools than `probe_only`, while reporting route count, requirement coverage, minimality, deduplicated leaf count, and estimated route tokens.
+- Mutation implementation must remain source-first; closeout is attributed and
+  reported separately.
+- Mapped closeout retains its six-tool target and structural fast-path gates;
+  its token and latency cost are a knowledge-maintenance premium, not a 5%
+  comparison with doing no maintenance.
+- Initialization reports cost, materialization coverage, one final validation,
+  opaque-helper behavior, and repeated broad-scan defects without a historical
+  cost target.
+- Amortization reports the activated retrieval count needed to recover setup and
+  maintenance premiums.
+
+Performance targets are advisory and never change quality status. A negative
+saving remains a valid reported result.
 
 Three repetitions remain the default and are required for replicated claims.
 `--repetitions 1` is a publishable one-pass preflight: publish its complete
@@ -200,9 +222,9 @@ the public skill package. Human-readable findings live in root
 
 ---
 
-## Fixture Contract
+## Conformance Fixture Contract
 
-Each fixture directory must include a `README.md` with:
+Each conformance fixture directory must include a `README.md` with:
 
 - Goal.
 - Source shape.
@@ -210,6 +232,7 @@ Each fixture directory must include a `README.md` with:
 - Expected selected modules.
 - Expected and forbidden generated module inventories when module discovery or migration is under test.
 - Expected required docs.
+- Expected route IDs, requirement count, coverage status, minimality status, unique leaves, and estimated route tokens when route composition is under test.
 - Forbidden automatic loads.
 - Expected warnings.
 - Expected errors.
@@ -288,7 +311,7 @@ Codex execution timeouts are fixture failures, not invalid runner usage. They mu
 
 ### 5. Aggregate Report
 
-Produce:
+Produce a conformance aggregate containing:
 
 - Total fixture count.
 - Passed, warning, and failed counts.

@@ -81,6 +81,33 @@ class PkfBenchTests(unittest.TestCase):
 
             self.assertIn("forbidden generated module exists: coarse-module", result["errors"])
 
+    def test_route_composition_contract_uses_functional_minimum_sufficient_routes(self):
+        fixture_dir = (
+            ROOT
+            / ".agents"
+            / "skills"
+            / "token-atlas"
+            / "benchmarks"
+            / "fixtures"
+            / "atomic-route-composition"
+        )
+        manifest = pkf_bench.parse_manifest(fixture_dir / "fixture.yaml")
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp) / "repo"
+            shutil.copytree(fixture_dir / str(manifest["repo_root"]), repo)
+            result = pkf_bench.empty_mode_result("local")
+            pkf_bench.apply_patch_file(repo, fixture_dir / str(manifest["patch"]), result)
+
+            pkf_bench.verify_expected_route_composition(repo, manifest, result)
+
+        self.assertEqual(result["selected_routes"], ["note-task-visibility", "note-task-policy"])
+        self.assertEqual(result["unique_leaf_count"], 4)
+        self.assertEqual(result["requirement_count"], 4)
+        self.assertEqual(result["covered_requirement_count"], 4)
+        self.assertEqual(result["coverage_status"], "complete")
+        self.assertEqual(result["minimality_status"], "minimal")
+        self.assertEqual(result["checks"]["passed"], result["checks"]["total"])
+
     def test_local_quick_suite_passes(self):
         args = Namespace(mode="local", keep_workspaces=False)
         manifests = pkf_bench.load_selected_manifests(pkf_bench.DEFAULT_FIXTURES, "quick")

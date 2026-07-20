@@ -62,9 +62,9 @@ Use compact evidence labels. Do not paste large source snippets.
      otherwise emit `rg -n -F -- '<symbol>' '<path>'`.
 5. Refresh metadata for affected docs. For a cross-path capability, use the narrowest common existing `resource` path, falling back to `.` while retaining exact evidence paths in the body.
 6. Update `ARCHITECTURE.md`, root and module routing, and every affected `pkf.loads` or `pkf.related` edge.
-   Keep `pkf.related` empty on architecture and index surfaces. Store verified
-   cross-capability intents as keyed root-index `pkf.routes` entries with one to
-   three exact complete leaf loads.
+   Keep `pkf.related` empty on architecture and index surfaces.
+   Store verified cross-capability intents as narrow atomic root-index `pkf.routes` entries, each with explicit requirements, exact complete leaf loads, and per-leaf requirement coverage.
+   Broad tasks compose matching routes, deduplicate the combined leaves, and remove leaves without unique coverage.
 7. Remove a superseded module directory only after every durable fact and manual note is accounted for and no reference targets it.
 8. Run validation after extraction.
 

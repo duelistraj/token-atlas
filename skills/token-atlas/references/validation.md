@@ -32,9 +32,9 @@ Validate:
   placeholder behavior labels and omitted declared symbols are defects.
 - `pkf.loads` and `pkf.related` are lists and resolve to existing docs.
 - Architecture, root-index, and module-index `pkf.related` values are empty.
-- Root-index `pkf.routes`, when present, is keyed by route ID; every route has a
-  non-empty intent and triggers, names at least two exact modules, loads one to
-  three complete leaves, and stays within the 4,000-token task budget.
+- Root-index `pkf.routes`, when present, is keyed by route ID; every route has a non-empty narrow intent and triggers, names at least two exact modules, lists complete leaf loads, and maps every leaf to requirement IDs.
+  Every requirement is covered and every leaf is the exclusive provider of at least one requirement.
+  Broad tasks may compose routes, must deduplicate their leaf union, and must remove leaves without unique coverage.
 - `resource` paths resolve or are marked `TODO`.
 - APIs, schemas, business rules, UI facts, commands, dependencies, and architecture match source truth.
 - Deleted or renamed evidence is not cited as current.
@@ -49,8 +49,9 @@ Validate:
   or model.
 - Simulation output is present when enabled.
 - Token budget output is present at the selected detail level.
-- Startup, leaf, and representative normal task routes respect the 2,500, 1,500,
-  and 4,000 token gates. Advisory mode warns; CI mode fails over-budget routes.
+- Startup and individual leaves respect the 2,500 and 1,500 token gates.
+  Advisory mode warns and CI mode fails over-budget documents.
+  Task-route leaf counts and tokens are reported as telemetry without an absolute gate.
 
 ## Required Simulation Scenarios
 
@@ -62,7 +63,7 @@ Run only in `ci`, `full`, `simulation: required`, or `simulation: all`:
 | Schema/model change | root index -> module index -> `schema.md` |
 | Business logic change | root index -> module index -> `business_rules.md` |
 | UI behavior change | root index -> module index -> `ui.md` |
-| Cross-cutting change | root-index `pkf.routes` -> one to three exact complete leaves |
+| Cross-cutting change | root-index `pkf.routes` -> one or more matching atomic routes -> deduplicated complete leaves |
 | Architecture understanding | root index -> `ARCHITECTURE.md` and relevant module index |
 | Dependency/tooling update | root index -> `dependencies.md` and affected module index |
 
@@ -86,9 +87,8 @@ Errors should include file, issue, recommended fix, source evidence or missing e
 Routine semantic closeout uses `--scope affected --detail summary` with every
 turn-owned changed source or leaf path. Runtime, shared architecture, or index
 changes automatically require full validation. Full detail remains the default
-for explicit validation and CI. Summary output contains counts, findings, and
-only token routes that violate a threshold; it omits successful token-route
-inventory.
+for explicit validation and CI.
+Summary output contains counts, findings, measured task routes, and structural token routes that violate a threshold; it omits successful structural-route inventory.
 
 ## CI Exit Meaning
 

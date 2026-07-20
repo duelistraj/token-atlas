@@ -212,15 +212,15 @@ For each reported entry include:
 
 Use an exact tokenizer when available locally for the target model. Otherwise use the deterministic approximate estimator `ceil(character_count / 4)` and label the report as approximate.
 
-Default budgets and thresholds:
+Default structural thresholds and retrieval policy:
 
-- Normal retrieval: one module index and one or two leaves.
 - Startup path above 2,500 tokens: warning locally, error in CI.
 - Any leaf above 1,500 tokens: warning locally, error in CI.
-- Representative normal task route above 4,000 tokens: warning locally, error in CI.
 - Any unrelated module loaded automatically: blocking error.
 
-If a route exceeds a threshold, tighten indexes, split oversized documents, or move optional documents from `pkf.loads` to `pkf.related`.
+Treat every task as a minimum-sufficient context problem.
+Compose broad work from atomic routes, deduplicate their combined leaves, and remove any leaf without unique requirement coverage.
+Report route leaf counts and token estimates as telemetry; never optimize toward an allowance or reject a complete route because of its absolute size.
 
 ---
 

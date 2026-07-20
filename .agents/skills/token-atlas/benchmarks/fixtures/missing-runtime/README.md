@@ -44,7 +44,7 @@ Verify startup recovery when `.ai/PKF.md` is absent.
 
 ## Token Thresholds
 
-- Startup should stay at or below 2,500 tokens, each leaf at or below 1,500, and a normal task at or below 4,000.
+- Startup should stay at or below 2,500 tokens and each leaf at or below 1,500; task-route size is telemetry.
 
 ## Exit Behavior
 

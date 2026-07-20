@@ -433,7 +433,7 @@ def create_runtime(repo: Path, spec_path: Path, strictness: str, keep_spec: bool
                 "# Knowledge Index\n\n| Capability | Ownership roots | Route |\n| --- | --- | --- |\n"
                 + routing_rows
                 + "\n\n## Cross-capability routes\n\n"
-                "Source-backed cross-capability intents are keyed under `pkf.routes`; each route loads one to three exact complete leaves.\n"
+                "Source-backed cross-capability intents are keyed under `pkf.routes` with requirements and per-leaf coverage; broader tasks compose matching routes, deduplicate their leaves, and remove leaves without unique coverage.\n"
             ),
             related=[],
             cross_routes=True,

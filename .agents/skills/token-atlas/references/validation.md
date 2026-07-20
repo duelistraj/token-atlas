@@ -140,9 +140,9 @@ Verify:
 - `pkf.loads` and `pkf.related` are lists.
 - `pkf.loads` and `pkf.related` entries resolve to existing documents.
 - Architecture, root-index, and module-index `pkf.related` values are empty.
-- Root-index `pkf.routes`, when present, is keyed by route ID; every route has
-  intent, triggers, at least two exact modules, one to three complete leaf loads,
-  and a combined cost no greater than 4,000 tokens.
+- Root-index `pkf.routes`, when present, is keyed by route ID; every route has a narrow intent, triggers, at least two exact modules, complete leaf loads, requirement IDs, and per-leaf requirement coverage.
+  Every requirement is covered and every leaf is the exclusive provider of at least one requirement.
+  Broad tasks may compose routes, must deduplicate their leaf union, and must remove leaves without unique coverage.
 - `resource` paths resolve to existing repository paths or are marked `TODO`.
 - Every module leaf has a `source_symbols` path-to-symbol-list mapping; paths and
   literal symbols resolve, and empty leaves use the standard marker.
@@ -245,7 +245,7 @@ Run required scenarios only in `ci`, `full`, `simulation: required`, or `simulat
 | Schema/model change | Root index -> module index -> `schema.md` |
 | Business logic change | Root index -> module index -> `business_rules.md` |
 | UI behavior change | Root index -> module index -> `ui.md` |
-| Cross-cutting change | Root index `pkf.routes` -> one to three exact complete leaves |
+| Cross-cutting change | Root index `pkf.routes` -> one or more matching atomic routes -> deduplicated complete leaves |
 | Architecture understanding | Root index -> `ARCHITECTURE.md` and relevant module index |
 | Dependency/tooling update | Root index -> `dependencies.md` and affected module index |
 
@@ -279,7 +279,7 @@ Default thresholds:
 |------|-----------|----------|
 | Startup path | Above 2,500 estimated tokens | Warning locally; error in CI |
 | Module leaf | Above 1,500 estimated tokens | Warning locally; error in CI |
-| Normal task route | Above 4,000 estimated tokens | Warning locally; error in CI |
+| Task route | Actual leaves and estimated tokens | Telemetry only |
 | Unrelated automatic module load | Any occurrence | Error |
 
 Validation must fail in `ci` strictness when unrelated modules are loaded automatically through `pkf.loads`. In advisory mode, report the same condition as a blocking error recommendation.
@@ -420,11 +420,11 @@ Include:
 
 - Startup path estimate for `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
 - Changed module path estimates in `summary` mode.
-- Each leaf, representative normal task estimate, and broad `pkf.loads` chain in `full` mode.
-- Threshold status for every tracked route.
+- Each leaf, representative task estimate, and broad `pkf.loads` chain in `full` mode.
+- Coverage, minimality, actual leaf count, estimated tokens, and structural threshold status.
 - Whether estimates are exact tokenizer counts or approximate counts.
 
-Use this section even when the estimate is approximate. Label approximations clearly. Apply the 2,500-token startup, 1,500-token leaf, and 4,000-token normal-task gates. Report unrelated automatic module loads as blocking errors.
+Use this section even when the estimate is approximate. Label approximations clearly. Apply the 2,500-token startup and 1,500-token individual-leaf gates. Report task-route size as telemetry and unrelated automatic module loads as blocking errors.
 
 ---
 

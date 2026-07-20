@@ -14,13 +14,14 @@ from pkf_contract import (
     CLOSEOUT_DEFAULT,
     CLOSEOUT_MODES,
     CLOSEOUT_PROTOCOL_HEADING,
+    CROSS_ROUTE_LOAD_COVERAGE_FIELD,
+    CROSS_ROUTE_REQUIREMENTS_FIELD,
     ESTIMATOR_FORMULA,
     LEAF_MATERIALIZATION_FIELD,
     LEAF_MATERIALIZATION_MODES,
     LEAF_SOURCE_SYMBOLS_FIELD,
     LEGACY_CLOSEOUT_PHRASES,
     REQUIRED_FRONT_MATTER,
-    RETRIEVAL_BUDGET,
     RETRIEVAL_DEFAULT,
     RETRIEVAL_MODE_FIELD,
     RETRIEVAL_MODES,
@@ -47,18 +48,33 @@ class ContractConsistencyTests(unittest.TestCase):
         self.assertEqual(RETRIEVAL_MODES, ("adaptive", "mandatory"))
         self.assertEqual(LEAF_MATERIALIZATION_MODES, ("complete", "pending"))
         self.assertEqual(LEGACY_CLOSEOUT_PHRASES, ("every user turn", "every final response"))
-        self.assertIn(f"one or two leaf", corpus.lower())
-        self.assertEqual(
-            RETRIEVAL_BUDGET,
-            {"module_indexes": 1, "leaf_docs": 2, "cross_leaf_docs": 3},
-        )
+        self.assertEqual(TOKEN_THRESHOLDS, {"startup": 2500, "leaf": 1500})
+        self.assertIn(CROSS_ROUTE_REQUIREMENTS_FIELD, corpus)
+        self.assertIn(CROSS_ROUTE_LOAD_COVERAGE_FIELD, corpus)
         for field in REQUIRED_FRONT_MATTER:
             self.assertRegex(corpus, rf"\b{re.escape(field)}\b")
 
     def test_no_known_contradicting_thresholds(self):
         corpus = self.read_corpus()
 
-        self.assertNotRegex(corpus, r"\b(4500|4,500|5000|5,000|8000|8,000)\b")
+        self.assertNotRegex(corpus, r"\b(4500|4,500|5000|5,000)\b")
+
+    def test_current_contract_has_no_numeric_task_route_allowance(self):
+        current = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                ROOT / "README.md",
+                ROOT / "skills" / "token-atlas" / "SKILL.md",
+                ROOT / "skills" / "token-atlas" / "templates" / "protocols.md",
+                ROOT / "skills" / "token-atlas" / "references" / "initialize.md",
+                ROOT / "skills" / "token-atlas" / "references" / "simulate.md",
+                ROOT / "skills" / "token-atlas" / "references" / "validation.md",
+            )
+        )
+
+        self.assertNotIn("budget_exception", current)
+        self.assertNotRegex(current, r"\b(4,000|8,000)\b")
+        self.assertIn("minimum sufficient", current.lower())
 
     def test_public_and_internal_module_boundary_contracts_match(self):
         public = (ROOT / "skills" / "token-atlas" / "references" / "initialize.md").read_text(encoding="utf-8")

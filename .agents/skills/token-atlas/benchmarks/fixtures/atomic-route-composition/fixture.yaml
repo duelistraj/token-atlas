@@ -1,0 +1,68 @@
+name: functional-route-minimality
+suites: [core, full]
+goal: Verify minimum-sufficient functional routes support one-leaf and multi-leaf cross-capability retrieval without numeric ceilings.
+repo_root: ../broad-loads/repo
+language: typescript
+workflow: [simulate, validation]
+intent: Explain note-task visibility, permissions, lifecycle, and relationship policy across boards and notes.
+source_shape:
+  pkf_runtime: present
+  modules: [boards, notes]
+  source_roots: [src/boards, src/notes]
+patch: composition.patch
+changed_paths:
+  - .ai/PKF.md
+  - .ai/ARCHITECTURE.md
+  - .ai/knowledge/INDEX.md
+  - .ai/knowledge/boards/INDEX.md
+  - .ai/knowledge/boards/api.md
+  - .ai/knowledge/boards/business_rules.md
+  - .ai/knowledge/boards/schema.md
+  - .ai/knowledge/boards/ui.md
+  - .ai/knowledge/notes/INDEX.md
+  - .ai/knowledge/notes/api.md
+  - .ai/knowledge/notes/business_rules.md
+  - .ai/knowledge/notes/schema.md
+  - .ai/knowledge/notes/ui.md
+  - src/boards/taskLinks.ts
+  - src/notes/NoteTaskBadge.tsx
+deleted_paths:
+  - .ai/knowledge/backend/INDEX.md
+  - .ai/knowledge/backend/api.md
+  - .ai/knowledge/backend/business_rules.md
+  - .ai/knowledge/backend/schema.md
+  - .ai/knowledge/backend/ui.md
+  - .ai/knowledge/frontend/INDEX.md
+  - .ai/knowledge/frontend/api.md
+  - .ai/knowledge/frontend/business_rules.md
+  - .ai/knowledge/frontend/schema.md
+  - .ai/knowledge/frontend/ui.md
+  - src/backend/routes/orders.ts
+  - src/frontend/CartBadge.tsx
+expected_modules: [boards, notes]
+expected_generated_modules: [boards, notes]
+forbidden_generated_modules: [backend, frontend]
+expected_required_docs:
+  - .ai/PKF.md
+  - .ai/MEMORY.md
+  - .ai/ARCHITECTURE.md
+  - .ai/knowledge/INDEX.md
+  - .ai/knowledge/notes/ui.md
+  - .ai/knowledge/boards/api.md
+  - .ai/knowledge/boards/business_rules.md
+  - .ai/knowledge/notes/business_rules.md
+expected_route_composition:
+  route_ids: [note-task-visibility, note-task-policy]
+  requirement_count: 4
+  unique_loads:
+    - .ai/knowledge/notes/ui.md
+    - .ai/knowledge/boards/api.md
+    - .ai/knowledge/boards/business_rules.md
+    - .ai/knowledge/notes/business_rules.md
+forbidden_loads: []
+expected_warnings: []
+expected_errors: []
+token_thresholds:
+  full_token_budget_required: true
+exit_behavior:
+  ci: 0

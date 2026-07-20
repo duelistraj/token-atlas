@@ -164,11 +164,10 @@ Update:
 
 Ensure metadata reflects the current repository.
 
-Keep `pkf.loads` limited to documents that are normally required for the
-specific document's task. Keep architecture and index `pkf.related` empty;
-leaf-level related paths remain optional. Store verified cross-capability
-intents as keyed root-index `pkf.routes` entries with one to three exact complete
-leaves.
+Keep `pkf.loads` limited to documents that are normally required for the specific document's task.
+Keep architecture and index `pkf.related` empty; leaf-level related paths remain optional.
+Store verified cross-capability intents as narrow atomic root-index `pkf.routes` entries with explicit requirements, exact complete leaves, and per-leaf requirement coverage.
+Broad tasks compose matching routes, deduplicate the combined leaves, and remove leaves without unique coverage.
 
 For a capability spanning multiple source paths, use the narrowest common
 existing path for `resource`. Fall back to repository root (`.`) when there is

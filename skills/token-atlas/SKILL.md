@@ -61,10 +61,11 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - During maintenance, automatically repartition coarse modules when capability ownership is unambiguous. Preserve the current structure and report ambiguity instead of guessing.
 - During `initialize`, embed the adaptive Retrieval Protocol into `.ai/PKF.md`, and ensure a neutral bootstrap can decide whether to use PKF without loading it first.
 - Default the runtime to `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`. Permit `pkf.retrieval: mandatory` for compatibility and the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
-- Initialize in bounded hybrid mode: materialize runtime, architecture,
-  dependencies, one primary public-behavior leaf per capability by default, and
-  only the additional leaves named by source-backed `pkf.routes`; mark unrelated
-  or genuinely deferred leaves `pkf.materialization: pending`.
+- Initialize in coverage-driven hybrid mode: materialize runtime, architecture,
+  dependencies, verified public behavior, important mutation entrypoints, and
+  source-backed cross-capability contracts. Split leaves by ownership, evidence
+  set, and retrieval intent rather than a fixed per-capability count; mark
+  unrelated or genuinely deferred leaves `pkf.materialization: pending`.
 - Use the bundled scaffold helper for fresh runtime mechanics. Review capability
   boundaries before creation; never let directory heuristics become durable
   ownership without source evidence.
@@ -76,11 +77,10 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - Require every module leaf to expose machine-readable `source_symbols`; use a compact Edit Map to connect behaviors to symbols, tests, styles, and targeted locator commands.
 - Require materialized public-behavior leaves to include their focused test evidence in `source_symbols`, and require module indexes to expose machine-readable `pkf.ownership_roots`.
 - Cache PKF protocol and index acknowledgements after activation. Do not load the startup path for a bypassed local task or routine semantic closeout.
-- Keep a normal task within one module index, one or two leaves, and the exact named symbols. Require an explicit reason for cross-cutting exceptions.
-- Store cross-capability retrieval under keyed `pkf.routes` in the root
-  knowledge index. Each route names its intent, triggers, modules, and one to
-  three exact complete leaves within the 4,000-token task budget. Do not widen
-  initialization solely to enumerate possible routes.
+- Load the minimum sufficient context for every task. Every selected leaf must cover a requirement not supplied by the other selected leaves, then retrieval must stay within the exact named symbols.
+- Store cross-capability retrieval under keyed `pkf.routes` in the root knowledge index.
+  Each atomic route names one narrow intent, triggers, modules, requirements, exact complete leaves, and the requirements uniquely contributed by each leaf.
+  Compose multiple matching routes for a broad task, deduplicate their union, and remove any leaf that no longer contributes unique coverage.
 - Do not load or generate `.ai/retrieval/` unless retrieval exports are enabled.
 - Report stale, unsupported, duplicate, or broad-loading knowledge as validation defects.
 - Prefer the bundled dependency-light validator for mechanical checks; keep source-truth and duplicate-authority judgments in the semantic validation workflow.
@@ -106,6 +106,6 @@ Every run should report:
 - Source evidence for durable facts.
 - Validation warnings or errors.
 - Token budget status when optimization or validation runs.
-- Targeted locator commands, retrieval-budget usage, and whether fallback search was required (with a reason when it was).
+- Targeted locator commands, actual leaf/token telemetry, coverage and minimality status, and whether fallback search was required (with a reason when it was).
 - Follow-up workflows needed, if any.
 - Closeout status (`no-op`, `updated`, `stale`, `disabled`, or `blocked`) when the closeout protocol applies.

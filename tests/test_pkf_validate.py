@@ -21,6 +21,7 @@ PUBLIC_INITIALIZE = ROOT / "skills" / "token-atlas" / "references" / "initialize
 INTERNAL_INITIALIZE = ROOT / ".agents" / "skills" / "token-atlas" / "references" / "initialize.md"
 INTERNAL_SKILL = ROOT / ".agents" / "skills" / "token-atlas" / "SKILL.md"
 FIXTURES = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "fixtures"
+TWO_MODULE_REPO = FIXTURES / "broad-loads" / "repo"
 
 
 class PkfValidateTests(unittest.TestCase):
@@ -465,7 +466,7 @@ class PkfValidateTests(unittest.TestCase):
         self.assertTrue(any(finding.file == "leaf:backend/schema.md" for finding in ci.errors))
         self.assertEqual(next(entry.status for entry in ci.token_impact if entry.route == "leaf:backend/schema.md"), "error")
 
-    def test_more_than_two_automatic_leaves_is_ci_blocking(self):
+    def test_task_route_size_is_measured_without_a_numeric_gate(self):
         with self.copy_ai() as ai:
             index = ai / "knowledge" / "backend" / "INDEX.md"
             text = index.read_text(encoding="utf-8").replace(
@@ -475,7 +476,12 @@ class PkfValidateTests(unittest.TestCase):
             index.write_text(text, encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
-        self.assertTrue(any("normal retrieval budget exceeded" in finding.issue for finding in report.errors))
+        self.assertFalse(any("retrieval budget" in finding.issue for finding in report.errors))
+        task_entry = next(entry for entry in report.token_impact if entry.route == "task:backend")
+        self.assertIsNone(task_entry.threshold)
+        self.assertEqual(task_entry.status, "measured")
+        self.assertEqual(task_entry.document_count, 4)
+        self.assertEqual(task_entry.leaf_count, 3)
 
     def test_changed_path_limits_leaf_contract_validation(self):
         with self.copy_ai() as ai:
@@ -562,7 +568,7 @@ class PkfValidateTests(unittest.TestCase):
         self.assertEqual(route["modules"], ["notes", "boards"])
         self.assertEqual(len(route["loads"]), 2)
 
-    def test_root_cross_routes_require_bounded_complete_leaf_loads(self):
+    def test_root_cross_routes_require_known_modules_and_complete_leaf_loads(self):
         with self.copy_ai() as ai:
             root_index = ai / "knowledge" / "INDEX.md"
             text = root_index.read_text(encoding="utf-8")
@@ -573,13 +579,163 @@ class PkfValidateTests(unittest.TestCase):
                 '      intent: "Cross capability"\n'
                 "      triggers: [cross]\n"
                 "      modules: [backend, missing]\n"
-                "      loads: [.ai/knowledge/backend/api.md, .ai/knowledge/backend/schema.md, .ai/knowledge/backend/business_rules.md, .ai/knowledge/backend/ui.md]",
+                "      requirements: [api-contract, schema-contract, business-policy, ui-contract]\n"
+                "      loads: [.ai/knowledge/backend/api.md, .ai/knowledge/backend/schema.md, .ai/knowledge/backend/business_rules.md, .ai/knowledge/backend/ui.md]\n"
+                "      load_coverage:\n"
+                "        .ai/knowledge/backend/api.md: [api-contract]\n"
+                "        .ai/knowledge/backend/schema.md: [schema-contract]\n"
+                "        .ai/knowledge/backend/business_rules.md: [business-policy]\n"
+                "        .ai/knowledge/backend/ui.md: [ui-contract]",
             )
             root_index.write_text(text, encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
-        self.assertTrue(any("one to 3 leaves" in finding.issue for finding in report.errors))
         self.assertTrue(any("unknown modules" in finding.issue for finding in report.errors))
+        self.assertFalse(any("leaf" in finding.issue and "maximum" in finding.issue for finding in report.errors))
+
+    def test_atomic_routes_compose_beyond_three_unique_task_leaves(self):
+        with self.copy_two_module_ai() as ai:
+            self.set_cross_routes(
+                ai,
+                "    relationship-visibility:\n"
+                '      intent: "Relationship visibility"\n'
+                "      triggers: [relationship visibility]\n"
+                "      modules: [backend, frontend]\n"
+                "      requirements: [backend-interface, frontend-visibility]\n"
+                "      loads: [.ai/knowledge/backend/api.md, .ai/knowledge/frontend/ui.md]\n"
+                "      load_coverage:\n"
+                "        .ai/knowledge/backend/api.md: [backend-interface]\n"
+                "        .ai/knowledge/frontend/ui.md: [frontend-visibility]\n"
+                "    relationship-policy:\n"
+                '      intent: "Relationship policy"\n'
+                "      triggers: [relationship policy]\n"
+                "      modules: [backend, frontend]\n"
+                "      requirements: [backend-policy, frontend-policy]\n"
+                "      loads: [.ai/knowledge/backend/business_rules.md, .ai/knowledge/frontend/business_rules.md]\n"
+                "      load_coverage:\n"
+                "        .ai/knowledge/backend/business_rules.md: [backend-policy]\n"
+                "        .ai/knowledge/frontend/business_rules.md: [frontend-policy]",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        route_errors = [finding for finding in report.errors if "pkf.routes" in finding.file]
+        self.assertEqual(route_errors, [])
+        route_entries = [entry for entry in report.token_impact if entry.route.startswith("cross:")]
+        self.assertEqual({entry.route for entry in route_entries}, {"cross:relationship-policy", "cross:relationship-visibility"})
+        self.assertTrue(all(entry.threshold is None and entry.status == "measured" for entry in route_entries))
+
+    def test_one_leaf_can_cover_a_multi_module_route(self):
+        with self.copy_two_module_ai() as ai:
+            self.set_cross_routes(
+                ai,
+                "    shared-contract:\n"
+                '      intent: "Shared relationship contract"\n'
+                "      triggers: [shared relationship]\n"
+                "      modules: [backend, frontend]\n"
+                "      requirements: [relationship-policy]\n"
+                "      loads: [.ai/knowledge/backend/business_rules.md]\n"
+                "      load_coverage:\n"
+                "        .ai/knowledge/backend/business_rules.md: [relationship-policy]",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        route_errors = [finding for finding in report.errors if "pkf.routes.shared-contract" in finding.file]
+        self.assertEqual(route_errors, [])
+        coverage = next(item for item in report.route_coverage if item.route == "shared-contract")
+        self.assertEqual(coverage.leaf_count, 1)
+        self.assertEqual(coverage.minimality_status, "minimal")
+
+    def test_seven_uniquely_required_leaves_have_no_exception_ceiling(self):
+        with self.copy_two_module_ai() as ai:
+            loads = (
+                ".ai/knowledge/backend/api.md",
+                ".ai/knowledge/backend/schema.md",
+                ".ai/knowledge/backend/business_rules.md",
+                ".ai/knowledge/backend/ui.md",
+                ".ai/knowledge/frontend/api.md",
+                ".ai/knowledge/frontend/schema.md",
+                ".ai/knowledge/frontend/business_rules.md",
+            )
+            route = (
+                "    seven-part-contract:\n"
+                '      intent: "Seven independently owned requirements"\n'
+                "      triggers: [seven part contract]\n"
+                "      modules: [backend, frontend]\n"
+                f"      requirements: [{', '.join(f'requirement-{index}' for index in range(1, 8))}]\n"
+                f"      loads: [{', '.join(loads)}]\n"
+                "      load_coverage:\n"
+                + "".join(
+                    f"        {load}: [requirement-{index}]\n"
+                    for index, load in enumerate(loads, start=1)
+                ).rstrip()
+            )
+            self.set_cross_routes(ai, route)
+            report = validate_pkf(ai, strictness="ci")
+
+        route_errors = [finding for finding in report.errors if "pkf.routes.seven-part-contract" in finding.file]
+        self.assertEqual(route_errors, [])
+        coverage = next(item for item in report.route_coverage if item.route == "seven-part-contract")
+        self.assertEqual(coverage.leaf_count, 7)
+        self.assertEqual(coverage.minimality_status, "minimal")
+
+    def test_redundant_route_leaf_is_rejected(self):
+        with self.copy_two_module_ai() as ai:
+            self.set_cross_routes(
+                ai,
+                "    redundant-contract:\n"
+                '      intent: "Redundant relationship contract"\n'
+                "      triggers: [redundant relationship]\n"
+                "      modules: [backend, frontend]\n"
+                "      requirements: [relationship-policy]\n"
+                "      loads: [.ai/knowledge/backend/business_rules.md, .ai/knowledge/frontend/business_rules.md]\n"
+                "      load_coverage:\n"
+                "        .ai/knowledge/backend/business_rules.md: [relationship-policy]\n"
+                "        .ai/knowledge/frontend/business_rules.md: [relationship-policy]",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertTrue(any("redundant loads" in finding.issue for finding in report.errors))
+        coverage = next(item for item in report.route_coverage if item.route == "redundant-contract")
+        self.assertEqual(coverage.minimality_status, "redundant")
+
+    def test_route_coverage_rejects_unknown_and_uncovered_requirements(self):
+        with self.copy_two_module_ai() as ai:
+            self.set_cross_routes(
+                ai,
+                "    incomplete-contract:\n"
+                '      intent: "Incomplete relationship contract"\n'
+                "      triggers: [incomplete relationship]\n"
+                "      modules: [backend, frontend]\n"
+                "      requirements: [relationship-policy, relationship-lifecycle]\n"
+                "      loads: [.ai/knowledge/backend/business_rules.md]\n"
+                "      load_coverage:\n"
+                "        .ai/knowledge/backend/business_rules.md: [relationship-policy, invented-requirement]",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        issues = [finding.issue for finding in report.errors]
+        self.assertTrue(any("unknown requirements: invented-requirement" in issue for issue in issues))
+        self.assertTrue(any("uncovered requirements: relationship-lifecycle" in issue for issue in issues))
+        coverage = next(item for item in report.route_coverage if item.route == "incomplete-contract")
+        self.assertEqual(coverage.coverage_status, "incomplete")
+        self.assertEqual(coverage.minimality_status, "invalid")
+
+    def test_legacy_route_remains_readable_with_unknown_minimality(self):
+        with self.copy_two_module_ai() as ai:
+            self.set_cross_routes(
+                ai,
+                "    legacy-contract:\n"
+                '      intent: "Legacy contract"\n'
+                "      triggers: [legacy relationship]\n"
+                "      modules: [backend, frontend]\n"
+                "      loads: [.ai/knowledge/backend/api.md]",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertFalse(report.errors)
+        self.assertTrue(any("minimality is unknown" in finding.issue for finding in report.warnings))
+        coverage = next(item for item in report.route_coverage if item.route == "legacy-contract")
+        self.assertEqual(coverage.coverage_status, "unknown")
 
     def test_unmapped_changed_path_warns(self):
         with self.copy_ai() as ai:
@@ -636,6 +792,40 @@ class PkfValidateTests(unittest.TestCase):
                 temp.cleanup()
 
         return Context()
+
+    def copy_two_module_ai(self):
+        temp = tempfile.TemporaryDirectory()
+        root = Path(temp.name)
+        shutil.copytree(TWO_MODULE_REPO, root, dirs_exist_ok=True)
+        target = root / ".ai"
+        backend_index = target / "knowledge" / "backend" / "INDEX.md"
+        backend_index.write_text(
+            backend_index.read_text(encoding="utf-8").replace(
+                "  loads:\n    - .ai/knowledge/backend/api.md\n    - .ai/knowledge/frontend/ui.md",
+                "  loads: []",
+            ),
+            encoding="utf-8",
+        )
+
+        class Context:
+            def __enter__(self):
+                return target
+
+            def __exit__(self, exc_type, exc, tb):
+                temp.cleanup()
+
+        return Context()
+
+    @staticmethod
+    def set_cross_routes(ai: Path, route_block: str) -> None:
+        root_index = ai / "knowledge" / "INDEX.md"
+        root_index.write_text(
+            root_index.read_text(encoding="utf-8").replace(
+                "  routes: {}",
+                f"  routes:\n{route_block}",
+            ),
+            encoding="utf-8",
+        )
 
     @staticmethod
     def template_block(text: str, heading: str) -> str:

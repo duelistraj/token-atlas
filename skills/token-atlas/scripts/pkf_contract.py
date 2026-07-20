@@ -19,15 +19,8 @@ RETRIEVAL_MODES = ("adaptive", "mandatory")
 TOKEN_THRESHOLDS = {
     "startup": 2500,
     "leaf": 1500,
-    "task": 4000,
 }
 ESTIMATOR_FORMULA = "ceil(character_count / 4)"
-
-RETRIEVAL_BUDGET = {
-    "module_indexes": 1,
-    "leaf_docs": 2,
-    "cross_leaf_docs": 3,
-}
 
 CLOSEOUT_DEFAULT = "adaptive"
 CLOSEOUT_MODES = ("adaptive", "off")
@@ -78,6 +71,8 @@ LEAF_SOURCE_SYMBOLS_FIELD = "source_symbols"
 MODULE_OWNERSHIP_ROOTS_FIELD = "ownership_roots"
 CROSS_ROUTES_FIELD = "routes"
 CROSS_ROUTE_REQUIRED_FIELDS = ("intent", "triggers", "modules", "loads")
+CROSS_ROUTE_REQUIREMENTS_FIELD = "requirements"
+CROSS_ROUTE_LOAD_COVERAGE_FIELD = "load_coverage"
 LEAF_MATERIALIZATION_FIELD = "materialization"
 LEAF_MATERIALIZATION_MODES = ("complete", "pending")
 EMPTY_LEAF_MARKER = "- TODO: No source-backed facts."

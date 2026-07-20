@@ -22,10 +22,9 @@ After activation:
 
 1. Read `.ai/PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, and
    `.ai/knowledge/INDEX.md` once and cache them for the session.
-2. For a cross-capability intent, select one matching keyed `pkf.routes` entry
-   from the root index and read only its one to three listed complete leaves.
-   Otherwise select the owning module and read one module `INDEX.md` plus one or
-   two task-specific leaves.
+2. For a cross-capability intent, select the smallest set of matching atomic keyed `pkf.routes` entries that completely covers the task requirements.
+   Deduplicate their leaves and remove any leaf that no longer provides unique requirement coverage.
+   Otherwise select the owning module and load only the task-specific leaves required to answer or implement the task.
 3. Materialize a selected pending leaf from source before relying on it.
 4. Open only the paths and symbols in `source_symbols` and use targeted
    locators before reading a large file.
@@ -36,8 +35,16 @@ optional and is loaded only after routed evidence proves insufficient or
 contradictory.
 
 Do not run broad search after activation until the route proves absent,
-incomplete, or inconsistent with source truth. Record the route, targets,
-commands, fallback status and reason, and context budget in the task report.
+incomplete, or inconsistent with source truth.
+Record the route, targets, commands, fallback status and reason, actual leaf/token telemetry, requirement coverage, and minimality status in the task report.
+For activated keyed-route retrieval, include exactly one compact marker:
+
+```text
+PKF route: <route-id> + <route-id>; <N> unique leaves; fallback=<yes|no>
+```
+
+List only selected keyed route IDs, report the deduplicated leaf count, and omit
+the marker when PKF is bypassed.
 
 ### Fallback and verification
 
@@ -53,7 +60,7 @@ commands, fallback status and reason, and context budget in the task report.
 After changing code, update each leaf that owns a changed fact. Add
 `pkf.related` links instead of duplicating facts. If synchronization cannot
 finish, name the stale leaves. A normal route uses one module index and one or
-two leaves; explain legitimate cross-capability exceptions.
+more task-required leaves; broad cross-capability tasks compose minimum-sufficient atomic routes.
 
 ## Closeout Protocol (MANDATORY)
 

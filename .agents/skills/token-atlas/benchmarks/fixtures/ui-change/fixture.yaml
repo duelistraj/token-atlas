@@ -40,7 +40,6 @@ expected_warnings: []
 expected_errors: []
 token_thresholds:
   leaf_warn_above: 1500
-  normal_task_warn_above: 4000
 exit_behavior:
   advisory: 0
   ci: 0

@@ -47,6 +47,7 @@ class PkfSavingsEvalTests(unittest.TestCase):
             "searched_root_count": 1,
             "ai_read_or_search_command_count": 0,
             "routed_document_count": 0,
+            "fallback_invocation_count": 0,
             "changed_path_count": 0,
             "changed_expected_paths": None,
             "focused_test_passed": None,
@@ -139,6 +140,76 @@ class PkfSavingsEvalTests(unittest.TestCase):
         self.assertEqual(usage, pkf_savings_eval.Usage(1_200, 200, 80))
         self.assertEqual(pkf_savings_eval.parse_structured_answer(messages), answer)
         self.assertIn("turn.completed", normalized)
+
+    def test_pkf_route_marker_parses_composed_routes_and_rejects_duplicates(self):
+        marker = pkf_savings_eval.parse_pkf_route_marker(
+            {
+                "evidence": [
+                    "PKF route: note-link-policy + note-link-lifecycle; 4 unique leaves; fallback=no"
+                ]
+            }
+        )
+
+        self.assertEqual(marker["status"], "valid")
+        self.assertEqual(marker["route_ids"], ("note-link-policy", "note-link-lifecycle"))
+        self.assertEqual(marker["unique_leaf_count"], 4)
+        self.assertFalse(marker["fallback"])
+
+        duplicate = pkf_savings_eval.parse_pkf_route_marker(
+            {"evidence": ["PKF route: note-link-policy + note-link-policy; 2 unique leaves; fallback=no"]}
+        )
+        self.assertEqual(duplicate["status"], "duplicate_routes")
+        malformed = pkf_savings_eval.parse_pkf_route_marker(
+            {"evidence": ["PKF route: note-link-policy; fallback=no"]}
+        )
+        self.assertEqual(malformed["status"], "malformed")
+
+    def test_configured_cross_routes_reports_minimum_sufficient_composition(self):
+        with tempfile.TemporaryDirectory() as raw_temp:
+            repo = Path(raw_temp)
+            index = repo / ".ai/knowledge/INDEX.md"
+            index.parent.mkdir(parents=True)
+            index.write_text(
+                "---\n"
+                "pkf:\n"
+                "  routes:\n"
+                "    policy:\n"
+                "      requirements: [note-policy, shared-policy]\n"
+                "      loads: [.ai/knowledge/notes/api.md, .ai/knowledge/shared/rules.md]\n"
+                "      load_coverage:\n"
+                "        .ai/knowledge/notes/api.md: [note-policy]\n"
+                "        .ai/knowledge/shared/rules.md: [shared-policy]\n"
+                "    lifecycle:\n"
+                "      requirements: [board-lifecycle, shared-lifecycle]\n"
+                "      loads: [.ai/knowledge/shared/rules.md, .ai/knowledge/boards/rules.md]\n"
+                "      load_coverage:\n"
+                "        .ai/knowledge/shared/rules.md: [shared-lifecycle]\n"
+                "        .ai/knowledge/boards/rules.md: [board-lifecycle]\n"
+                "---\n",
+                encoding="utf-8",
+            )
+
+            configured = pkf_savings_eval.configured_cross_routes(
+                repo,
+                ("policy", "lifecycle", "undefined"),
+            )
+            complete = pkf_savings_eval.configured_cross_routes(repo, ("policy", "lifecycle"))
+
+        self.assertEqual(
+            configured["loads"],
+            (
+                ".ai/knowledge/boards/rules.md",
+                ".ai/knowledge/notes/api.md",
+                ".ai/knowledge/shared/rules.md",
+            ),
+        )
+        self.assertEqual(configured["missing_route_ids"], ("undefined",))
+        self.assertEqual(configured["coverage_status"], "incomplete")
+        self.assertEqual(configured["requirement_count"], 4)
+
+        self.assertEqual(complete["coverage_status"], "complete")
+        self.assertEqual(complete["minimality_status"], "minimal")
+        self.assertEqual(complete["redundant_loads"], ())
 
     def test_trace_metrics_separate_tool_input_output_and_explicit_reads(self):
         output = "\n".join(
@@ -399,8 +470,8 @@ class PkfSavingsEvalTests(unittest.TestCase):
         )
 
     def test_retrieval_decision_activates_only_for_pkf_reads(self):
-        empty = pkf_savings_eval.TraceMetrics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, False)
-        activated = pkf_savings_eval.TraceMetrics(1, 1, 1, 1, 1, 1, 0, 0, 1, 1, False)
+        empty = pkf_savings_eval.TraceMetrics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, False)
+        activated = pkf_savings_eval.TraceMetrics(1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, False)
 
         self.assertEqual(
             pkf_savings_eval.classify_retrieval_decision(
@@ -432,13 +503,108 @@ class PkfSavingsEvalTests(unittest.TestCase):
         performance = pkf_savings_eval.performance_advisories(metrics, 1)
 
         self.assertEqual(performance["evidence_strength"], "directional")
-        self.assertTrue(performance["status"].startswith("preliminary_"))
+        self.assertEqual(performance["status"], "preliminary")
         self.assertTrue(performance["checks"])
+        self.assertEqual(performance["phases"]["local_bypass"]["status"], "directional_met")
+
+    def test_performance_scorecard_does_not_gate_initialization_or_closeout_by_five_percent(self):
+        results = (
+            self.make_result(
+                arm="pkf",
+                task_id="initialize",
+                phase="setup",
+                answer_correct=None,
+                pkf_validation_passed=True,
+                initialization_validation_call_count=1,
+            ),
+            self.make_result(arm="probe_only", task_id="favorite_visibility_mutation", phase="mutation"),
+            self.make_result(arm="pkf", task_id="favorite_visibility_mutation", phase="mutation"),
+            self.make_result(arm="probe_only", task_id="isolated_closeout", phase="closeout"),
+            self.make_result(
+                arm="pkf",
+                task_id="isolated_closeout",
+                phase="closeout",
+                initial_route_status="mapped",
+                tool_call_count=5,
+            ),
+        )
+        performance = pkf_savings_eval.performance_advisories(
+            pkf_savings_eval.aggregate_metrics(results),
+            1,
+        )
+        names = {check["name"] for check in performance["checks"]}
+
+        self.assertFalse(any(name.startswith("initialization_") for name in names))
+        self.assertFalse(any(name.startswith("composed_mutation_") for name in names))
+        self.assertFalse(any(name.startswith("operational_") for name in names))
+        self.assertIn("closeout_incremental", performance["phases"]["closeout"]["measurements"])
+
+    def test_cross_quality_accepts_composed_atomic_route_union_over_three_leaves(self):
+        leaves = (
+            ".ai/knowledge/notes/api.md",
+            ".ai/knowledge/notes/business_rules.md",
+            ".ai/knowledge/boards/api.md",
+            ".ai/knowledge/boards/business_rules.md",
+        )
+        result = self.make_result(
+            arm="pkf",
+            task_id="note_task_links",
+            explicit_ai_read_path_count=5,
+            retrieval_decision="activated",
+            routed_document_count=4,
+            cross_route_marker_status="valid",
+            cross_route_ids=("note-link-policy", "note-link-lifecycle"),
+            cross_route_unique_leaf_count=4,
+            cross_route_fallback=False,
+            cross_configured_document_paths=leaves,
+            cross_observed_document_paths=leaves,
+            cross_requirement_count=4,
+            cross_covered_requirement_count=4,
+            cross_coverage_status="complete",
+            cross_minimality_status="minimal",
+            cross_estimated_tokens=1200,
+        )
+
+        self.assertEqual(pkf_savings_eval.evaluation_errors((result,), 1), [])
+
+        errors = pkf_savings_eval.evaluation_errors(
+            (self.make_result(arm="pkf", retrieval_decision="bypassed", route_marker_emitted=True),),
+            1,
+        )
+        self.assertTrue(any("bypassed local task emitted" in error for error in errors))
+
+        redundancy_errors = pkf_savings_eval.evaluation_errors(
+            (
+                pkf_savings_eval.replace_result(
+                    result,
+                    cross_minimality_status="redundant",
+                    cross_redundant_document_paths=(leaves[-1],),
+                ),
+            ),
+            1,
+        )
+        self.assertTrue(any("redundant leaves" in error for error in redundancy_errors))
 
     def test_run_class_keeps_one_pass_separate_from_replicated_results(self):
         self.assertEqual(pkf_savings_eval.run_class(1), "one_pass_preflight")
         self.assertEqual(pkf_savings_eval.run_class(2), "diagnostic")
         self.assertEqual(pkf_savings_eval.run_class(3), "replicated")
+
+    def test_initialization_repeated_broad_scans_are_blocking(self):
+        result = self.make_result(
+            arm="pkf",
+            task_id="initialize",
+            phase="setup",
+            answer_correct=None,
+            pkf_validation_passed=True,
+            initialization_validation_call_count=1,
+            initialization_route_status="mapped",
+            fallback_invocation_count=2,
+        )
+
+        errors = pkf_savings_eval.evaluation_errors((result,), 1)
+
+        self.assertTrue(any("repeated broad repository scans" in error for error in errors))
 
     def test_score_mutation_checks_paths_without_coupling_to_test_title(self):
         with tempfile.TemporaryDirectory() as raw_temp:
@@ -716,7 +882,7 @@ class PkfSavingsEvalTests(unittest.TestCase):
         closeout = (ROOT / "skills/token-atlas/references/closeout.md").read_text(encoding="utf-8")
         skill = (ROOT / "skills/token-atlas/SKILL.md").read_text(encoding="utf-8")
 
-        self.assertIn("one primary source-backed public-behavior leaf per capability", initialize)
+        self.assertIn("do not impose a fixed per-capability leaf", initialize)
         self.assertIn("`pkf.routes`", initialize)
         self.assertIn("Run `simulation=changed`", initialize)
         self.assertIn("Do not read the skill, this reference", closeout)

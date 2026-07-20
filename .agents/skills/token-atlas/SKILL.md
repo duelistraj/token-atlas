@@ -75,8 +75,8 @@ If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
 - Execute `references/initialize.md`
 - Execute `references/extract.md` using **Hybrid Extraction** for shared knowledge,
-  bounded routing, one primary public-behavior leaf per capability by default,
-  and only additional leaves named by source-backed cross-capability routes
+  coverage-driven public behavior, important mutation entrypoints, and atomic
+  source-backed cross-capability routes without a fixed per-capability leaf cap
 - Mark deferred leaves `pkf.materialization: pending`
 - Validate once after hybrid extraction
 - Execute `references/optimize.md` only when validation reports a routing,
@@ -135,7 +135,7 @@ symbols, tests, styles/tokens, and targeted locator commands.
 `pkf.related` means "useful if the task expands." Keep it empty on startup and
 index surfaces; do not treat leaf-level related documents as automatic context.
 
-During initialization, set `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`, install the dependency-free repository-local helpers under `.ai/tools/`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Initialize architecture, bounded routing, dependencies, and public entry-point facts, include focused public-behavior tests in leaf routing metadata, and mark deferred leaves `pkf.materialization: pending`. Record source-backed cross-capability intents as keyed root-index `pkf.routes` entries containing one to three exact complete leaves. Treat runtime helpers as opaque executables during normal workflows. The bootstrap allows a cheap local probe without loading PKF, activates PKF for cross-capability or broad-discovery work, and knowledge-impact-gates closeout. Generated guidance must not name a specific vendor, agent, or model.
+During initialization, set `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`, install the dependency-free repository-local helpers under `.ai/tools/`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Initialize architecture, bounded routing, dependencies, verified public behavior, and important mutation entrypoint facts; include focused public-behavior tests in leaf routing metadata and mark genuinely deferred leaves `pkf.materialization: pending`. Record source-backed cross-capability intents as keyed atomic root-index `pkf.routes` entries with requirements and per-leaf coverage. Broad tasks compose matching routes, deduplicate their leaf union, and remove leaves without unique requirement coverage. Treat runtime helpers as opaque executables during normal workflows. The bootstrap allows a cheap local probe without loading PKF, activates PKF for cross-capability or broad-discovery work, and knowledge-impact-gates closeout. Generated guidance must not name a specific vendor, agent, or model.
 
 ---
 
@@ -177,8 +177,8 @@ Run the simulator:
 - On demand when a user asks what PKF would retrieve for a task.
 
 A simulation report must include selected modules, required docs, source targets,
-targeted commands, fallback-search status and reason, retrieval-budget usage,
-routing evidence, and warnings or errors.
+targeted commands, fallback-search status and reason, actual leaf/token telemetry,
+coverage and minimality status, routing evidence, and warnings or errors.
 
 Treat unrelated modules loaded automatically through `pkf.loads` as blocking validation defects.
 
@@ -199,15 +199,16 @@ Exports are backend-neutral generated artifacts under `.ai/retrieval/`. They may
 
 ---
 
-## Benchmarking
+## Conformance Evaluation and Benchmarking
 
 Use `references/benchmark.md` when a user or CI process requests skill benchmarking.
 
-Benchmarking measures fixture-based skill quality, not just runtime speed. Run
-normal suites against isolated fixture repositories under `benchmarks/fixtures/`.
-When explicitly approved, the real-repository lifecycle eval may instead export
-a pinned external target into isolated workspaces to measure PKF-versus-no-PKF
-cost. Never target the token-atlas skill-maintenance repository itself.
+Normal `pkf_bench.py` suites are deterministic conformance evaluations against
+isolated fixture repositories under `benchmarks/fixtures/`; their timings are
+not real-repository savings. When explicitly approved, the separate lifecycle
+performance harness may export a pinned external target into isolated
+workspaces to measure PKF-versus-no-PKF cost. Never target the token-atlas
+skill-maintenance repository itself.
 
 After changing trigger or closeout semantics, run the focused activation-gate
 eval documented in `references/benchmark.md` in addition to the relevant
@@ -268,15 +269,16 @@ Estimate token cost for:
 
 Use an exact tokenizer when one is available locally for the target model. If no exact tokenizer is available, use a deterministic approximate estimator and label the report `approximate`; the default approximation is `ceil(character_count / 4)` for Markdown content after front matter is included.
 
-Default budgets and thresholds:
+Default structural thresholds and retrieval policy:
 
 - Read startup protocol and indexes only after adaptive retrieval activates; refresh only after changes, contradictions, or a need for an uncached section.
-- Use one module index and one or two leaves for a normal task.
-- Use one keyed `pkf.routes` entry and no more than three complete leaves for a
-  cross-capability task; keep the combined route within 4,000 tokens. Do not
-  widen initialization solely to enumerate possible routes.
-- Gate startup above 2,500 tokens, any leaf above 1,500 tokens, and a normal task
-  route above 4,000 tokens. Warn locally and fail in CI.
+- Load the minimum sufficient leaf set for a task.
+  Every selected leaf must cover a requirement not supplied by the other selected leaves.
+- Compose matching keyed routes for broad tasks, deduplicate their leaves, and remove any route or leaf that does not contribute unique requirement coverage.
+- Report actual route leaf counts and token estimates as telemetry.
+  They are not allowances, ceilings, or validation gates.
+- Gate startup above 2,500 tokens and any individual leaf above 1,500 tokens.
+  Warn locally and fail in CI.
 - Treat unrelated modules loaded automatically through `pkf.loads` as a blocking error.
 
 ---

@@ -1,0 +1,605 @@
+diff --git a/.ai/ARCHITECTURE.md b/.ai/ARCHITECTURE.md
+index 1c24f72..b1a697e 100644
+--- a/.ai/ARCHITECTURE.md
++++ b/.ai/ARCHITECTURE.md
+@@ -12,5 +12,5 @@ pkf:
+ 
+ | Path | Module | Purpose |
+ |---|---|---|
+-| `src/backend/**` | backend | Backend routes. |
+-| `src/frontend/**` | frontend | UI rendering code. |
++| `src/boards/**` | boards | Boards routes. |
++| `src/notes/**` | notes | UI rendering code. |
+diff --git a/.ai/PKF.md b/.ai/PKF.md
+index e7c859a..5c44a3f 100644
+--- a/.ai/PKF.md
++++ b/.ai/PKF.md
+@@ -41,8 +41,8 @@ After activation:
+ 
+ 1. Read `.ai/PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, and
+    `.ai/knowledge/INDEX.md` once, then cache them for the session.
+-2. Select the owning module and read one module `INDEX.md` plus one or two
+-   task-specific leaves. Follow `pkf.related` only when the task expands.
++2. Select the minimum leaf set that completely covers the task requirements.
++   Follow `pkf.related` only when routed evidence proves the task expanded.
+ 3. If a selected leaf has `pkf.materialization: pending`, materialize only that
+    leaf from source before relying on it.
+ 4. Open only the paths and symbols in `source_symbols`; use the Edit Map's
+@@ -56,13 +56,6 @@ incomplete, or inconsistent with source truth.
+ When the route leads to a search or an edit, state it on one line, citing the full
+ minimal set of docs and the source symbols, e.g.:
+ 
+-```
+-Route: PKF -> INDEX -> <module>/{api.md, ui.md} -> <source-file-a>, <source-file-b>
+-Targets: <source-file-a>:<symbol-a>, <source-file-b>:<symbol-b>
+-Commands: <targeted sg or rg commands>
+-Fallback search: no
+-Budget: 1 module index, 2 leaves, <estimated tokens>
+-```
+ 
+ If fallback is required, set `Fallback search: yes` and add `Fallback reason:`.
+ Keep this trace in the session/task report; do not create a repository log.
+@@ -89,9 +82,8 @@ After changing code, update each leaf doc that owns a fact you changed (add
+ `pkf.related` links instead of duplicating a fact). If you cannot update the
+ knowledge base in the same change, state exactly which leaf docs are now stale.
+ 
+-A normal route loads at most one module index and two leaves. A legitimate
+-cross-cutting task may exceed the document count only when the trace explains why
+-and each capability slice stays minimal.
++Every selected leaf must cover a requirement not supplied by the other selected
++leaves. Report actual leaf and token totals as telemetry, not limits.
+ 
+ ## Closeout Protocol (MANDATORY)
+ 
+@@ -150,8 +142,8 @@ claiming them as synchronized.
+   index only for a new or unmapped path. Materialize an affected pending leaf.
+ - Repair deletes and renames, and update indexes only when ownership or routing
+   changed.
+-- Optimize only affected routes that exceed a token budget, duplicate facts,
+-  load unrelated context, or required fallback search.
++- Optimize only affected routes that have incomplete coverage, redundant leaves,
++  duplicate facts, unrelated context, or required fallback search.
+ - Run affected-slice advisory validation with summary output after changing
+   `.ai/` knowledge. Do not emit successful-check inventories during closeout.
+ - Use full maintenance, extraction, optimization, or validation only for module
+diff --git a/.ai/knowledge/INDEX.md b/.ai/knowledge/INDEX.md
+index 7c1b3ff..f129569 100644
+--- a/.ai/knowledge/INDEX.md
++++ b/.ai/knowledge/INDEX.md
+@@ -6,12 +6,30 @@ resource: .ai/knowledge/INDEX.md
+ tags: [broad-loads, routing]
+ timestamp: 2026-07-08
+ pkf:
+-  routes: {}
++  routes:
++    note-task-visibility:
++      intent: "Explain note-task visibility across notes and boards"
++      triggers: [note task visibility, linked task display]
++      modules: [notes, boards]
++      requirements: [note-task-visibility]
++      loads: [.ai/knowledge/notes/ui.md]
++      load_coverage:
++        .ai/knowledge/notes/ui.md: [note-task-visibility]
++    note-task-policy:
++      intent: "Explain permissions, lifecycle, and relationship policy for note-task links"
++      triggers: [note task permissions, linked task lifecycle, note task policy]
++      modules: [boards, notes]
++      requirements: [task-link-permissions, task-link-lifecycle, note-link-policy]
++      loads: [.ai/knowledge/boards/api.md, .ai/knowledge/boards/business_rules.md, .ai/knowledge/notes/business_rules.md]
++      load_coverage:
++        .ai/knowledge/boards/api.md: [task-link-permissions]
++        .ai/knowledge/boards/business_rules.md: [task-link-lifecycle]
++        .ai/knowledge/notes/business_rules.md: [note-link-policy]
+   loads: []
+   related: []
+ ---
+ 
+ | Intent or path | Load |
+ |---|---|
+-| `src/backend/routes/**`, API route | `.ai/knowledge/backend/INDEX.md` then `.ai/knowledge/backend/api.md` |
+-| `src/frontend/**`, UI behavior | `.ai/knowledge/frontend/INDEX.md` then `.ai/knowledge/frontend/ui.md` |
++| `src/boards/**`, Task-link rule | `.ai/knowledge/boards/INDEX.md` then `.ai/knowledge/boards/api.md` |
++| `src/notes/**`, Note-task visibility | `.ai/knowledge/notes/INDEX.md` then `.ai/knowledge/notes/ui.md` |
+diff --git a/.ai/knowledge/backend/INDEX.md b/.ai/knowledge/backend/INDEX.md
+deleted file mode 100644
+index 595cdfc..0000000
+--- a/.ai/knowledge/backend/INDEX.md
++++ /dev/null
+@@ -1,21 +0,0 @@
+----
+-type: index
+-title: Backend Knowledge
+-description: Backend module routing with an intentional broad load defect.
+-resource: .ai/knowledge/backend/INDEX.md
+-tags: [broad-loads, backend, routing]
+-timestamp: 2026-07-08
+-pkf:
+-  ownership_roots:
+-    - "src/backend"
+-  loads:
+-    - .ai/knowledge/backend/api.md
+-    - .ai/knowledge/frontend/ui.md
+-  related: []
+----
+-
+-| Task | Required doc |
+-|---|---|
+-| API route changes in `src/backend/routes/**` | `api.md` |
+-
+-Intentional defect: this index automatically loads `.ai/knowledge/frontend/ui.md`.
+diff --git a/.ai/knowledge/backend/api.md b/.ai/knowledge/backend/api.md
+deleted file mode 100644
+index b9017f7..0000000
+--- a/.ai/knowledge/backend/api.md
++++ /dev/null
+@@ -1,20 +0,0 @@
+----
+-type: api
+-title: Backend API
+-description: Backend API facts for the broad-loads fixture.
+-resource: .ai/knowledge/backend/api.md
+-tags: [broad-loads, backend, api]
+-timestamp: 2026-07-08
+-source_symbols:
+-  src/backend/routes/orders.ts:
+-    - listOrdersRoute
+-pkf:
+-  loads: []
+-  related: []
+----
+-
+-## Edit Map
+-
+-| Behavior | Source symbols | Tests | Styles/tokens | Locator |
+-|---|---|---|---|---|
+-| Api | `src/backend/routes/orders.ts:listOrdersRoute` | Not documented | N/A | `rg -n -F -- 'listOrdersRoute' 'src/backend/routes/orders.ts'` |
+diff --git a/.ai/knowledge/backend/business_rules.md b/.ai/knowledge/backend/business_rules.md
+deleted file mode 100644
+index 05e715f..0000000
+--- a/.ai/knowledge/backend/business_rules.md
++++ /dev/null
+@@ -1,14 +0,0 @@
+----
+-type: rules
+-title: Backend Business Rules
+-description: Backend rule facts for the broad-loads fixture.
+-resource: .ai/knowledge/backend/business_rules.md
+-tags: [broad-loads, backend, rules]
+-timestamp: 2026-07-08
+-source_symbols: {}
+-pkf:
+-  loads: []
+-  related: []
+----
+-
+-- TODO: No source-backed facts.
+diff --git a/.ai/knowledge/backend/schema.md b/.ai/knowledge/backend/schema.md
+deleted file mode 100644
+index abf887c..0000000
+--- a/.ai/knowledge/backend/schema.md
++++ /dev/null
+@@ -1,14 +0,0 @@
+----
+-type: schema
+-title: Backend Schema
+-description: Backend schema facts for the broad-loads fixture.
+-resource: .ai/knowledge/backend/schema.md
+-tags: [broad-loads, backend, schema]
+-timestamp: 2026-07-08
+-source_symbols: {}
+-pkf:
+-  loads: []
+-  related: []
+----
+-
+-- TODO: No source-backed facts.
+diff --git a/.ai/knowledge/backend/ui.md b/.ai/knowledge/backend/ui.md
+deleted file mode 100644
+index c1a31c0..0000000
+--- a/.ai/knowledge/backend/ui.md
++++ /dev/null
+@@ -1,14 +0,0 @@
+----
+-type: ui
+-title: Backend UI
+-description: Backend UI facts for the broad-loads fixture.
+-resource: .ai/knowledge/backend/ui.md
+-tags: [broad-loads, backend, ui]
+-timestamp: 2026-07-08
+-source_symbols: {}
+-pkf:
+-  loads: []
+-  related: []
+----
+-
+-- TODO: No source-backed facts.
+diff --git a/.ai/knowledge/boards/INDEX.md b/.ai/knowledge/boards/INDEX.md
+new file mode 100644
+index 0000000..3c055ac
+--- /dev/null
++++ b/.ai/knowledge/boards/INDEX.md
+@@ -0,0 +1,17 @@
++---
++type: index
++title: Boards Knowledge
++description: Boards capability routing for note-task links.
++resource: .ai/knowledge/boards/INDEX.md
++tags: [broad-loads, boards, routing]
++timestamp: 2026-07-08
++pkf:
++  ownership_roots:
++    - "src/boards"
++  loads: []
++  related: []
++---
++
++| Task | Required doc |
++|---|---|
++| Task-link rule changes in `src/boards/**` | `api.md` |
+diff --git a/.ai/knowledge/boards/api.md b/.ai/knowledge/boards/api.md
+new file mode 100644
+index 0000000..45b408d
+--- /dev/null
++++ b/.ai/knowledge/boards/api.md
+@@ -0,0 +1,20 @@
++---
++type: api
++title: Boards API
++description: Boards API facts for the broad-loads fixture.
++resource: .ai/knowledge/boards/api.md
++tags: [broad-loads, boards, api]
++timestamp: 2026-07-08
++source_symbols:
++  src/boards/taskLinks.ts:
++    - taskLinkPermissions
++pkf:
++  loads: []
++  related: []
++---
++
++## Edit Map
++
++| Behavior | Source symbols | Tests | Styles/tokens | Locator |
++|---|---|---|---|---|
++| Task link permissions | `src/boards/taskLinks.ts:taskLinkPermissions` | Not documented | N/A | `rg -n -F -- 'taskLinkPermissions' 'src/boards/taskLinks.ts'` |
+diff --git a/.ai/knowledge/boards/business_rules.md b/.ai/knowledge/boards/business_rules.md
+new file mode 100644
+index 0000000..7a52b9b
+--- /dev/null
++++ b/.ai/knowledge/boards/business_rules.md
+@@ -0,0 +1,20 @@
++---
++type: rules
++title: Boards Business Rules
++description: Boards rule facts for the broad-loads fixture.
++resource: .ai/knowledge/boards/business_rules.md
++tags: [broad-loads, boards, rules]
++timestamp: 2026-07-08
++source_symbols:
++  src/boards/taskLinks.ts:
++    - taskLinkLifecycle
++pkf:
++  loads: []
++  related: []
++---
++
++## Edit Map
++
++| Behavior | Source symbols | Tests | Styles/tokens | Locator |
++|---|---|---|---|---|
++| Linked task lifecycle | `src/boards/taskLinks.ts:taskLinkLifecycle` | Not documented | N/A | `rg -n -F -- 'taskLinkLifecycle' 'src/boards/taskLinks.ts'` |
+diff --git a/.ai/knowledge/boards/schema.md b/.ai/knowledge/boards/schema.md
+new file mode 100644
+index 0000000..9406ebf
+--- /dev/null
++++ b/.ai/knowledge/boards/schema.md
+@@ -0,0 +1,14 @@
++---
++type: schema
++title: Boards Schema
++description: Boards schema facts for the broad-loads fixture.
++resource: .ai/knowledge/boards/schema.md
++tags: [broad-loads, boards, schema]
++timestamp: 2026-07-08
++source_symbols: {}
++pkf:
++  loads: []
++  related: []
++---
++
++- TODO: No source-backed facts.
+diff --git a/.ai/knowledge/boards/ui.md b/.ai/knowledge/boards/ui.md
+new file mode 100644
+index 0000000..c673f00
+--- /dev/null
++++ b/.ai/knowledge/boards/ui.md
+@@ -0,0 +1,14 @@
++---
++type: ui
++title: Boards UI
++description: Boards UI facts for the broad-loads fixture.
++resource: .ai/knowledge/boards/ui.md
++tags: [broad-loads, boards, ui]
++timestamp: 2026-07-08
++source_symbols: {}
++pkf:
++  loads: []
++  related: []
++---
++
++- TODO: No source-backed facts.
+diff --git a/.ai/knowledge/frontend/INDEX.md b/.ai/knowledge/frontend/INDEX.md
+deleted file mode 100644
+index f51d25e..0000000
+--- a/.ai/knowledge/frontend/INDEX.md
++++ /dev/null
+@@ -1,17 +0,0 @@
+----
+-type: index
+-title: Frontend Knowledge
+-description: Frontend module routing for the broad-loads fixture.
+-resource: .ai/knowledge/frontend/INDEX.md
+-tags: [broad-loads, frontend, routing]
+-timestamp: 2026-07-08
+-pkf:
+-  ownership_roots:
+-    - "src/frontend"
+-  loads: []
+-  related: []
+----
+-
+-| Task | Required doc |
+-|---|---|
+-| UI behavior changes in `src/frontend/**` | `ui.md` |
+diff --git a/.ai/knowledge/frontend/api.md b/.ai/knowledge/frontend/api.md
+deleted file mode 100644
+index b582355..0000000
+--- a/.ai/knowledge/frontend/api.md
++++ /dev/null
+@@ -1,14 +0,0 @@
+----
+-type: api
+-title: Frontend API
+-description: Frontend API facts for the broad-loads fixture.
+-resource: .ai/knowledge/frontend/api.md
+-tags: [broad-loads, frontend, api]
+-timestamp: 2026-07-08
+-source_symbols: {}
+-pkf:
+-  loads: []
+-  related: []
+----
+-
+-- TODO: No source-backed facts.
+diff --git a/.ai/knowledge/frontend/business_rules.md b/.ai/knowledge/frontend/business_rules.md
+deleted file mode 100644
+index 5312978..0000000
+--- a/.ai/knowledge/frontend/business_rules.md
++++ /dev/null
+@@ -1,14 +0,0 @@
+----
+-type: rules
+-title: Frontend Business Rules
+-description: Frontend rule facts for the broad-loads fixture.
+-resource: .ai/knowledge/frontend/business_rules.md
+-tags: [broad-loads, frontend, rules]
+-timestamp: 2026-07-08
+-source_symbols: {}
+-pkf:
+-  loads: []
+-  related: []
+----
+-
+-- TODO: No source-backed facts.
+diff --git a/.ai/knowledge/frontend/schema.md b/.ai/knowledge/frontend/schema.md
+deleted file mode 100644
+index 7ad48bc..0000000
+--- a/.ai/knowledge/frontend/schema.md
++++ /dev/null
+@@ -1,14 +0,0 @@
+----
+-type: schema
+-title: Frontend Schema
+-description: Frontend schema facts for the broad-loads fixture.
+-resource: .ai/knowledge/frontend/schema.md
+-tags: [broad-loads, frontend, schema]
+-timestamp: 2026-07-08
+-source_symbols: {}
+-pkf:
+-  loads: []
+-  related: []
+----
+-
+-- TODO: No source-backed facts.
+diff --git a/.ai/knowledge/frontend/ui.md b/.ai/knowledge/frontend/ui.md
+deleted file mode 100644
+index 978ed52..0000000
+--- a/.ai/knowledge/frontend/ui.md
++++ /dev/null
+@@ -1,20 +0,0 @@
+----
+-type: ui
+-title: Frontend UI
+-description: Frontend UI facts for the broad-loads fixture.
+-resource: .ai/knowledge/frontend/ui.md
+-tags: [broad-loads, frontend, ui]
+-timestamp: 2026-07-08
+-source_symbols:
+-  src/frontend/CartBadge.tsx:
+-    - renderCartBadge
+-pkf:
+-  loads: []
+-  related: []
+----
+-
+-## Edit Map
+-
+-| Behavior | Source symbols | Tests | Styles/tokens | Locator |
+-|---|---|---|---|---|
+-| Ui | `src/frontend/CartBadge.tsx:renderCartBadge` | Not documented | N/A | `rg -n -F -- 'renderCartBadge' 'src/frontend/CartBadge.tsx'` |
+diff --git a/.ai/knowledge/notes/INDEX.md b/.ai/knowledge/notes/INDEX.md
+new file mode 100644
+index 0000000..8bde5b2
+--- /dev/null
++++ b/.ai/knowledge/notes/INDEX.md
+@@ -0,0 +1,17 @@
++---
++type: index
++title: Notes Knowledge
++description: Notes module routing for the broad-loads fixture.
++resource: .ai/knowledge/notes/INDEX.md
++tags: [broad-loads, notes, routing]
++timestamp: 2026-07-08
++pkf:
++  ownership_roots:
++    - "src/notes"
++  loads: []
++  related: []
++---
++
++| Task | Required doc |
++|---|---|
++| Note-task visibility changes in `src/notes/**` | `ui.md` |
+diff --git a/.ai/knowledge/notes/api.md b/.ai/knowledge/notes/api.md
+new file mode 100644
+index 0000000..cf377a1
+--- /dev/null
++++ b/.ai/knowledge/notes/api.md
+@@ -0,0 +1,14 @@
++---
++type: api
++title: Notes API
++description: Notes API facts for the broad-loads fixture.
++resource: .ai/knowledge/notes/api.md
++tags: [broad-loads, notes, api]
++timestamp: 2026-07-08
++source_symbols: {}
++pkf:
++  loads: []
++  related: []
++---
++
++- TODO: No source-backed facts.
+diff --git a/.ai/knowledge/notes/business_rules.md b/.ai/knowledge/notes/business_rules.md
+new file mode 100644
+index 0000000..854e6fd
+--- /dev/null
++++ b/.ai/knowledge/notes/business_rules.md
+@@ -0,0 +1,20 @@
++---
++type: rules
++title: Notes Business Rules
++description: Notes rule facts for the broad-loads fixture.
++resource: .ai/knowledge/notes/business_rules.md
++tags: [broad-loads, notes, rules]
++timestamp: 2026-07-08
++source_symbols:
++  src/notes/NoteTaskBadge.tsx:
++    - noteLinkPolicy
++pkf:
++  loads: []
++  related: []
++---
++
++## Edit Map
++
++| Behavior | Source symbols | Tests | Styles/tokens | Locator |
++|---|---|---|---|---|
++| Note-task relationship policy | `src/notes/NoteTaskBadge.tsx:noteLinkPolicy` | Not documented | N/A | `rg -n -F -- 'noteLinkPolicy' 'src/notes/NoteTaskBadge.tsx'` |
+diff --git a/.ai/knowledge/notes/schema.md b/.ai/knowledge/notes/schema.md
+new file mode 100644
+index 0000000..80882c1
+--- /dev/null
++++ b/.ai/knowledge/notes/schema.md
+@@ -0,0 +1,14 @@
++---
++type: schema
++title: Notes Schema
++description: Notes schema facts for the broad-loads fixture.
++resource: .ai/knowledge/notes/schema.md
++tags: [broad-loads, notes, schema]
++timestamp: 2026-07-08
++source_symbols: {}
++pkf:
++  loads: []
++  related: []
++---
++
++- TODO: No source-backed facts.
+diff --git a/.ai/knowledge/notes/ui.md b/.ai/knowledge/notes/ui.md
+new file mode 100644
+index 0000000..ef4844b
+--- /dev/null
++++ b/.ai/knowledge/notes/ui.md
+@@ -0,0 +1,20 @@
++---
++type: ui
++title: Notes UI
++description: Notes UI facts for the broad-loads fixture.
++resource: .ai/knowledge/notes/ui.md
++tags: [broad-loads, notes, ui]
++timestamp: 2026-07-08
++source_symbols:
++  src/notes/NoteTaskBadge.tsx:
++    - renderNoteTaskBadge
++pkf:
++  loads: []
++  related: []
++---
++
++## Edit Map
++
++| Behavior | Source symbols | Tests | Styles/tokens | Locator |
++|---|---|---|---|---|
++| Note task visibility | `src/notes/NoteTaskBadge.tsx:renderNoteTaskBadge` | Not documented | N/A | `rg -n -F -- 'renderNoteTaskBadge' 'src/notes/NoteTaskBadge.tsx'` |
+diff --git a/src/backend/routes/orders.ts b/src/backend/routes/orders.ts
+deleted file mode 100644
+index 201428a..0000000
+--- a/src/backend/routes/orders.ts
++++ /dev/null
+@@ -1,6 +0,0 @@
+-export function listOrdersRoute() {
+-  return {
+-    status: 200,
+-    body: [{ id: "ord_2001", status: "paid" }]
+-  };
+-}
+diff --git a/src/boards/taskLinks.ts b/src/boards/taskLinks.ts
+new file mode 100644
+index 0000000..c66f915
+--- /dev/null
++++ b/src/boards/taskLinks.ts
+@@ -0,0 +1,10 @@
++export function taskLinkPermissions() {
++  return {
++    status: 200,
++    body: [{ id: "ord_2001", status: "paid" }]
++  };
++}
++
++export function taskLinkLifecycle(): string {
++  return "unlink-on-delete; restore-without-link";
++}
+diff --git a/src/frontend/CartBadge.tsx b/src/frontend/CartBadge.tsx
+deleted file mode 100644
+index 6662f4a..0000000
+--- a/src/frontend/CartBadge.tsx
++++ /dev/null
+@@ -1,3 +0,0 @@
+-export function renderCartBadge(count: number): string {
+-  return `<span aria-label="Cart items">${count}</span>`;
+-}
+diff --git a/src/notes/NoteTaskBadge.tsx b/src/notes/NoteTaskBadge.tsx
+new file mode 100644
+index 0000000..118ccb6
+--- /dev/null
++++ b/src/notes/NoteTaskBadge.tsx
+@@ -0,0 +1,7 @@
++export function renderNoteTaskBadge(count: number): string {
++  return `<span aria-label="Cart items">${count}</span>`;
++}
++
++export function noteLinkPolicy(): string {
++  return "linked tasks remain visible on notes";
++}
+

@@ -66,16 +66,15 @@ Estimate automatic context cost for:
 
 Use an exact tokenizer when locally available. Otherwise use `ceil(character_count / 4)` and label estimates `approximate`.
 
-Default budgets and thresholds:
+Default structural thresholds and retrieval policy:
 
-- Normal retrieval: one module index and one or two leaf docs.
 - Startup path above 2,500 tokens: warning locally, error in CI.
 - Any leaf above 1,500 tokens: warning locally, error in CI.
-- Representative normal task route above 4,000 tokens: warning locally, error in CI.
 - Any unrelated module loaded automatically: blocking error.
 
-Treat a cross-cutting task as several minimal capability slices. It may exceed the
-normal document count only when the retrieval trace records the reason.
+Treat every task as a minimum-sufficient context problem.
+Compose cross-cutting work from atomic route slices, deduplicate their combined leaves, and remove any leaf without unique requirement coverage.
+Report route leaf counts and token estimates as telemetry; never optimize toward an allowance or reject a complete route because of its absolute size.
 
 ## Rules
 

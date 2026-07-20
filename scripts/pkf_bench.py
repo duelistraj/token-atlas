@@ -29,6 +29,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from pkf_contract import REQUIRED_FRONT_MATTER  # noqa: E402
 from pkf_lib import PkfParseError, listify, parse_yaml_block, read_front_matter, rel  # noqa: E402
+from pkf_tokens import count_tokens  # noqa: E402
 from pkf_validate import validate_pkf  # noqa: E402
 
 DEFAULT_FIXTURES = ROOT / ".agents" / "skills" / "token-atlas" / "benchmarks" / "fixtures"
@@ -83,6 +84,7 @@ def main() -> int:
 
         aggregate = aggregate_reports(fixture_reports)
         report = {
+            "evaluation_kind": "conformance",
             "suite": args.suite,
             "mode": args.mode,
             "model": resolved_model_config(args),
@@ -170,6 +172,7 @@ def run_fixture(fixture_dir: Path, manifest: dict[str, Any], args: argparse.Name
     started = time.time()
     report: dict[str, Any] = {
         "name": name,
+        "evaluation_kind": "conformance",
         "overall_status": "passed",
         "checks": {"passed": 0, "total": 0},
         "model": resolved_model_config(args),
@@ -239,6 +242,7 @@ def run_local_mode(fixture_dir: Path, manifest: dict[str, Any], args: argparse.N
         verify_expected_docs(repo, manifest, result)
         verify_front_matter(repo, manifest, result)
         verify_pkf_references(repo, result)
+        verify_expected_route_composition(repo, manifest, result)
         verify_expected_defects(repo, manifest, result)
         verify_exports_static(repo, manifest, result)
         verify_validator_result(repo, manifest, result)
@@ -408,6 +412,103 @@ def verify_pkf_references(repo: Path, result: dict[str, Any]) -> None:
             for target in pkf.get(key, []):
                 target_path = repo / str(target)
                 add_check(result, target_path.is_file(), f"{key} resolves: {target}", f"{rel(md, repo)} has broken {key}: {target}")
+
+
+def verify_expected_route_composition(
+    repo: Path,
+    manifest: dict[str, Any],
+    result: dict[str, Any],
+) -> None:
+    expected = manifest.get("expected_route_composition")
+    if expected is None:
+        return
+    if not isinstance(expected, dict):
+        raise ManifestError(f"{manifest['name']}: expected_route_composition must be a mapping")
+    route_ids = expected.get("route_ids")
+    unique_loads = expected.get("unique_loads")
+    if not isinstance(route_ids, list) or not all(isinstance(value, str) for value in route_ids):
+        raise ManifestError(f"{manifest['name']}: expected_route_composition.route_ids must be a string list")
+    if not isinstance(unique_loads, list) or not all(isinstance(value, str) for value in unique_loads):
+        raise ManifestError(f"{manifest['name']}: expected_route_composition.unique_loads must be a string list")
+
+    index = repo / ".ai" / "knowledge" / "INDEX.md"
+    metadata = read_front_matter(index) if index.is_file() else {}
+    pkf = metadata.get("pkf") if isinstance(metadata, dict) else None
+    routes = pkf.get("routes") if isinstance(pkf, dict) else None
+    configured_loads: set[str] = set()
+    requirements: set[str] = set()
+    coverage_by_load: dict[str, set[str]] = {}
+    metadata_valid = True
+    for route_id in route_ids:
+        route = routes.get(route_id) if isinstance(routes, dict) else None
+        add_check(
+            result,
+            isinstance(route, dict),
+            f"atomic route exists: {route_id}",
+            f"missing atomic route: {route_id}",
+        )
+        if isinstance(route, dict):
+            route_loads = {str(value) for value in listify(route.get("loads"))}
+            configured_loads.update(route_loads)
+            route_requirements = route.get("requirements")
+            load_coverage = route.get("load_coverage")
+            if (
+                not isinstance(route_requirements, list)
+                or not route_requirements
+                or not isinstance(load_coverage, dict)
+                or {str(value) for value in load_coverage} != route_loads
+            ):
+                metadata_valid = False
+                continue
+            scoped_requirements = {f"{route_id}:{value}" for value in route_requirements}
+            requirements.update(scoped_requirements)
+            for load, raw_coverage in load_coverage.items():
+                if not isinstance(raw_coverage, list) or not raw_coverage:
+                    metadata_valid = False
+                    continue
+                coverage_by_load.setdefault(str(load), set()).update(
+                    f"{route_id}:{value}" for value in raw_coverage
+                )
+    expected_loads = set(unique_loads)
+    add_check(
+        result,
+        configured_loads == expected_loads,
+        f"composed route union matches {len(expected_loads)} unique leaves",
+        f"composed route union mismatch: expected {sorted(expected_loads)}, got {sorted(configured_loads)}",
+    )
+    result["selected_routes"] = list(route_ids)
+    result["unique_leaf_count"] = len(configured_loads)
+    covered = set().union(*coverage_by_load.values()) if coverage_by_load else set()
+    provider_counts = {
+        requirement: sum(requirement in values for values in coverage_by_load.values())
+        for requirement in requirements
+    }
+    redundant = sorted(
+        load
+        for load in configured_loads
+        if not any(provider_counts.get(requirement) == 1 for requirement in coverage_by_load.get(load, set()))
+    )
+    complete = metadata_valid and requirements == covered
+    result["requirement_count"] = len(requirements)
+    result["covered_requirement_count"] = len(covered)
+    result["coverage_status"] = "complete" if complete else "incomplete"
+    result["minimality_status"] = "minimal" if complete and not redundant else "redundant" if redundant else "invalid"
+    route_text = "\n".join(
+        (repo / load).read_text(encoding="utf-8")
+        for load in sorted(configured_loads)
+        if (repo / load).is_file()
+    )
+    result["estimated_route_tokens"] = count_tokens(route_text, None)[0]
+    add_check(result, complete, "composed route requirements are completely covered", "composed route requirement coverage is incomplete")
+    add_check(result, not redundant, "composed route has no redundant leaves", f"composed route has redundant leaves: {redundant}")
+    expected_requirement_count = expected.get("requirement_count")
+    if expected_requirement_count is not None:
+        add_check(
+            result,
+            len(requirements) == expected_requirement_count,
+            f"composed route covers {expected_requirement_count} requirements",
+            f"composed route requirement count mismatch: expected {expected_requirement_count}, got {len(requirements)}",
+        )
 
 
 def verify_expected_defects(repo: Path, manifest: dict[str, Any], result: dict[str, Any]) -> None:
@@ -585,6 +686,7 @@ def build_codex_prompt(manifest: dict[str, Any], skill_copy: Path, metadata_dir:
         "Apply the Token Atlas skill instructions from the copied skill docs.\n"
         "Return a JSON object matching the provided output schema. Include selected modules, "
         "the complete generated module inventory, required docs, exact source targets, targeted commands, fallback-search status and reason, "
+        "and selected atomic route IDs plus requirement coverage, minimality, deduplicated leaf count, and actual estimated route tokens when the fixture defines route composition, "
         "forbidden automatic loads status, warnings, errors, token impact, exit "
         "behavior, and compact evidence. Expected benchmark defects should be reported as errors "
         "in the report rather than hidden.\n"
@@ -636,6 +738,53 @@ def score_codex_report(manifest: dict[str, Any], report: dict[str, Any], result:
     result["required_docs"] = required_docs
     for doc in flatten_expected_docs(manifest.get("expected_required_docs", [])):
         add_check(result, doc in required_docs, f"Codex required doc: {doc}", f"missing required doc in Codex report: {doc}")
+
+    expected_composition = manifest.get("expected_route_composition")
+    if isinstance(expected_composition, dict):
+        selected_routes = [str(value) for value in listify(report.get("selected_routes", []))]
+        expected_routes = [str(value) for value in listify(expected_composition.get("route_ids", []))]
+        unique_leaf_count = report.get("unique_leaf_count")
+        expected_unique_count = len(set(map(str, listify(expected_composition.get("unique_loads", [])))))
+        result["selected_routes"] = selected_routes
+        result["unique_leaf_count"] = unique_leaf_count
+        result["requirement_count"] = report.get("requirement_count", 0)
+        result["covered_requirement_count"] = report.get("covered_requirement_count", 0)
+        result["coverage_status"] = report.get("coverage_status", "unknown")
+        result["minimality_status"] = report.get("minimality_status", "unknown")
+        result["estimated_route_tokens"] = report.get("estimated_route_tokens", 0)
+        add_check(
+            result,
+            selected_routes == expected_routes,
+            "Codex selected expected atomic routes",
+            f"unexpected Codex atomic routes: {selected_routes}",
+        )
+        add_check(
+            result,
+            unique_leaf_count == expected_unique_count,
+            f"Codex reported {expected_unique_count} deduplicated leaves",
+            f"Codex reported unexpected unique leaf count: {unique_leaf_count}",
+        )
+        expected_requirement_count = expected_composition.get("requirement_count")
+        if expected_requirement_count is not None:
+            add_check(
+                result,
+                report.get("requirement_count") == expected_requirement_count
+                and report.get("covered_requirement_count") == expected_requirement_count,
+                f"Codex reported complete coverage for {expected_requirement_count} requirements",
+                "Codex reported incomplete or unexpected route requirement coverage",
+            )
+        add_check(
+            result,
+            report.get("coverage_status") == "complete",
+            "Codex reported complete route coverage",
+            f"Codex reported route coverage {report.get('coverage_status', 'missing')}",
+        )
+        add_check(
+            result,
+            report.get("minimality_status") == "minimal",
+            "Codex reported minimum-sufficient route composition",
+            f"Codex reported route minimality {report.get('minimality_status', 'missing')}",
+        )
 
     expected_errors = expected_errors_for_scoring(manifest)
     allowed_errors = allowed_errors_for_scoring(manifest)
@@ -705,6 +854,13 @@ def empty_mode_result(mode: str) -> dict[str, Any]:
         "checks": {"passed": 0, "total": 0},
         "model": {},
         "selected_modules": [],
+        "selected_routes": [],
+        "unique_leaf_count": 0,
+        "requirement_count": 0,
+        "covered_requirement_count": 0,
+        "coverage_status": "unknown",
+        "minimality_status": "unknown",
+        "estimated_route_tokens": 0,
         "generated_modules": [],
         "required_docs": [],
         "source_targets": [],
@@ -817,7 +973,7 @@ def output_report(report: dict[str, Any], args: argparse.Namespace) -> None:
 
 def render_text_report(report: dict[str, Any]) -> str:
     lines = [
-        "Token Atlas Benchmark",
+        "Token Atlas Conformance Evaluation",
         f"Suite: {report['suite']}",
         f"Mode: {report['mode']}",
         f"Model: {report['model']['name']} ({report['model']['source']})",

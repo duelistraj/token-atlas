@@ -28,18 +28,17 @@ Classify intent as one or more:
 ## Selection Order
 
 1. Changed paths matched by `ARCHITECTURE.md` or `knowledge/INDEX.md`.
-2. A matching keyed `pkf.routes` entry for a cross-capability intent.
+2. The smallest set of matching atomic keyed `pkf.routes` entries for a cross-capability intent.
 3. Module names and keywords in `knowledge/INDEX.md`.
 4. Module `INDEX.md` routing tables.
 5. Leaf-level `pkf.related` only as optional context.
 
 Do not automatically load unrelated modules.
 
-For a normal task, select one module index and one or two leaves, then return the
-exact `source_symbols` and Edit Map locator commands. A cross-capability task
-must select one explicit route containing one to three complete leaves within
-the 4,000-token task budget. Do not load adjacent indexes or leaf-level
-`pkf.related` entries unless routed evidence is contradictory.
+For every task, select the smallest context packet that completely covers its requirements, then return the exact `source_symbols` and Edit Map locator commands.
+For a cross-capability task, compose the smallest matching atomic route set, deduplicate its leaves, and remove any leaf without unique requirement coverage.
+When equally complete alternatives use the same leaf count, prefer the lower estimated token cost.
+Do not load adjacent indexes or leaf-level `pkf.related` entries unless routed evidence is contradictory.
 
 ## Required Docs By Task
 
@@ -65,12 +64,13 @@ Required docs: <docs loaded automatically>
 Optional related docs: <docs not automatically loaded>
 Estimated tokens: <count>
 Estimator: <exact or approximate>
-Threshold status: <passed, warning, or error>
+Coverage status: <complete, incomplete, or unknown>
+Minimality status: <minimal, redundant, or unknown>
 Source targets: <path:symbol entries>
 Targeted commands: <sg when verified as ast-grep, otherwise exact rg commands>
 Fallback search: <yes or no>
 Fallback reason: <reason or none>
-Budget usage: <module indexes, leaves, tokens, and exception reason if any>
+Route telemetry: <atomic route IDs, requirements covered, unique leaves, and estimated tokens>
 Routing evidence:
 - <evidence>
 Warnings:
@@ -89,10 +89,10 @@ Report errors when:
 - `pkf.loads` automatically loads an unrelated module.
 - A task-specific route must load unrelated capability facts because the selected module mixes independently routable capabilities.
 - A leaf lacks valid source symbols or a targeted Edit Map.
-- A normal route exceeds one module index, two leaves, or 4,000 tokens without a
-  justified cross-cutting exception.
-- A cross-capability route is absent, loads more than three leaves, names pending
-  leaves, or exceeds 4,000 tokens.
+- A selected route does not completely cover the task requirements.
+- A selected leaf contributes no requirement that the other selected leaves do not already cover.
+- An atomic cross-capability route is absent, names pending leaves, lacks requirement coverage metadata, or contains redundant leaves.
+- A composed task rereads duplicate leaves, selects a route unrelated to a task clause, or retains a route or leaf without unique requirement coverage.
 
 Report an ambiguous module-boundary warning when the evidence suggests a split
 but does not satisfy the Module Boundary Contract. Simulation never invents or

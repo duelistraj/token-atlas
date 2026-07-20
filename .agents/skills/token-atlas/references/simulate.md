@@ -83,7 +83,7 @@ Record keywords and changed paths that influenced the classification.
 Use routing evidence in this order:
 
 1. Changed file paths matched by `ARCHITECTURE.md` or `knowledge/INDEX.md` path ownership.
-2. A matching keyed root-index `pkf.routes` entry for cross-capability intent.
+2. The smallest set of matching atomic keyed root-index `pkf.routes` entries for cross-capability intent.
 3. Module names and keywords in `knowledge/INDEX.md`.
 4. Module `INDEX.md` routing tables.
 5. Leaf-level `pkf.related` only as optional context.
@@ -92,10 +92,10 @@ If multiple modules match, keep all plausible candidates but mark ambiguity.
 
 Do not load unrelated modules automatically.
 
-For a normal task, select one module index and one or two leaves, then return the
-exact `source_symbols` and Edit Map locator commands. A cross-capability task
-selects one explicit route containing one to three complete leaves within the
-4,000-token task budget and does not load adjacent indexes or related leaves.
+For every task, select the smallest context packet that completely covers its requirements, then return the exact `source_symbols` and Edit Map locator commands.
+For a cross-capability task, compose the smallest matching atomic route set, deduplicate its leaves, and remove any leaf without unique requirement coverage.
+When equally complete alternatives use the same leaf count, prefer the lower estimated token cost.
+Do not load adjacent indexes or related leaves.
 
 ---
 
@@ -136,14 +136,13 @@ Use an exact tokenizer when available locally for the target model. Otherwise us
 ceil(character_count / 4)
 ```
 
-Report estimator type and threshold status.
+Report estimator type, coverage status, minimality status, and actual route size.
 
-Apply default budgets and thresholds:
+Apply structural thresholds and the minimum-sufficient retrieval policy:
 
-- One module index and one or two leaves for a normal task.
 - Startup path above 2,500 tokens: warning locally, error in CI.
 - Any leaf above 1,500 tokens: warning locally, error in CI.
-- Representative normal task route above 4,000 tokens: warning locally, error in CI.
+- Route leaf count and estimated tokens are telemetry, not validation gates.
 - Any unrelated module loaded automatically: error.
 
 ---
@@ -181,7 +180,7 @@ Error when:
 - The simulation cannot reach a selected module from `knowledge/INDEX.md`.
 - A task-specific route must load unrelated capability facts because one module mixes independently routable capabilities.
 - A leaf lacks valid source symbols or a targeted Edit Map.
-- A normal route exceeds the retrieval budget without a justified cross-cutting exception.
+- A selected route is incomplete or contains a leaf without unique requirement coverage.
 
 Treat errors as validation defects.
 Simulation never invents or renames modules.
@@ -218,12 +217,13 @@ Required docs: <docs loaded automatically>
 Optional related docs: <docs not automatically loaded>
 Estimated tokens: <count>
 Estimator: <exact or approximate>
-Threshold status: <passed, warning, or error>
+Coverage status: <complete, incomplete, or unknown>
+Minimality status: <minimal, redundant, or unknown>
 Source targets: <path:symbol entries>
 Targeted commands: <sg when verified as ast-grep, otherwise exact rg commands>
 Fallback search: <yes or no>
 Fallback reason: <reason or none>
-Budget usage: <module indexes, leaves, tokens, and exception reason if any>
+Route telemetry: <route IDs, requirements covered, unique leaves, and estimated tokens>
 Routing evidence:
 - <evidence item>
 Warnings:

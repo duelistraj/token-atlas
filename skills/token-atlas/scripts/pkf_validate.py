@@ -21,6 +21,8 @@ if str(SCRIPT_DIR) not in sys.path:
 from pkf_contract import (  # noqa: E402
     CLOSEOUT_MODES,
     CLOSEOUT_PROTOCOL_HEADING,
+    CROSS_ROUTE_LOAD_COVERAGE_FIELD,
+    CROSS_ROUTE_REQUIREMENTS_FIELD,
     CROSS_ROUTES_FIELD,
     CROSS_ROUTE_REQUIRED_FIELDS,
     EDIT_MAP_COLUMNS,
@@ -37,7 +39,6 @@ from pkf_contract import (  # noqa: E402
     REQUIRED_FRONT_MATTER,
     REQUIRED_MODULE_DOCS,
     REQUIRED_RUNTIME_DOCS,
-    RETRIEVAL_BUDGET,
     RUNTIME_VERSION,
     RUNTIME_VERSION_FIELD,
     SHARED_DOCS,
@@ -87,8 +88,21 @@ class TokenEntry:
     route: str
     tokens: int
     estimator: str
-    threshold: int
+    threshold: int | None
     status: str
+    document_count: int
+    leaf_count: int
+
+
+@dataclass
+class RouteCoverageEntry:
+    route: str
+    requirement_count: int
+    covered_requirement_count: int
+    leaf_count: int
+    redundant_loads: list[str]
+    coverage_status: str
+    minimality_status: str
 
 
 @dataclass
@@ -101,6 +115,7 @@ class ValidationReport:
     warnings: list[ValidationFinding] = field(default_factory=list)
     errors: list[ValidationFinding] = field(default_factory=list)
     token_impact: list[TokenEntry] = field(default_factory=list)
+    route_coverage: list[RouteCoverageEntry] = field(default_factory=list)
 
     @property
     def status(self) -> str:
@@ -662,13 +677,14 @@ def check_routing_surfaces(
         unknown_modules = sorted(set(map(str, route_modules)) - set(modules))
         if unknown_modules:
             error(report, display, f"cross route names unknown modules: {', '.join(unknown_modules)}")
-        if not isinstance(loads, list) or not 1 <= len(loads) <= RETRIEVAL_BUDGET["cross_leaf_docs"]:
-            error(
-                report,
-                display,
-                f"cross route must load one to {RETRIEVAL_BUDGET['cross_leaf_docs']} leaves",
-            )
+        if not isinstance(loads, list) or not loads:
+            error(report, display, "cross route must load at least one leaf")
             continue
+        if len({str(target) for target in loads}) != len(loads):
+            error(report, display, "cross route loads must be unique")
+        validate_cross_route_coverage(route_id, route, loads, display, report)
+        if "budget_exception" in route:
+            warn(report, display, "budget_exception is deprecated and ignored; route size is telemetry only")
         load_paths: list[Path] = []
         load_modules: set[str] = set()
         for raw_target in loads:
@@ -688,16 +704,123 @@ def check_routing_surfaces(
             leaf_pkf = metadata.get(target_path, {}).get("pkf")
             if not isinstance(leaf_pkf, dict) or leaf_pkf.get(LEAF_MATERIALIZATION_FIELD, "complete") != "complete":
                 error(report, display, f"cross route load must be materialized: {target}")
-        if load_modules != set(map(str, route_modules)):
-            error(report, display, "cross route modules must exactly match its loaded leaf modules")
+        undeclared_load_modules = sorted(load_modules - set(map(str, route_modules)))
+        if undeclared_load_modules:
+            error(report, display, f"cross route loads leaves from undeclared modules: {', '.join(undeclared_load_modules)}")
         if load_paths:
             add_route_tokens(
                 report,
                 f"cross:{route_id}",
                 deduplicate_paths(load_paths),
-                TOKEN_THRESHOLDS["task"],
+                None,
                 model,
             )
+
+
+def validate_cross_route_coverage(
+    route_id: Any,
+    route: dict[str, Any],
+    loads: list[Any],
+    display: str,
+    report: ValidationReport,
+) -> None:
+    requirements = route.get(CROSS_ROUTE_REQUIREMENTS_FIELD)
+    load_coverage = route.get(CROSS_ROUTE_LOAD_COVERAGE_FIELD)
+    leaf_count = len({str(target) for target in loads})
+    if requirements is None and load_coverage is None:
+        warn(report, display, "legacy cross route lacks requirements/load_coverage; minimality is unknown")
+        report.route_coverage.append(
+            RouteCoverageEntry(
+                route=str(route_id),
+                requirement_count=0,
+                covered_requirement_count=0,
+                leaf_count=leaf_count,
+                redundant_loads=[],
+                coverage_status="unknown",
+                minimality_status="unknown",
+            )
+        )
+        return
+
+    valid = True
+    if not isinstance(requirements, list) or not requirements:
+        error(report, display, "cross route requirements must be a non-empty string list")
+        requirements = []
+        valid = False
+    elif not all(
+        isinstance(item, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]*", item)
+        for item in requirements
+    ):
+        error(report, display, "cross route requirements must use unique lowercase kebab-case ids")
+        valid = False
+    if len(set(map(str, requirements))) != len(requirements):
+        error(report, display, "cross route requirements must be unique")
+        valid = False
+
+    expected_loads = {str(target) for target in loads}
+    if not isinstance(load_coverage, dict):
+        error(report, display, "cross route load_coverage must map every load to requirement ids")
+        load_coverage = {}
+        valid = False
+    elif {str(target) for target in load_coverage} != expected_loads:
+        error(report, display, "cross route load_coverage keys must exactly match route loads")
+        valid = False
+
+    requirement_set = set(map(str, requirements))
+    normalized_coverage: dict[str, set[str]] = {}
+    for raw_load, raw_requirements in load_coverage.items():
+        load = str(raw_load)
+        if not isinstance(raw_requirements, list) or not raw_requirements or not all(
+            isinstance(item, str) and item for item in raw_requirements
+        ):
+            error(report, display, f"load_coverage for {load} must be a non-empty requirement-id list")
+            valid = False
+            normalized_coverage[load] = set()
+            continue
+        covered = set(map(str, raw_requirements))
+        unknown = sorted(covered - requirement_set)
+        if unknown:
+            error(report, display, f"load_coverage for {load} names unknown requirements: {', '.join(unknown)}")
+            valid = False
+        normalized_coverage[load] = covered & requirement_set
+
+    covered_requirements = set().union(*normalized_coverage.values()) if normalized_coverage else set()
+    uncovered = sorted(requirement_set - covered_requirements)
+    if uncovered:
+        error(report, display, f"cross route has uncovered requirements: {', '.join(uncovered)}")
+        valid = False
+
+    provider_counts = {
+        requirement: sum(requirement in covered for covered in normalized_coverage.values())
+        for requirement in requirement_set
+    }
+    redundant_loads = sorted(
+        load
+        for load in expected_loads
+        if not any(provider_counts.get(requirement) == 1 for requirement in normalized_coverage.get(load, set()))
+    )
+    if redundant_loads:
+        error(
+            report,
+            display,
+            f"cross route contains redundant loads with no exclusive requirement: {', '.join(redundant_loads)}",
+        )
+
+    coverage_status = "complete" if valid and not uncovered else "incomplete"
+    minimality_status = "minimal" if coverage_status == "complete" and not redundant_loads else "redundant" if redundant_loads else "invalid"
+    report.route_coverage.append(
+        RouteCoverageEntry(
+            route=str(route_id),
+            requirement_count=len(requirement_set),
+            covered_requirement_count=len(covered_requirements),
+            leaf_count=leaf_count,
+            redundant_loads=redundant_loads,
+            coverage_status=coverage_status,
+            minimality_status=minimality_status,
+        )
+    )
+    if coverage_status == "complete" and minimality_status == "minimal":
+        passed(report, f"minimum-sufficient cross route: {display}")
 
 
 def check_leaf_contracts(
@@ -1018,20 +1141,6 @@ def check_unrelated_loads(repo_root: Path, metadata: dict[Path, dict[str, Any]],
             target_module = module_for_token(str(target))
             if target_module is not None and target_module != source_module:
                 error(report, rel(md, repo_root), f"unrelated module loaded automatically through pkf.loads: {target}")
-        if md.name == "INDEX.md":
-            leaf_loads = [
-                str(target)
-                for target in listify(pkf.get("loads"))
-                if module_for_token(str(target)) == source_module and Path(str(target)).name in LEAF_MODULE_DOCS
-            ]
-            if len(leaf_loads) > RETRIEVAL_BUDGET["leaf_docs"]:
-                error(
-                    report,
-                    rel(md, repo_root),
-                    f"normal retrieval budget exceeded: {len(leaf_loads)} automatic leaves; maximum is {RETRIEVAL_BUDGET['leaf_docs']}",
-                )
-
-
 def add_token_impact(
     report: ValidationReport,
     ai_dir: Path,
@@ -1067,33 +1176,46 @@ def add_token_impact(
             if isinstance(pkf, dict):
                 for target in listify(pkf.get("loads")):
                     route_files.append(ai_dir.parent / str(target))
-        largest_leaves = sorted(
-            (leaf for leaf in leaves if leaf.is_file()),
-            key=lambda path: path.stat().st_size,
-            reverse=True,
-        )[:2]
-        route_files.extend(largest_leaves)
-        add_route_tokens(report, f"task:{module}", deduplicate_paths(route_files), TOKEN_THRESHOLDS["task"], model)
+        add_route_tokens(report, f"task:{module}", deduplicate_paths(route_files), None, model)
 
 
 def add_route_tokens(
     report: ValidationReport,
     route: str,
     files: list[Path],
-    threshold: int,
+    threshold: int | None,
     model: str | None,
-) -> None:
+) -> int:
     existing = [path for path in files if path.is_file()]
     text = "\n".join(path.read_text(encoding="utf-8") for path in existing)
     tokens, estimator = count_tokens(text, model)
-    status = "error" if tokens > threshold and report.strictness == "ci" else "warning" if tokens > threshold else "passed"
-    report.token_impact.append(TokenEntry(route=route, tokens=tokens, estimator=estimator, threshold=threshold, status=status))
+    status = (
+        "measured"
+        if threshold is None
+        else "error"
+        if tokens > threshold and report.strictness == "ci"
+        else "warning"
+        if tokens > threshold
+        else "passed"
+    )
+    report.token_impact.append(
+        TokenEntry(
+            route=route,
+            tokens=tokens,
+            estimator=estimator,
+            threshold=threshold,
+            status=status,
+            document_count=len(existing),
+            leaf_count=sum(path.name in LEAF_MODULE_DOCS for path in existing),
+        )
+    )
     if status in {"warning", "error"}:
         message = f"token count {tokens} exceeds threshold {threshold}"
         if status == "error":
             error(report, route, message)
         else:
             warn(report, route, message)
+    return tokens
 
 
 def deduplicate_paths(paths: list[Path]) -> list[Path]:
@@ -1160,6 +1282,7 @@ def report_to_dict(report: ValidationReport, *, detail: str = "full") -> dict[st
         "errors": [finding.__dict__ for finding in report.errors],
         "token_impact_count": len(report.token_impact),
         "token_impact": [entry.__dict__ for entry in token_entries],
+        "route_coverage": [entry.__dict__ for entry in report.route_coverage],
     }
     if detail == "full":
         value["checked_docs"] = report.checked_docs
@@ -1198,12 +1321,26 @@ def render_text(report: ValidationReport, *, detail: str = "full") -> str:
         else [entry for entry in report.token_impact if entry.status != "passed"]
     )
     if token_entries:
-        lines.extend(
-            f"- {entry.route}: {entry.tokens} tokens ({entry.estimator}), threshold {entry.threshold}, {entry.status}"
-            for entry in token_entries
-        )
+        for entry in token_entries:
+            threshold = f", threshold {entry.threshold}" if entry.threshold is not None else ""
+            lines.append(
+                f"- {entry.route}: {entry.tokens} tokens across {entry.document_count} documents "
+                f"and {entry.leaf_count} leaves "
+                f"({entry.estimator}){threshold}, {entry.status}"
+            )
     elif report.token_impact and detail == "summary":
         lines.append(f"- {len(report.token_impact)} routes checked; no threshold violations")
+    else:
+        lines.append("- none")
+    lines.extend(("", "Route Coverage:"))
+    if report.route_coverage:
+        for entry in report.route_coverage:
+            redundant = ", ".join(entry.redundant_loads) or "none"
+            lines.append(
+                f"- {entry.route}: coverage={entry.coverage_status}, minimality={entry.minimality_status}, "
+                f"requirements={entry.covered_requirement_count}/{entry.requirement_count}, "
+                f"leaves={entry.leaf_count}, redundant={redundant}"
+            )
     else:
         lines.append("- none")
     return "\n".join(lines)

@@ -44,7 +44,7 @@ Verify source-backed API extraction and route-change retrieval.
 
 ## Token Thresholds
 
-- Each leaf should stay at or below 1,500 tokens and the normal task route at or below 4,000 tokens.
+- Each leaf should stay at or below 1,500 tokens; task-route leaf and token totals are telemetry.
 
 ## Exit Behavior
 
