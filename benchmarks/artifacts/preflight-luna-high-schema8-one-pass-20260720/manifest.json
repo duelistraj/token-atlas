@@ -1,0 +1,66 @@
+{
+  "arm_definitions": {
+    "pkf": "PKF installed with adaptive retrieval and repository-local semantic closeout; an individual task may bypass retrieval.",
+    "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
+    "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only."
+  },
+  "artifact_mode": "full",
+  "artifacts": [
+    {
+      "path": "private/calls/001-r1-pkf-initialize/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/result.json",
+      "sha256": "e398fe2f1d9805f4074cb69815ef0e60a3e89280fac799b50b935c22823e2011",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/source.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/stderr.txt",
+      "sha256": "0af8a8182e34e691d5c103850a5ed1f0ceeea9463985f98cab17210617a787a7",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/trace.jsonl",
+      "sha256": "635158c720736399671212ddaf1acf7053c7aa542435d95f3b4670ead6e6252c",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/AGENTS.md",
+      "sha256": "edf48300215c75a6dad368a0822048cdea3a093696c90982543a461e82f125cb",
+      "visibility": "private"
+    },
+    {
+      "path": "private/validation/r1-initialize-route-coverage.json",
+      "sha256": "02fc0c7c5111034b2e3eea778d85d7349333f79f25911220809cdf2f686e2069",
+      "visibility": "private"
+    },
+    {
+      "path": "private/validation/r1-initialize.json",
+      "sha256": "8603c13615a729fc1151199e736ebe2c4833f70fa5930c9f781cddb6faa26adc",
+      "visibility": "private"
+    }
+  ],
+  "calls": [
+    {
+      "arm": "pkf",
+      "call_id": "001-r1-pkf-initialize",
+      "phase": "setup",
+      "repetition": 1,
+      "returncode": 1,
+      "task_id": "initialize"
+    }
+  ],
+  "created_at": "2026-07-20T12:19:16+00:00",
+  "error": "isolated closeout patch failed focused test in probe_only",
+  "private_artifacts_local_only": true,
+  "run_id": "preflight-luna-high-schema8-one-pass-20260720",
+  "schema_version": 1,
+  "status": "failed"
+}

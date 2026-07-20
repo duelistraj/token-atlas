@@ -25,9 +25,9 @@ expected_required_docs:
 forbidden_loads: [.ai/knowledge/capability-two/, .ai/knowledge/system/, .ai/retrieval/]
 expected_warnings: []
 expected_errors: []
-token_thresholds:
-  startup_path_warn_above: 2500
-  leaf_warn_above: 1500
+token_measurements:
+  startup: observed
+  leaves: observed
 exit_behavior:
   advisory: 0
   ci: 0

@@ -34,6 +34,7 @@ from pkf_contract import (  # noqa: E402
     LEAF_MATERIALIZATION_FIELD,
     LEAF_MATERIALIZATION_MODES,
     LEAF_SOURCE_SYMBOLS_FIELD,
+    MODULE_OWNERSHIP_FIELD,
     MODULE_OWNERSHIP_ROOTS_FIELD,
     LEGACY_CLOSEOUT_PHRASES,
     REQUIRED_FRONT_MATTER,
@@ -101,8 +102,22 @@ class RouteCoverageEntry:
     covered_requirement_count: int
     leaf_count: int
     redundant_loads: list[str]
+    uncovered_requirement_ids: list[str]
+    conflicting_requirement_ids: list[str]
     coverage_status: str
-    minimality_status: str
+    irredundancy_status: str
+
+
+@dataclass
+class RouteCoverageAnalysis:
+    route: str
+    display: str
+    requirements: set[str]
+    coverage_by_load: dict[str, set[str]]
+    valid: bool
+    uncovered_requirements: set[str]
+    redundant_loads: set[str]
+    conflicting_requirements: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -369,8 +384,6 @@ def resolve_ai_dir(path: Path) -> Path:
 def check_required_docs(ai_dir: Path, repo_root: Path, report: ValidationReport) -> None:
     for doc in REQUIRED_RUNTIME_DOCS:
         check_file(ai_dir / doc, repo_root, report, f"required runtime doc exists: .ai/{doc}")
-    for doc in SHARED_DOCS:
-        check_file(ai_dir / "knowledge" / doc, repo_root, report, f"shared doc exists: .ai/knowledge/{doc}")
 
 
 def check_runtime_tools(ai_dir: Path, repo_root: Path, report: ValidationReport) -> None:
@@ -524,18 +537,23 @@ def check_module_ownership(
     metadata: dict[Path, dict[str, Any]],
     report: ValidationReport,
 ) -> None:
-    seen: dict[str, str] = {}
+    seen: dict[str, list[tuple[str, set[str] | None]]] = {}
     for module in modules:
         index = ai_dir / "knowledge" / module / "INDEX.md"
         pkf = metadata.get(index, {}).get("pkf")
+        ownership = pkf.get(MODULE_OWNERSHIP_FIELD) if isinstance(pkf, dict) else None
         roots = pkf.get(MODULE_OWNERSHIP_ROOTS_FIELD) if isinstance(pkf, dict) else None
         display = rel(index, repo_root)
-        if not isinstance(roots, list) or not roots:
-            error(report, display, f"pkf.{MODULE_OWNERSHIP_ROOTS_FIELD} must be a non-empty list")
+        if ownership is None and (not isinstance(roots, list) or not roots):
+            error(report, display, f"pkf.{MODULE_OWNERSHIP_FIELD} or pkf.{MODULE_OWNERSHIP_ROOTS_FIELD} must define ownership")
             continue
-        for raw_root in roots:
+        raw_claims = ownership.items() if isinstance(ownership, dict) else ((root, []) for root in roots)
+        if ownership is not None and (not isinstance(ownership, dict) or not ownership):
+            error(report, display, f"pkf.{MODULE_OWNERSHIP_FIELD} must be a non-empty path-to-symbols mapping")
+            continue
+        for raw_root, raw_symbols in raw_claims:
             if not isinstance(raw_root, str) or not raw_root.strip():
-                error(report, display, f"pkf.{MODULE_OWNERSHIP_ROOTS_FIELD} contains an empty or non-string path")
+                error(report, display, "module ownership contains an empty or non-string path")
                 continue
             root = raw_root.strip().removeprefix("./").rstrip("/")
             token = Path(root)
@@ -545,11 +563,27 @@ def check_module_ownership(
             if not (repo_root / root).exists():
                 error(report, display, f"ownership root does not resolve: {root}")
                 continue
-            previous = seen.get(root)
-            if previous is not None and previous != module:
-                error(report, display, f"ownership root is also assigned to module {previous}: {root}")
+            if not isinstance(raw_symbols, list) or not all(isinstance(symbol, str) and symbol.strip() for symbol in raw_symbols):
+                error(report, display, f"ownership symbols must be a string list: {root}")
                 continue
-            seen[root] = module
+            symbols = set(symbol.strip() for symbol in raw_symbols) or None
+            source_text = (repo_root / root).read_text(encoding="utf-8", errors="ignore") if (repo_root / root).is_file() else ""
+            missing = sorted(symbol for symbol in symbols or set() if symbol not in source_text)
+            if missing:
+                error(report, display, f"ownership symbols do not resolve in {root}: {', '.join(missing)}")
+                continue
+            conflicts = []
+            for previous_module, previous_symbols in seen.get(root, []):
+                if previous_module == module:
+                    continue
+                if previous_symbols is None or symbols is None:
+                    conflicts.append(previous_module)
+                elif previous_symbols & symbols:
+                    conflicts.append(previous_module)
+            if conflicts:
+                error(report, display, f"ownership at {root} conflicts with module {sorted(conflicts)[0]}")
+                continue
+            seen.setdefault(root, []).append((module, symbols))
             passed(report, f"module ownership root resolves: {module}:{root}")
 
 
@@ -582,6 +616,11 @@ def check_module_docs(ai_dir: Path, repo_root: Path, modules: list[str], report:
     for module in modules:
         for doc in REQUIRED_MODULE_DOCS:
             check_file(knowledge / module / doc, repo_root, report, f"module doc exists: .ai/knowledge/{module}/{doc}")
+        leaves = [knowledge / module / doc for doc in LEAF_MODULE_DOCS if (knowledge / module / doc).is_file()]
+        if leaves:
+            passed(report, f"module has evidence-backed leaves: {module}")
+        else:
+            error(report, f".ai/knowledge/{module}", "module requires at least one evidence-backed leaf")
 
 
 def check_front_matter(
@@ -651,6 +690,7 @@ def check_routing_surfaces(
     if not isinstance(routes, dict):
         error(report, rel(root_index, repo_root), f"pkf.{CROSS_ROUTES_FIELD} must be a mapping keyed by route id")
         return
+    analyses: list[RouteCoverageAnalysis] = []
     for route_id, route in sorted(routes.items(), key=lambda item: str(item[0])):
         display = f"{rel(root_index, repo_root)}#pkf.routes.{route_id}"
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", str(route_id)):
@@ -661,28 +701,64 @@ def check_routing_surfaces(
             continue
         missing = [field for field in CROSS_ROUTE_REQUIRED_FIELDS if field not in route]
         if missing:
-            error(report, display, f"cross route missing fields: {', '.join(missing)}")
+            for field_name in missing:
+                error(report, display, f"cross route missing required field: {field_name}")
+            analyses.append(
+                RouteCoverageAnalysis(
+                    route=str(route_id),
+                    display=display,
+                    requirements=set(),
+                    coverage_by_load={},
+                    valid=False,
+                    uncovered_requirements=set(),
+                    redundant_loads=set(),
+                )
+            )
             continue
+        route_valid = True
         intent = route.get("intent")
         triggers = route.get("triggers")
         route_modules = route.get("modules")
         loads = route.get("loads")
         if not isinstance(intent, str) or not intent.strip():
             error(report, display, "cross route intent must be a non-empty string")
+            route_valid = False
         if not isinstance(triggers, list) or not triggers or not all(isinstance(item, str) and item.strip() for item in triggers):
             error(report, display, "cross route triggers must be a non-empty string list")
+            route_valid = False
         if not isinstance(route_modules, list) or len(set(map(str, route_modules))) < 2:
             error(report, display, "cross route modules must name at least two capabilities")
             route_modules = []
+            route_valid = False
         unknown_modules = sorted(set(map(str, route_modules)) - set(modules))
         if unknown_modules:
             error(report, display, f"cross route names unknown modules: {', '.join(unknown_modules)}")
+            route_valid = False
         if not isinstance(loads, list) or not loads:
             error(report, display, "cross route must load at least one leaf")
+            analyses.append(
+                RouteCoverageAnalysis(
+                    route=str(route_id),
+                    display=display,
+                    requirements=set(),
+                    coverage_by_load={},
+                    valid=False,
+                    uncovered_requirements=set(),
+                    redundant_loads=set(),
+                )
+            )
             continue
         if len({str(target) for target in loads}) != len(loads):
             error(report, display, "cross route loads must be unique")
-        validate_cross_route_coverage(route_id, route, loads, display, report)
+            route_valid = False
+        analysis = analyze_cross_route_coverage(
+            route_id,
+            route,
+            loads,
+            display,
+            report,
+            valid=route_valid,
+        )
         if "budget_exception" in route:
             warn(report, display, "budget_exception is deprecated and ignored; route size is telemetry only")
         load_paths: list[Path] = []
@@ -698,15 +774,18 @@ def check_routing_surfaces(
                 or target_path.name not in LEAF_MODULE_DOCS
             ):
                 error(report, display, f"cross route load must resolve to a module leaf: {target}")
+                analysis.valid = False
                 continue
             load_paths.append(target_path)
             load_modules.add(target_module)
             leaf_pkf = metadata.get(target_path, {}).get("pkf")
             if not isinstance(leaf_pkf, dict) or leaf_pkf.get(LEAF_MATERIALIZATION_FIELD, "complete") != "complete":
                 error(report, display, f"cross route load must be materialized: {target}")
+                analysis.valid = False
         undeclared_load_modules = sorted(load_modules - set(map(str, route_modules)))
         if undeclared_load_modules:
             error(report, display, f"cross route loads leaves from undeclared modules: {', '.join(undeclared_load_modules)}")
+            analysis.valid = False
         if load_paths:
             add_route_tokens(
                 report,
@@ -715,34 +794,40 @@ def check_routing_surfaces(
                 None,
                 model,
             )
+        analyses.append(analysis)
+
+    owners: dict[str, set[str]] = {}
+    for analysis in analyses:
+        for load, requirements in analysis.coverage_by_load.items():
+            for requirement in requirements:
+                owners.setdefault(requirement, set()).add(load)
+    conflicts = {
+        requirement: loads
+        for requirement, loads in owners.items()
+        if len(loads) > 1
+    }
+    for requirement, owner_loads in sorted(conflicts.items()):
+        error(
+            report,
+            rel(root_index, repo_root),
+            f"requirement {requirement} has conflicting authoritative leaves: {', '.join(sorted(owner_loads))}",
+        )
+    for analysis in analyses:
+        analysis.conflicting_requirements.update(analysis.requirements & set(conflicts))
+        finalize_cross_route_coverage(analysis, report)
 
 
-def validate_cross_route_coverage(
+def analyze_cross_route_coverage(
     route_id: Any,
     route: dict[str, Any],
     loads: list[Any],
     display: str,
     report: ValidationReport,
-) -> None:
+    *,
+    valid: bool,
+) -> RouteCoverageAnalysis:
     requirements = route.get(CROSS_ROUTE_REQUIREMENTS_FIELD)
     load_coverage = route.get(CROSS_ROUTE_LOAD_COVERAGE_FIELD)
-    leaf_count = len({str(target) for target in loads})
-    if requirements is None and load_coverage is None:
-        warn(report, display, "legacy cross route lacks requirements/load_coverage; minimality is unknown")
-        report.route_coverage.append(
-            RouteCoverageEntry(
-                route=str(route_id),
-                requirement_count=0,
-                covered_requirement_count=0,
-                leaf_count=leaf_count,
-                redundant_loads=[],
-                coverage_status="unknown",
-                minimality_status="unknown",
-            )
-        )
-        return
-
-    valid = True
     if not isinstance(requirements, list) or not requirements:
         error(report, display, "cross route requirements must be a non-empty string list")
         requirements = []
@@ -751,9 +836,9 @@ def validate_cross_route_coverage(
         isinstance(item, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]*", item)
         for item in requirements
     ):
-        error(report, display, "cross route requirements must use unique lowercase kebab-case ids")
+        error(report, display, "cross route requirements must use lowercase kebab-case ids")
         valid = False
-    if len(set(map(str, requirements))) != len(requirements):
+    if len({item for item in requirements if isinstance(item, str)}) != len(requirements):
         error(report, display, "cross route requirements must be unique")
         valid = False
 
@@ -766,18 +851,33 @@ def validate_cross_route_coverage(
         error(report, display, "cross route load_coverage keys must exactly match route loads")
         valid = False
 
-    requirement_set = set(map(str, requirements))
+    requirement_set = {
+        item
+        for item in requirements
+        if isinstance(item, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]*", item)
+    }
     normalized_coverage: dict[str, set[str]] = {}
     for raw_load, raw_requirements in load_coverage.items():
         load = str(raw_load)
-        if not isinstance(raw_requirements, list) or not raw_requirements or not all(
-            isinstance(item, str) and item for item in raw_requirements
-        ):
-            error(report, display, f"load_coverage for {load} must be a non-empty requirement-id list")
+        if not isinstance(raw_requirements, list):
+            error(report, display, f"load_coverage for {load} must be a requirement-id list")
             valid = False
             normalized_coverage[load] = set()
             continue
-        covered = set(map(str, raw_requirements))
+        if not all(
+            isinstance(item, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]*", item)
+            for item in raw_requirements
+        ):
+            error(report, display, f"load_coverage for {load} contains malformed requirement ids")
+            valid = False
+        if len({item for item in raw_requirements if isinstance(item, str)}) != len(raw_requirements):
+            error(report, display, f"load_coverage for {load} must use unique requirement ids")
+            valid = False
+        covered = {
+            item
+            for item in raw_requirements
+            if isinstance(item, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]*", item)
+        }
         unknown = sorted(covered - requirement_set)
         if unknown:
             error(report, display, f"load_coverage for {load} names unknown requirements: {', '.join(unknown)}")
@@ -789,38 +889,61 @@ def validate_cross_route_coverage(
     if uncovered:
         error(report, display, f"cross route has uncovered requirements: {', '.join(uncovered)}")
         valid = False
-
-    provider_counts = {
-        requirement: sum(requirement in covered for covered in normalized_coverage.values())
-        for requirement in requirement_set
-    }
-    redundant_loads = sorted(
-        load
-        for load in expected_loads
-        if not any(provider_counts.get(requirement) == 1 for requirement in normalized_coverage.get(load, set()))
+    return RouteCoverageAnalysis(
+        route=str(route_id),
+        display=display,
+        requirements=requirement_set,
+        coverage_by_load=normalized_coverage,
+        valid=valid,
+        uncovered_requirements=set(uncovered),
+        redundant_loads={load for load in expected_loads if not normalized_coverage.get(load)},
     )
-    if redundant_loads:
+
+
+def finalize_cross_route_coverage(
+    analysis: RouteCoverageAnalysis,
+    report: ValidationReport,
+) -> None:
+    covered_requirements = (
+        set().union(*analysis.coverage_by_load.values())
+        if analysis.coverage_by_load
+        else set()
+    )
+    if analysis.redundant_loads:
         error(
             report,
-            display,
-            f"cross route contains redundant loads with no exclusive requirement: {', '.join(redundant_loads)}",
+            analysis.display,
+            "cross route contains redundant loads with no requirement contribution: "
+            + ", ".join(sorted(analysis.redundant_loads)),
         )
-
-    coverage_status = "complete" if valid and not uncovered else "incomplete"
-    minimality_status = "minimal" if coverage_status == "complete" and not redundant_loads else "redundant" if redundant_loads else "invalid"
+    contract_invalid = bool(
+        not analysis.valid
+        or analysis.uncovered_requirements
+        or analysis.conflicting_requirements
+    )
+    coverage_status = "incomplete" if contract_invalid else "complete"
+    irredundancy_status = (
+        "invalid"
+        if contract_invalid
+        else "redundant"
+        if analysis.redundant_loads
+        else "irredundant"
+    )
     report.route_coverage.append(
         RouteCoverageEntry(
-            route=str(route_id),
-            requirement_count=len(requirement_set),
+            route=analysis.route,
+            requirement_count=len(analysis.requirements),
             covered_requirement_count=len(covered_requirements),
-            leaf_count=leaf_count,
-            redundant_loads=redundant_loads,
+            leaf_count=len(analysis.coverage_by_load),
+            redundant_loads=sorted(analysis.redundant_loads),
+            uncovered_requirement_ids=sorted(analysis.uncovered_requirements),
+            conflicting_requirement_ids=sorted(analysis.conflicting_requirements),
             coverage_status=coverage_status,
-            minimality_status=minimality_status,
+            irredundancy_status=irredundancy_status,
         )
     )
-    if coverage_status == "complete" and minimality_status == "minimal":
-        passed(report, f"minimum-sufficient cross route: {display}")
+    if coverage_status == "complete" and irredundancy_status == "irredundant":
+        passed(report, f"sufficient, deduplicated, and irredundant cross route: {analysis.display}")
 
 
 def check_leaf_contracts(
@@ -860,12 +983,7 @@ def check_leaf_contracts(
                 error(report, display, f"pkf.{LEAF_MATERIALIZATION_FIELD} must be one of: {allowed}")
                 continue
             if materialization == "pending":
-                if source_symbols:
-                    error(report, display, "pending leaf must not declare source_symbols before extraction")
-                elif PENDING_LEAF_MARKER not in markdown_body(leaf):
-                    error(report, display, f"pending leaf requires marker: {PENDING_LEAF_MARKER}")
-                else:
-                    passed(report, f"pending leaf is explicitly unmaterialized: {display}")
+                error(report, display, "pending leaf is incomplete; omit it or finish source-backed extraction")
                 continue
             if not source_symbols:
                 if EMPTY_LEAF_MARKER in markdown_body(leaf):
@@ -1041,13 +1159,21 @@ def check_references(repo_root: Path, metadata: dict[Path, dict[str, Any]], repo
         display = rel(md, repo_root)
         resource = str(meta.get("resource", ""))
         if resource.upper() == "TODO" or resource.startswith("TODO"):
-            passed(report, f"resource marked TODO: {display}")
+            error(report, display, "resource must resolve and must not be TODO")
         elif not resource:
             error(report, display, "resource is empty")
         elif not resolve_resource_reference(md, repo_root, resource):
             error(report, display, f"resource path does not resolve: {resource}")
         else:
             passed(report, f"resource resolves: {display}")
+
+        timestamp = str(meta.get("timestamp", ""))
+        if not timestamp or timestamp.upper().startswith("TODO"):
+            error(report, display, "timestamp must be a concrete ISO date or datetime")
+        elif not re.fullmatch(r"\d{4}-\d{2}-\d{2}(?:[T ][0-9:.+Z-]+)?", timestamp):
+            error(report, display, f"timestamp is not ISO formatted: {timestamp}")
+        else:
+            passed(report, f"timestamp is concrete: {display}")
 
         pkf = meta.get("pkf")
         if not isinstance(pkf, dict):
@@ -1329,17 +1455,20 @@ def render_text(report: ValidationReport, *, detail: str = "full") -> str:
                 f"({entry.estimator}){threshold}, {entry.status}"
             )
     elif report.token_impact and detail == "summary":
-        lines.append(f"- {len(report.token_impact)} routes checked; no threshold violations")
+        lines.append(f"- {len(report.token_impact)} routes measured")
     else:
         lines.append("- none")
     lines.extend(("", "Route Coverage:"))
     if report.route_coverage:
         for entry in report.route_coverage:
             redundant = ", ".join(entry.redundant_loads) or "none"
+            uncovered = ", ".join(entry.uncovered_requirement_ids) or "none"
+            conflicts = ", ".join(entry.conflicting_requirement_ids) or "none"
             lines.append(
-                f"- {entry.route}: coverage={entry.coverage_status}, minimality={entry.minimality_status}, "
+                f"- {entry.route}: coverage={entry.coverage_status}, irredundancy={entry.irredundancy_status}, "
                 f"requirements={entry.covered_requirement_count}/{entry.requirement_count}, "
-                f"leaves={entry.leaf_count}, redundant={redundant}"
+                f"leaves={entry.leaf_count}, redundant={redundant}, "
+                f"uncovered={uncovered}, conflicts={conflicts}"
             )
     else:
         lines.append("- none")

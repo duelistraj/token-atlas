@@ -2,13 +2,14 @@
 type: api
 title: Backend API
 description: Backend API facts for the simple-api fixture.
-resource: .ai/knowledge/backend/api.md
+resource: src/backend/routes/orders.ts
 tags: [simple-api, backend, api]
 timestamp: 2026-07-08
 source_symbols:
   src/backend/routes/orders.ts:
     - getOrderRoute
 pkf:
+  materialization: complete
   loads: []
   related: []
 ---

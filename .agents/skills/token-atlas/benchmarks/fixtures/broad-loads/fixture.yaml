@@ -37,7 +37,7 @@ expected_warnings:
   - Token budget warning if the broad load crosses a threshold.
 expected_errors:
   - Unrelated module loaded automatically through pkf.loads.
-token_thresholds:
-  full_token_budget_required: true
+token_measurements:
+  full_report_required: true
 exit_behavior:
   ci: 1

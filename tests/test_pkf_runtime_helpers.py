@@ -35,10 +35,24 @@ class PkfRuntimeHelperTests(unittest.TestCase):
     def initialize_runtime(self, root: Path) -> None:
         inspected = self.run_helper(SCAFFOLD, "inspect", "--path", ".", cwd=root)
         self.assertEqual(inspected.returncode, 0, inspected.stderr)
-        spec_path = root / ".ai/.pkf-init.json"
+        spec_path = root / ".pkf-init.json"
         spec = json.loads(spec_path.read_text(encoding="utf-8"))
         spec["capabilities"] = [
-            {"id": "notes", "title": "Notes", "source_roots": ["src/notes"]}
+            {
+                "id": "notes",
+                "title": "Notes",
+                "ownership": {"src/notes": []},
+                "leaves": [
+                    {
+                        "file": "business_rules.md",
+                        "title": "Notes behavior",
+                        "description": "Source-backed note listing behavior.",
+                        "resource": "src/notes/service.py",
+                        "source_symbols": {"src/notes/service.py": ["list_notes"]},
+                        "body": "# Notes behavior\n\n- Notes are returned by `list_notes`.\n\n## Edit Map\n\n| Behavior | Source symbols | Tests | Styles/tokens | Locator |\n| --- | --- | --- | --- | --- |\n| List notes | `src/notes/service.py:list_notes` | Not documented | N/A | `rg -n -F -- 'list_notes' 'src/notes/service.py'` |"
+                    }
+                ]
+            }
         ]
         spec_path.write_text(json.dumps(spec), encoding="utf-8")
         created = self.run_helper(SCAFFOLD, "create", "--path", ".", "--strictness", "ci", cwd=root)
@@ -50,12 +64,19 @@ class PkfRuntimeHelperTests(unittest.TestCase):
             self.prepare_repo(root)
             self.initialize_runtime(root)
 
-            self.assertFalse((root / ".ai/.pkf-init.json").exists())
+            self.assertFalse((root / ".pkf-init.json").exists())
             self.assertTrue((root / ".ai/PKF.md").is_file())
             self.assertTrue((root / ".ai/tools/pkf_route.py").is_file())
             self.assertTrue((root / ".ai/tools/pkf_validate.py").is_file())
-            self.assertTrue((root / ".ai/knowledge/notes/ui.md").is_file())
-            self.assertIn("Pending source extraction", (root / ".ai/knowledge/notes/api.md").read_text(encoding="utf-8"))
+            self.assertTrue((root / ".ai/knowledge/notes/business_rules.md").is_file())
+            self.assertFalse((root / ".ai/knowledge/notes/ui.md").exists())
+            self.assertFalse((root / ".ai/knowledge/notes/api.md").exists())
+            generated_text = "\n".join(
+                path.read_text(encoding="utf-8")
+                for path in (root / ".ai").rglob("*.md")
+            )
+            self.assertNotIn("TODO", generated_text)
+            self.assertNotIn("materialization: pending", generated_text)
             root_index = (root / ".ai/knowledge/INDEX.md").read_text(encoding="utf-8")
             module_index = (root / ".ai/knowledge/notes/INDEX.md").read_text(encoding="utf-8")
             architecture = (root / ".ai/ARCHITECTURE.md").read_text(encoding="utf-8")
@@ -106,6 +127,81 @@ class PkfRuntimeHelperTests(unittest.TestCase):
             self.assertEqual(inspected.returncode, 2)
             self.assertIn("already contains runtime content", inspected.stderr)
 
+    def test_scaffold_allows_disjoint_symbol_ownership_in_one_shared_file(self):
+        def specification(shared_symbol_for_second: str) -> dict:
+            capabilities = []
+            for module_id, symbol in (("alpha", "alpha_behavior"), ("beta", shared_symbol_for_second)):
+                capabilities.append(
+                    {
+                        "id": module_id,
+                        "title": module_id.title(),
+                        "ownership": {"src/shared.py": [symbol]},
+                        "leaves": [
+                            {
+                                "file": "business_rules.md",
+                                "title": f"{module_id.title()} behavior",
+                                "description": f"Source-backed {module_id} behavior.",
+                                "resource": "src/shared.py",
+                                "source_symbols": {"src/shared.py": [symbol]},
+                                "body": (
+                                    f"# {module_id.title()} behavior\n\n"
+                                    f"- `{symbol}` owns this behavior.\n\n"
+                                    "## Edit Map\n\n"
+                                    "| Behavior | Source symbols | Tests | Styles/tokens | Locator |\n"
+                                    "| --- | --- | --- | --- | --- |\n"
+                                    f"| {module_id.title()} behavior | `src/shared.py:{symbol}` | Not documented | N/A | "
+                                    f"`rg -n -F -- '{symbol}' 'src/shared.py'` |"
+                                ),
+                            }
+                        ],
+                    }
+                )
+            return {
+                "schema_version": 2,
+                "project": {"name": "shared-symbols"},
+                "technologies": ["Python"],
+                "roots": {"source": ["src"], "test": [], "config": [], "docs": []},
+                "commands": {},
+                "capabilities": capabilities,
+            }
+
+        with tempfile.TemporaryDirectory() as raw_temp:
+            root = Path(raw_temp)
+            (root / "src").mkdir()
+            (root / "src/shared.py").write_text(
+                "def alpha_behavior():\n    return 'alpha'\n\n"
+                "def beta_behavior():\n    return 'beta'\n",
+                encoding="utf-8",
+            )
+            (root / ".pkf-init.json").write_text(
+                json.dumps(specification("beta_behavior")), encoding="utf-8"
+            )
+
+            created = self.run_helper(SCAFFOLD, "create", "--path", ".", cwd=root)
+
+            self.assertEqual(created.returncode, 0, created.stdout + created.stderr)
+            alpha_index = (root / ".ai/knowledge/alpha/INDEX.md").read_text(encoding="utf-8")
+            beta_index = (root / ".ai/knowledge/beta/INDEX.md").read_text(encoding="utf-8")
+            self.assertIn("alpha_behavior", alpha_index)
+            self.assertIn("beta_behavior", beta_index)
+
+        with tempfile.TemporaryDirectory() as raw_temp:
+            root = Path(raw_temp)
+            (root / "src").mkdir()
+            (root / "src/shared.py").write_text(
+                "def alpha_behavior():\n    return 'alpha'\n\n"
+                "def beta_behavior():\n    return 'beta'\n",
+                encoding="utf-8",
+            )
+            (root / ".pkf-init.json").write_text(
+                json.dumps(specification("alpha_behavior")), encoding="utf-8"
+            )
+
+            rejected = self.run_helper(SCAFFOLD, "create", "--path", ".", cwd=root)
+
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("duplicate capability symbol ownership", rejected.stderr)
+
     def test_route_maps_source_and_leaf_paths_and_reports_unmapped_paths(self):
         with tempfile.TemporaryDirectory() as raw_temp:
             root = Path(raw_temp)
@@ -117,9 +213,9 @@ class PkfRuntimeHelperTests(unittest.TestCase):
 type: knowledge
 title: Notes Business Rules
 description: Note listing behavior.
-resource: TODO
+resource: src/notes/service.py
 tags: [pkf]
-timestamp: TODO
+timestamp: 2026-07-20
 source_symbols:
   src/notes/service.py:
     - list_notes

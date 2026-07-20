@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import datetime as dt
 import hashlib
 import json
-import math
 import os
 import re
 import shlex
@@ -18,6 +18,7 @@ import sys
 import tarfile
 import tempfile
 import time
+import threading
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -30,24 +31,18 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from pkf_lib import PkfParseError, listify, read_front_matter  # noqa: E402
+from pkf_contract import LEAF_MODULE_DOCS  # noqa: E402
 from pkf_tokens import count_tokens  # noqa: E402
 
 PUBLIC_SKILL = ROOT / "skills" / "token-atlas"
-DEFAULT_TARGET_COMMIT = "5c458df3c737f0af2a2193186d98af90c45163f0"
-DEFAULT_MODEL = "gpt-5.6-luna"
-DEFAULT_REASONING_EFFORT = "high"
 DEFAULT_REPETITIONS = 3
 DEFAULT_TIMEOUT_SECONDS = 1_800
 DEFAULT_ARTIFACTS_ROOT = ROOT / "benchmarks" / "artifacts"
+DEFAULT_BASELINES_ROOT = ROOT / "benchmarks" / "baselines"
+REPORT_SCHEMA_VERSION = 9
 ALLOWED_REASONING_EFFORTS = ("minimal", "low", "medium", "high", "xhigh")
-EVALUATION_SUITES = ("retrieval", "lifecycle", "closeout", "regression", "all")
+EVALUATION_PHASES = ("retrieval", "mutation", "post_mutation", "closeout")
 ARTIFACT_MODES = ("full", "public", "off")
-TARGET_NAME = "tether-brain"
-ISOLATED_CLOSEOUT_PATCH = ROOT / "benchmarks" / "patches" / "favorite-visibility.patch"
-MUTATION_PATHS = (
-    "frontend/src/notes/noteSectionState.ts",
-    "frontend/src/notes/noteSectionState.test.ts",
-)
 ARM_DEFINITIONS = {
     "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only.",
     "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
@@ -59,152 +54,57 @@ PKF_ROUTE_MARKER_PATTERN = re.compile(
     r"(?P<leaves>[1-9][0-9]*) unique leaves; fallback=(?P<fallback>yes|no)$"
 )
 
-SOURCE_ONLY_AGENTS = """# AGENTS
-
-## Code Search
-
-- Prefer `rg` (ripgrep) for text search and file discovery.
-- Prefer `sg` (ast-grep) for syntax-aware searches and refactoring.
-- Avoid `grep -r` unless `rg` is unavailable.
-
-## Best Practices
-
-- Read and follow `.codex/best-practices/PYTHON-BEST-PRACTICES.md` for Python work.
-- Read and follow `.codex/best-practices/REACT-BEST-PRACTICES.md` for React work.
-"""
-
-PROBE_ONLY_AGENTS = """# AGENTS
-
+MANAGED_START = "<!-- token-atlas:bootstrap:start -->"
+MANAGED_END = "<!-- token-atlas:bootstrap:end -->"
+PROBE_START = "<!-- token-atlas-eval:probe:start -->"
+PROBE_END = "<!-- token-atlas-eval:probe:end -->"
+PROBE_ONLY_AGENTS = """<!-- token-atlas-eval:probe:start -->
 ## Adaptive local discovery
 
 For a likely single-capability task, use a cheap local probe of at most two
 targeted `rg`/`sg` searches and three source files. If that resolves a known path
 or symbol, continue locally. For cross-capability, architecture, ownership, or
 repository-wide work, use source-only discovery because no PKF is installed.
-
-## Code Search
-
-- Prefer `rg` (ripgrep) for text search and file discovery.
-- Prefer `sg` (ast-grep) for syntax-aware searches and refactoring.
-- Avoid `grep -r` unless `rg` is unavailable.
-
-## Best Practices
-
-- Read and follow `.codex/best-practices/PYTHON-BEST-PRACTICES.md` for Python work.
-- Read and follow `.codex/best-practices/REACT-BEST-PRACTICES.md` for React work.
+<!-- token-atlas-eval:probe:end -->
 """
-
-INITIALIZE_PROMPT = (
-    "Use the token-atlas skill and initialize through the installed checkout-local helper at "
-    ".codex/skills/token-atlas/scripts/pkf_scaffold.py. Treat helper scripts as opaque "
-    "executables: do not read their source unless an invocation fails because the helper itself "
-    "is broken. "
-    "PKF with hybrid extraction: review capability boundaries, materialize shared "
-    "architecture and bounded routing. Materialize every verified public behavior, important "
-    "mutation entrypoint, and cross-capability contract needed for direct source-backed "
-    "retrieval; do not impose a fixed leaf count per capability. Record narrow atomic "
-    "cross-capability routes under pkf.routes in .ai/knowledge/INDEX.md and compose multiple "
-    "routes for broader intents. Give every route requirement IDs and a load_coverage mapping; "
-    "every leaf must uniquely cover at least one requirement. Include capability-local public behavior state/helpers and "
-    "their focused tests in materialized leaf source_symbols; leave unrelated implementation leaves "
-    "pending. Use profile=core, retrieval_exports=off, "
-    "simulation=changed, token_budget=summary, and validation_strictness=ci. "
-    "Run exactly one explicit post-extraction validation. Do not change application source or tests."
-)
-
-CLOSEOUT_CONTROL_PROMPT = """A benchmark harness already applied and tested this
-repository mutation: favorited notes remain visible in All, remain excluded from
-their home category, and retain archive/favorite mutual exclusion. The turn-owned
-paths are frontend/src/notes/noteSectionState.ts and
-frontend/src/notes/noteSectionState.test.ts. Do not change application source or
-tests. This checkout has no PKF; return a compact acknowledgement that no knowledge
-synchronization surface exists without reading repository source.
-"""
-
-CLOSEOUT_PKF_PROMPT = """A benchmark harness already applied and tested this
-repository mutation: favorited notes remain visible in All, remain excluded from
-their home category, and retain archive/favorite mutual exclusion. The turn-owned
-paths are frontend/src/notes/noteSectionState.ts and
-frontend/src/notes/noteSectionState.test.ts. Do not change application source or
-tests. Follow the repository bootstrap for routine mapped closeout: begin with
-the exact repository-local route helper, do not activate or read Token Atlas
-before the route result, reconcile both changed files with the returned leaf's
-source_symbols and Edit Map before validation, and emit the exact final
-`PKF closeout:` status line. Do not replay repository startup or rediscover the
-mutation.
-"""
-
-MUTATION_PROMPT = """In this disposable benchmark checkout, change note visibility so a
-favorited note remains visible in All while staying excluded from its home category.
-Preserve current Archive behavior and favorite/archive mutual exclusion. Update the
-focused noteSectionState tests and run them. Follow all repository instructions and
-keep repository knowledge synchronized when required.
-"""
-
 
 @dataclass(frozen=True)
 class TaskSpec:
     task_id: str
     prompt: str
     expected_answers: Mapping[str, bool]
+    retrieval_mode: str = "local"
 
 
-READ_ONLY_TASKS = (
-    TaskSpec(
-        task_id="boards_add_task",
-        prompt=(
-            "Answer this repository behavior question without changing files: when the "
-            "global Boards Add task action is used, how is its target list chosen and what "
-            "happens when no eligible list exists? Return the requested structured answer "
-            "with concise source evidence."
-        ),
-        expected_answers={
-            "targets_first_non_final_by_position": True,
-            "can_target_final_list": False,
-            "shows_error_when_none": True,
-            "mutates_board_when_none": False,
-        },
-    ),
-    TaskSpec(
-        task_id="note_task_links",
-        prompt=(
-            "Answer this cross-capability repository question without changing files: who "
-            "may read or modify note-task links, are completed tasks linkable, and what does "
-            "trashing then restoring a linked task, list, or board do to the relationship? "
-            "Return the requested structured answer with concise source evidence. If PKF "
-            "retrieval activates, include exactly one evidence string in this form: `PKF "
-            "route: <route-id> + <route-id>; <N> unique leaves; fallback=<yes|no>`. List only "
-            "the selected keyed route IDs, deduplicate their combined leaves, and omit the "
-            "marker when PKF is unavailable or bypassed."
-        ),
-        expected_answers={
-            "owners_can_modify": True,
-            "editors_can_modify": True,
-            "viewers_can_modify": False,
-            "viewers_can_read": True,
-            "completed_tasks_linkable": True,
-            "trash_deletes_relationship": False,
-            "restore_reveals_relationship": True,
-        },
-    ),
-)
+@dataclass(frozen=True)
+class MutationSpec:
+    task_id: str
+    prompt: str
+    expected_paths: tuple[str, ...]
+    test_command: tuple[str, ...]
 
-POST_MUTATION_TASK = TaskSpec(
-    task_id="favorite_visibility_after_change",
-    prompt=(
-        "Answer from the current repository state without changing files: where does a "
-        "favorited note appear, is it still shown in its home category, and what happens "
-        "when that note is archived? Return the requested structured answer with concise "
-        "source evidence."
-    ),
-    expected_answers={
-        "favorite_appears_in_favorite": True,
-        "favorite_appears_in_all": True,
-        "favorite_appears_in_home": False,
-        "archiving_clears_favorite": True,
-        "archived_appears_in_all": True,
-    },
-)
+
+@dataclass(frozen=True)
+class CloseoutSpec:
+    task_id: str
+    control_prompt: str
+    pkf_prompt: str
+    patch: Path
+    expected_paths: tuple[str, ...]
+    test_command: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class BenchmarkSpec:
+    schema_version: int
+    benchmark_id: str
+    retrieval_tasks: tuple[TaskSpec, ...]
+    mutation: MutationSpec | None
+    post_mutation: TaskSpec | None
+    closeout: CloseoutSpec | None
+    workspace_links: tuple[str, ...]
+    digest: str
+    path: Path
 
 
 @dataclass(frozen=True)
@@ -294,15 +194,19 @@ class CodexResult:
     cross_route_ids: tuple[str, ...] = ()
     cross_route_unique_leaf_count: int = 0
     cross_route_fallback: bool | None = None
-    cross_configured_document_paths: tuple[str, ...] = ()
+    cross_declared_document_paths: tuple[str, ...] = ()
+    cross_expected_document_paths: tuple[str, ...] = ()
     cross_observed_document_paths: tuple[str, ...] = ()
     cross_missing_route_ids: tuple[str, ...] = ()
     cross_missing_document_paths: tuple[str, ...] = ()
     cross_unexpected_document_paths: tuple[str, ...] = ()
     cross_requirement_count: int = 0
     cross_covered_requirement_count: int = 0
+    cross_conflicting_requirement_ids: tuple[str, ...] = ()
+    cross_uncovered_requirement_ids: tuple[str, ...] = ()
+    cross_unresolved_document_paths: tuple[str, ...] = ()
     cross_coverage_status: str = "not_applicable"
-    cross_minimality_status: str = "not_applicable"
+    cross_irredundancy_status: str = "not_applicable"
     cross_redundant_document_paths: tuple[str, ...] = ()
     cross_estimated_tokens: int = 0
     cross_token_estimator: str = "not_applicable"
@@ -315,15 +219,24 @@ class EvaluationError(Exception):
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target-repo", type=Path, required=True)
-    parser.add_argument("--target-commit", default=DEFAULT_TARGET_COMMIT)
-    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--target-commit", default="HEAD")
+    parser.add_argument("--benchmark-spec", type=Path, required=True)
+    parser.add_argument("--baseline", type=Path)
+    parser.add_argument("--baselines-root", type=Path, default=DEFAULT_BASELINES_ROOT)
+    parser.add_argument("--model", required=True)
     parser.add_argument(
         "--model-reasoning-effort",
         choices=ALLOWED_REASONING_EFFORTS,
-        default=DEFAULT_REASONING_EFFORT,
+        required=True,
     )
     parser.add_argument("--repetitions", type=int, default=DEFAULT_REPETITIONS)
-    parser.add_argument("--suite", choices=EVALUATION_SUITES, default="lifecycle")
+    parser.add_argument(
+        "--phases",
+        required=True,
+        help="Comma-separated explicit phases: retrieval,mutation,post_mutation,closeout.",
+    )
+    parser.add_argument("--jobs", type=int, default=0, help="Maximum parallel calls; 0 runs every ready job.")
+    parser.add_argument("--state-from", type=Path)
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--runtime-root", type=Path, default=ROOT)
     parser.add_argument("--format", choices=("text", "json"), default="text")
@@ -338,9 +251,126 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error("--repetitions must be at least 1")
     if args.timeout_seconds < 1:
         parser.error("--timeout-seconds must be at least 1")
+    if args.jobs < 0:
+        parser.error("--jobs must be zero or positive")
+    phases = tuple(dict.fromkeys(value.strip() for value in args.phases.split(",") if value.strip()))
+    invalid_phases = sorted(set(phases) - set(EVALUATION_PHASES))
+    if not phases or invalid_phases:
+        parser.error("--phases must contain only: " + ", ".join(EVALUATION_PHASES))
+    if args.state_from is not None and "mutation" in phases:
+        parser.error("--state-from cannot be combined with the mutation phase")
+    if "post_mutation" in phases and "mutation" not in phases and args.state_from is None:
+        parser.error("standalone post_mutation requires --state-from")
+    args.phases = phases
     if args.run_id is not None and not RUN_ID_PATTERN.fullmatch(args.run_id):
         parser.error("--run-id must be 1-128 lowercase letters, digits, dots, underscores, or hyphens")
     return args
+
+
+def load_benchmark_spec(path: Path) -> BenchmarkSpec:
+    resolved = path.resolve()
+    try:
+        raw_text = resolved.read_text(encoding="utf-8")
+        value = json.loads(raw_text)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise EvaluationError(f"benchmark spec must be readable JSON: {resolved}") from exc
+    if not isinstance(value, dict) or value.get("schema_version") != 1:
+        raise EvaluationError("benchmark spec schema_version must be 1")
+    benchmark_id = value.get("id")
+    if not isinstance(benchmark_id, str) or not RUN_ID_PATTERN.fullmatch(benchmark_id):
+        raise EvaluationError("benchmark spec id must be a lowercase run identifier")
+
+    def task(raw: Any, *, required_mode: bool = False) -> TaskSpec:
+        if not isinstance(raw, dict):
+            raise EvaluationError("benchmark task must be an object")
+        task_id = raw.get("id")
+        prompt = raw.get("prompt")
+        expected = raw.get("expected_answers")
+        mode = raw.get("retrieval_mode", "local")
+        if not isinstance(task_id, str) or not RUN_ID_PATTERN.fullmatch(task_id):
+            raise EvaluationError("benchmark task id is invalid")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise EvaluationError(f"benchmark task {task_id} requires a prompt")
+        if not isinstance(expected, dict) or not expected or not all(
+            isinstance(key, str) and isinstance(answer, bool) for key, answer in expected.items()
+        ):
+            raise EvaluationError(f"benchmark task {task_id} requires boolean expected_answers")
+        if required_mode and mode not in {"local", "cross_capability"}:
+            raise EvaluationError(f"benchmark task {task_id} has invalid retrieval_mode")
+        return TaskSpec(task_id, prompt.strip(), expected, str(mode))
+
+    retrieval_raw = value.get("retrieval", [])
+    if not isinstance(retrieval_raw, list):
+        raise EvaluationError("benchmark spec retrieval must be a list")
+    retrieval = tuple(task(item, required_mode=True) for item in retrieval_raw)
+
+    mutation_raw = value.get("mutation")
+    mutation = None
+    if mutation_raw is not None:
+        if not isinstance(mutation_raw, dict):
+            raise EvaluationError("benchmark mutation must be an object")
+        command = mutation_raw.get("test_command")
+        paths = mutation_raw.get("expected_paths")
+        if not isinstance(command, list) or not command or not all(isinstance(item, str) and item for item in command):
+            raise EvaluationError("benchmark mutation test_command must be a non-empty string list")
+        if not isinstance(paths, list) or not paths or not all(isinstance(item, str) and item for item in paths):
+            raise EvaluationError("benchmark mutation expected_paths must be a non-empty string list")
+        task_id = mutation_raw.get("id")
+        prompt = mutation_raw.get("prompt")
+        if not isinstance(task_id, str) or not RUN_ID_PATTERN.fullmatch(task_id) or not isinstance(prompt, str) or not prompt.strip():
+            raise EvaluationError("benchmark mutation requires valid id and prompt")
+        mutation = MutationSpec(task_id, prompt.strip(), tuple(paths), tuple(command))
+
+    post_raw = value.get("post_mutation")
+    post_mutation = task(post_raw) if post_raw is not None else None
+
+    closeout_raw = value.get("closeout")
+    closeout = None
+    if closeout_raw is not None:
+        if not isinstance(closeout_raw, dict):
+            raise EvaluationError("benchmark closeout must be an object")
+        required = ("id", "control_prompt", "pkf_prompt", "patch", "expected_paths", "test_command")
+        if any(field not in closeout_raw for field in required):
+            raise EvaluationError("benchmark closeout is missing required fields")
+        patch = (resolved.parent / str(closeout_raw["patch"])).resolve()
+        if not patch.is_file():
+            raise EvaluationError(f"benchmark closeout patch does not exist: {patch}")
+        closeout = CloseoutSpec(
+            task_id=str(closeout_raw["id"]),
+            control_prompt=str(closeout_raw["control_prompt"]).strip(),
+            pkf_prompt=str(closeout_raw["pkf_prompt"]).strip(),
+            patch=patch,
+            expected_paths=tuple(str(item) for item in closeout_raw["expected_paths"]),
+            test_command=tuple(str(item) for item in closeout_raw["test_command"]),
+        )
+        if not RUN_ID_PATTERN.fullmatch(closeout.task_id) or not closeout.control_prompt or not closeout.pkf_prompt:
+            raise EvaluationError("benchmark closeout requires valid prompts and id")
+        if not closeout.expected_paths or not closeout.test_command:
+            raise EvaluationError("benchmark closeout requires expected_paths and test_command")
+
+    links_raw = value.get("workspace_links", [])
+    if not isinstance(links_raw, list):
+        raise EvaluationError("benchmark spec workspace_links must be a list")
+    workspace_links: list[str] = []
+    for raw_link in links_raw:
+        if not isinstance(raw_link, str) or not raw_link.strip():
+            raise EvaluationError("benchmark workspace link must be a non-empty relative path")
+        link = Path(raw_link)
+        if link.is_absolute() or ".." in link.parts or raw_link.startswith("."):
+            raise EvaluationError(f"benchmark workspace link must stay inside the target: {raw_link}")
+        workspace_links.append(link.as_posix())
+
+    return BenchmarkSpec(
+        schema_version=1,
+        benchmark_id=benchmark_id,
+        retrieval_tasks=retrieval,
+        mutation=mutation,
+        post_mutation=post_mutation,
+        closeout=closeout,
+        workspace_links=tuple(dict.fromkeys(workspace_links)),
+        digest=hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
+        path=resolved,
+    )
 
 
 def run_command(
@@ -392,6 +422,27 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def publishable_path(path: Path, label: str) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(ROOT).as_posix()
+    except ValueError:
+        return f"<{label}>/{resolved.name}"
+
+
+def excluded_target_member(name: str) -> bool:
+    normalized = name.replace("\\", "/").removeprefix("./")
+    prefixes = (
+        ".ai",
+        ".pkf-init.json",
+        ".token-atlas",
+        ".agents/skills/token-atlas",
+        ".claude/skills/token-atlas",
+        ".codex/skills/token-atlas",
+    )
+    return any(normalized == prefix or normalized.startswith(f"{prefix}/") for prefix in prefixes)
+
+
 def export_target(target_repo: Path, target_commit: str, destination: Path) -> None:
     destination.mkdir(parents=True)
     archive_path = destination.parent / f"{destination.name}.tar"
@@ -406,18 +457,49 @@ def export_target(target_repo: Path, target_commit: str, destination: Path) -> N
         cwd=target_repo,
     )
     with tarfile.open(archive_path, mode="r") as archive:
-        archive.extractall(destination, filter="data")
+        for member in archive.getmembers():
+            if not excluded_target_member(member.name):
+                archive.extract(member, destination, filter="data")
     archive_path.unlink()
 
 
-def strip_pkf(repo: Path, agents_text: str = SOURCE_ONLY_AGENTS) -> None:
+def strip_managed_bootstrap(path: Path) -> None:
+    if not path.is_file():
+        return
+    text = path.read_text(encoding="utf-8")
+    if MANAGED_START in text or MANAGED_END in text:
+        if text.count(MANAGED_START) != 1 or text.count(MANAGED_END) != 1:
+            raise EvaluationError("target AGENTS.md has malformed Token Atlas managed markers")
+        start = text.index(MANAGED_START)
+        end = text.index(MANAGED_END, start) + len(MANAGED_END)
+        text = text[:start] + text[end:]
+    if re.search(r"(?i)(\.ai/PKF\.md|Token Atlas)", text):
+        raise EvaluationError(
+            "target AGENTS.md contains unmanaged PKF instructions; isolate them in Token Atlas managed markers"
+        )
+    remaining = text.strip()
+    if remaining:
+        path.write_text(remaining + "\n", encoding="utf-8")
+    else:
+        path.unlink()
+
+
+def install_probe_policy(repo: Path) -> None:
+    path = repo / "AGENTS.md"
+    text = path.read_text(encoding="utf-8") if path.is_file() else "# AGENTS\n"
+    if PROBE_START in text or PROBE_END in text:
+        raise EvaluationError("target AGENTS.md unexpectedly contains benchmark probe markers")
+    path.write_text(text.rstrip() + "\n\n" + PROBE_ONLY_AGENTS.strip() + "\n", encoding="utf-8")
+
+
+def strip_pkf(repo: Path) -> None:
     ai_dir = repo / ".ai"
     if ai_dir.exists():
         shutil.rmtree(ai_dir)
     installed_skill = repo / ".codex" / "skills" / "token-atlas"
     if installed_skill.exists():
         shutil.rmtree(installed_skill)
-    (repo / "AGENTS.md").write_text(agents_text, encoding="utf-8")
+    strip_managed_bootstrap(repo / "AGENTS.md")
 
 
 def install_public_skill(repo: Path) -> None:
@@ -426,11 +508,16 @@ def install_public_skill(repo: Path) -> None:
     shutil.copytree(PUBLIC_SKILL, destination)
 
 
-def link_local_dependencies(repo: Path, target_repo: Path) -> None:
-    source = target_repo / "frontend" / "node_modules"
-    destination = repo / "frontend" / "node_modules"
-    if source.is_dir() and not destination.exists():
-        destination.symlink_to(source, target_is_directory=True)
+def link_workspace_paths(repo: Path, target_repo: Path, paths: Sequence[str]) -> None:
+    for value in paths:
+        source = target_repo / value
+        destination = repo / value
+        if not source.exists():
+            raise EvaluationError(f"configured workspace link does not exist in target checkout: {value}")
+        if destination.exists() or destination.is_symlink():
+            raise EvaluationError(f"configured workspace link collides with exported content: {value}")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.symlink_to(source, target_is_directory=source.is_dir())
 
 
 def initialize_git(repo: Path, message: str) -> None:
@@ -445,16 +532,13 @@ def initialize_git(repo: Path, message: str) -> None:
         run_command(command, cwd=repo)
 
 
-def commit_generated_pkf(repo: Path) -> None:
-    run_command(("git", "add", "AGENTS.md", ".ai"), cwd=repo)
-    run_command(("git", "commit", "--quiet", "-m", "Initialize PKF"), cwd=repo)
-
-
 def prepare_arms(
     workspace: Path,
     *,
     target_repo: Path,
     target_commit: str,
+    baseline: Path,
+    workspace_links: Sequence[str] = (),
 ) -> dict[str, Path]:
     exported = workspace / "exported"
     export_target(target_repo, target_commit, exported)
@@ -464,13 +548,66 @@ def prepare_arms(
         repo = workspace / arm
         shutil.copytree(exported, repo, symlinks=True)
         if arm == "pkf":
+            runtime = baseline / "runtime"
+            if not (runtime / ".ai" / "PKF.md").is_file():
+                raise EvaluationError(f"baseline runtime is incomplete: {baseline}")
+            shutil.copytree(runtime / ".ai", repo / ".ai")
+            if (runtime / "AGENTS.md").is_file():
+                shutil.copy2(runtime / "AGENTS.md", repo / "AGENTS.md")
             install_public_skill(repo)
         elif arm == "probe_only":
-            (repo / "AGENTS.md").write_text(PROBE_ONLY_AGENTS, encoding="utf-8")
-        link_local_dependencies(repo, target_repo)
+            install_probe_policy(repo)
+        link_workspace_paths(repo, target_repo, workspace_links)
         initialize_git(repo, "Benchmark source baseline")
         arms[arm] = repo
     return arms
+
+
+def resolve_baseline(args: argparse.Namespace, target: Mapping[str, str]) -> tuple[Path, dict[str, Any]]:
+    repository_id = re.sub(r"[^a-z0-9._-]+", "-", args.target_repo.resolve().name.lower()).strip("-.") or "repository"
+    path = (
+        args.baseline.resolve()
+        if args.baseline is not None
+        else (args.baselines_root / repository_id / target["tree"]).resolve()
+    )
+    manifest_path = path / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise EvaluationError(
+            f"sealed PKF baseline is missing or unreadable: {path}; create it once with scripts/pkf_baseline.py"
+        ) from exc
+    identity = manifest.get("target", {}) if isinstance(manifest, dict) else {}
+    if identity.get("commit") != target["commit"] or identity.get("tree") != target["tree"]:
+        raise EvaluationError("baseline target identity does not match --target-commit")
+    runtime = path / "runtime"
+    if not (runtime / ".ai" / "PKF.md").is_file():
+        raise EvaluationError(f"baseline runtime is incomplete: {path}")
+    if manifest.get("runtime_sha256") != sha256_tree(runtime):
+        raise EvaluationError("baseline runtime digest does not match its manifest")
+    if manifest.get("skill_sha256") != sha256_tree(PUBLIC_SKILL):
+        raise EvaluationError(
+            "baseline was generated with a different public skill; explicitly migrate or approve a new baseline"
+        )
+    if manifest.get("validation_status") != "passed":
+        raise EvaluationError("baseline does not record successful strict validation")
+    generation = manifest.get("generation", {})
+    if any(
+        not isinstance(generation.get(role), Mapping)
+        or generation[role].get("returncode") != 0
+        for role in ("initialization", "completeness_review")
+    ):
+        raise EvaluationError("baseline does not record both successful generation passes")
+    acceptance = manifest.get("semantic_acceptance", {})
+    if not isinstance(acceptance, Mapping) or acceptance.get("status") != "model_review_completed":
+        raise EvaluationError("baseline does not record the repository completeness review")
+    inventory = manifest.get("runtime_inventory", {})
+    leaf_paths = inventory.get("leaf_paths", []) if isinstance(inventory, Mapping) else []
+    if not isinstance(leaf_paths, list) or not leaf_paths:
+        raise EvaluationError("baseline records no evidence-backed PKF leaves")
+    if any(not isinstance(value, str) or not (runtime / value).is_file() for value in leaf_paths):
+        raise EvaluationError("baseline inventory references a missing PKF leaf")
+    return path, manifest
 
 
 def answer_schema(task: TaskSpec) -> dict[str, Any]:
@@ -924,16 +1061,22 @@ def configured_cross_routes(
     route_ids: Sequence[str],
 ) -> dict[str, Any]:
     empty = {
-        "loads": (),
+        "declared_loads": (),
+        "expected_loads": (),
         "missing_route_ids": tuple(route_ids),
         "requirement_count": 0,
         "covered_requirement_count": 0,
+        "conflicting_requirements": (),
+        "uncovered_requirements": (),
+        "unresolved_loads": (),
         "coverage_status": "incomplete" if route_ids else "unknown",
-        "minimality_status": "unknown",
+        "irredundancy_status": "invalid" if route_ids else "unknown",
         "redundant_loads": (),
         "estimated_tokens": 0,
         "token_estimator": "approximate",
     }
+    if not route_ids:
+        return empty
     index = repo / ".ai" / "knowledge" / "INDEX.md"
     if not index.is_file():
         return empty
@@ -945,11 +1088,10 @@ def configured_cross_routes(
     routes = pkf.get("routes") if isinstance(pkf, Mapping) else None
     if not isinstance(routes, Mapping):
         return empty
-    loads: set[str] = set()
+    declared_loads: set[str] = set()
     missing: list[str] = []
     requirements: set[str] = set()
     coverage_by_load: dict[str, set[str]] = {}
-    metadata_known = True
     metadata_valid = True
     for route_id in route_ids:
         route = routes.get(route_id)
@@ -957,71 +1099,102 @@ def configured_cross_routes(
             missing.append(route_id)
             metadata_valid = False
             continue
-        route_loads = {str(value) for value in listify(route.get("loads")) if str(value)}
-        loads.update(route_loads)
+        raw_loads = route.get("loads")
         route_requirements = route.get("requirements")
         load_coverage = route.get("load_coverage")
-        if route_requirements is None and load_coverage is None:
-            metadata_known = False
-            continue
         if (
             not isinstance(route_requirements, list)
             or not route_requirements
+            or not all(
+                isinstance(value, str)
+                and re.fullmatch(r"[a-z0-9][a-z0-9-]*", value)
+                for value in route_requirements
+            )
+            or len(set(route_requirements)) != len(route_requirements)
+            or not isinstance(raw_loads, list)
+            or not raw_loads
+            or not all(isinstance(value, str) and value for value in raw_loads)
+            or len(set(raw_loads)) != len(raw_loads)
             or not isinstance(load_coverage, Mapping)
-            or {str(value) for value in load_coverage} != route_loads
+            or set(map(str, load_coverage)) != set(raw_loads)
         ):
             metadata_valid = False
             continue
-        scoped_requirements = {
-            f"{route_id}:{value}" for value in route_requirements if isinstance(value, str) and value
-        }
-        if len(scoped_requirements) != len(route_requirements):
-            metadata_valid = False
-        requirements.update(scoped_requirements)
+        route_loads = set(raw_loads)
+        declared_loads.update(route_loads)
+        route_requirement_set = set(route_requirements)
+        requirements.update(route_requirement_set)
         for load, raw_coverage in load_coverage.items():
-            if not isinstance(raw_coverage, list) or not raw_coverage:
+            if (
+                not isinstance(raw_coverage, list)
+                or not all(
+                    isinstance(value, str)
+                    and re.fullmatch(r"[a-z0-9][a-z0-9-]*", value)
+                    for value in raw_coverage
+                )
+                or len(set(raw_coverage)) != len(raw_coverage)
+            ):
                 metadata_valid = False
                 continue
-            scoped_coverage = {
-                f"{route_id}:{value}" for value in raw_coverage if isinstance(value, str) and value
-            }
-            if not scoped_coverage <= scoped_requirements:
+            covered = set(raw_coverage)
+            if not covered <= route_requirement_set:
                 metadata_valid = False
-            coverage_by_load.setdefault(str(load), set()).update(scoped_coverage & scoped_requirements)
+            coverage_by_load.setdefault(str(load), set()).update(covered & route_requirement_set)
 
     covered = set().union(*coverage_by_load.values()) if coverage_by_load else set()
-    provider_counts = {
-        requirement: sum(requirement in values for values in coverage_by_load.values())
+    providers = {
+        requirement: {
+            load
+            for load, covered_requirements in coverage_by_load.items()
+            if requirement in covered_requirements
+        }
         for requirement in requirements
     }
-    redundant = tuple(
+    conflicts = tuple(sorted(requirement for requirement, loads in providers.items() if len(loads) > 1))
+    uncovered = tuple(sorted(requirements - covered))
+    expected_loads = {
+        next(iter(loads))
+        for loads in providers.values()
+        if len(loads) == 1
+    }
+    unresolved = tuple(
         sorted(
             load
-            for load in loads
-            if metadata_known
-            and not any(provider_counts.get(requirement) == 1 for requirement in coverage_by_load.get(load, set()))
+            for load in declared_loads
+            if not (repo / load).is_file() or (repo / load).name not in LEAF_MODULE_DOCS
         )
     )
-    if not metadata_known:
-        coverage_status = "unknown"
-        minimality_status = "unknown"
-    elif metadata_valid and not missing and requirements == covered:
+    ownership_valid = bool(
+        route_ids
+        and metadata_valid
+        and not missing
+        and not conflicts
+        and not uncovered
+        and not unresolved
+        and requirements == covered
+    )
+    redundant = tuple(sorted(declared_loads - expected_loads)) if ownership_valid else ()
+    if ownership_valid:
         coverage_status = "complete"
-        minimality_status = "minimal" if not redundant else "redundant"
+        irredundancy_status = "irredundant" if not redundant else "redundant"
     else:
         coverage_status = "incomplete"
-        minimality_status = "redundant" if redundant else "invalid"
+        irredundancy_status = "invalid"
 
-    load_files = [repo / load for load in sorted(loads) if (repo / load).is_file()]
+    load_files = [repo / load for load in sorted(expected_loads) if (repo / load).is_file()]
     text = "\n".join(path.read_text(encoding="utf-8") for path in load_files)
     estimated_tokens, estimator = count_tokens(text, None)
     return {
-        "loads": tuple(sorted(loads)),
+        "declared_loads": tuple(sorted(declared_loads)),
+        "expected_loads": tuple(sorted(expected_loads)),
         "missing_route_ids": tuple(missing),
         "requirement_count": len(requirements),
         "covered_requirement_count": len(covered),
+        "conflicting_requirements": conflicts,
+        "uncovered_requirements": uncovered,
+        "unresolved_loads": unresolved,
         "coverage_status": coverage_status,
-        "minimality_status": minimality_status,
+        "irredundancy_status": irredundancy_status,
         "redundant_loads": redundant,
         "estimated_tokens": estimated_tokens,
         "token_estimator": estimator,
@@ -1142,7 +1315,7 @@ def slug(value: str) -> str:
     return normalized or "run"
 
 
-def make_run_id(args: argparse.Namespace) -> str:
+def make_run_id(args: argparse.Namespace, spec: BenchmarkSpec | None = None) -> str:
     if args.run_id:
         return args.run_id
     timestamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -1151,7 +1324,8 @@ def make_run_id(args: argparse.Namespace) -> str:
             "token-atlas",
             slug(args.model),
             slug(args.model_reasoning_effort),
-            slug(args.suite),
+            slug(spec.benchmark_id if spec is not None else "benchmark"),
+            slug("-".join(args.phases)),
             slug(run_class(args.repetitions)),
             timestamp,
         )
@@ -1182,6 +1356,7 @@ class ArtifactStore:
         self.calls: list[dict[str, Any]] = []
         self.created_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
         self._counter = 0
+        self._lock = threading.RLock()
         if mode == "off":
             return
         if self.root.exists() and any(self.root.iterdir()):
@@ -1218,15 +1393,17 @@ class ArtifactStore:
         schema_path: Path | None,
         repo: Path,
         workspace: Path,
+        call_id: str | None = None,
     ) -> None:
         if self.mode == "off":
             return
-        self._counter += 1
-        call_id = (
-            f"{self._counter:03d}-r{result.repetition}-{slug(result.arm)}-"
-            f"{slug(result.task_id)}"
-        )
-        self.calls.append(
+        with self._lock:
+            self._counter += 1
+            call_id = call_id or (
+                f"{self._counter:03d}-r{result.repetition}-{slug(result.arm)}-"
+                f"{slug(result.task_id)}"
+            )
+            self.calls.append(
             {
                 "call_id": call_id,
                 "repetition": result.repetition,
@@ -1235,59 +1412,57 @@ class ArtifactStore:
                 "phase": result.phase,
                 "returncode": result.returncode,
             }
-        )
-        if self.mode == "full":
-            call_dir = self.private_dir / "calls" / call_id
-            sanitized_trace = stdout
-            sanitized_stderr = stderr
-            for sensitive in (repo, workspace, ROOT):
-                replacement = f"<{sensitive.name or 'workspace'}>"
-                sanitized_trace = sanitized_trace.replace(str(sensitive.resolve()), replacement)
-                sanitized_stderr = sanitized_stderr.replace(str(sensitive.resolve()), replacement)
-            sanitized_trace = re.sub(r"/home/[^/]+/", "<home>/", sanitized_trace)
-            sanitized_stderr = re.sub(r"/home/[^/]+/", "<home>/", sanitized_stderr)
-            self._write_private(call_dir / "trace.jsonl", sanitized_trace)
-            self._write_private(call_dir / "stderr.txt", sanitized_stderr)
-            self._write_private(
-                call_dir / "result.json",
-                json.dumps(asdict(result), indent=2, sort_keys=True) + "\n",
             )
-            if schema_path is not None and schema_path.is_file():
-                self._write_private(call_dir / "schema.json", schema_path.read_text(encoding="utf-8"))
-            if result.answer is not None:
-                self._write_private(
-                    call_dir / "answer.json",
-                    json.dumps(result.answer, indent=2, sort_keys=True) + "\n",
-                )
-            self._write_private(call_dir / "source.diff", repository_diff(repo, pkf_only=False))
-            self._write_private(call_dir / "pkf.diff", repository_diff(repo, pkf_only=True))
-            route_output = route_trace_excerpt(stdout)
-            if route_output:
-                self._write_private(call_dir / "route-output.jsonl", route_output + "\n")
-        self.write_manifest("running")
+            if self.mode == "full":
+                call_dir = self.private_dir / "calls" / call_id
+                sanitized_trace = stdout
+                sanitized_stderr = stderr
+                for sensitive in (repo, workspace, ROOT):
+                    replacement = f"<{sensitive.name or 'workspace'}>"
+                    sanitized_trace = sanitized_trace.replace(str(sensitive.resolve()), replacement)
+                    sanitized_stderr = sanitized_stderr.replace(str(sensitive.resolve()), replacement)
+                sanitized_trace = re.sub(r"/home/[^/]+/", "<home>/", sanitized_trace)
+                sanitized_stderr = re.sub(r"/home/[^/]+/", "<home>/", sanitized_stderr)
+                self._write_private(call_dir / "trace.jsonl", sanitized_trace)
+                self._write_private(call_dir / "stderr.txt", sanitized_stderr)
+                self._write_private(call_dir / "result.json", json.dumps(asdict(result), indent=2, sort_keys=True) + "\n")
+                if schema_path is not None and schema_path.is_file():
+                    self._write_private(call_dir / "schema.json", schema_path.read_text(encoding="utf-8"))
+                if result.answer is not None:
+                    self._write_private(call_dir / "answer.json", json.dumps(result.answer, indent=2, sort_keys=True) + "\n")
+                self._write_private(call_dir / "source.diff", repository_diff(repo, pkf_only=False))
+                self._write_private(call_dir / "pkf.diff", repository_diff(repo, pkf_only=True))
+                route_output = route_trace_excerpt(stdout)
+                if route_output:
+                    self._write_private(call_dir / "route-output.jsonl", route_output + "\n")
+            self.calls.sort(key=lambda item: item["call_id"])
+            self.write_manifest("running")
 
     def snapshot_pkf(self, label: str, repo: Path) -> None:
         if self.mode != "full":
             return
-        destination = self.private_dir / "pkf-snapshots" / slug(label)
-        destination.mkdir(parents=True, exist_ok=True)
-        ai_dir = repo / ".ai"
-        if ai_dir.is_dir():
-            shutil.copytree(ai_dir, destination / ".ai", dirs_exist_ok=True)
-        agents = repo / "AGENTS.md"
-        if agents.is_file():
-            shutil.copy2(agents, destination / "AGENTS.md")
-        for path in destination.rglob("*"):
-            path.chmod(0o700 if path.is_dir() else 0o600)
-        self.write_manifest("running")
+        with self._lock:
+            destination = self.private_dir / "pkf-snapshots" / slug(label)
+            destination.mkdir(parents=True, exist_ok=True)
+            ai_dir = repo / ".ai"
+            if ai_dir.is_dir():
+                shutil.copytree(ai_dir, destination / ".ai", dirs_exist_ok=True)
+            agents = repo / "AGENTS.md"
+            if agents.is_file():
+                shutil.copy2(agents, destination / "AGENTS.md")
+            for path in destination.rglob("*"):
+                path.chmod(0o700 if path.is_dir() else 0o600)
+            self.write_manifest("running")
 
     def record_validation(self, label: str, *, passed: bool, output: str) -> None:
-        if self.mode == "full":
-            self._write_private(
-                self.private_dir / "validation" / f"{slug(label)}.json",
-                json.dumps({"passed": passed, "output": output}, indent=2, sort_keys=True) + "\n",
-            )
-        if self.mode != "off":
+        if self.mode == "off":
+            return
+        with self._lock:
+            if self.mode == "full":
+                self._write_private(
+                    self.private_dir / "validation" / f"{slug(label)}.json",
+                    json.dumps({"passed": passed, "output": output}, indent=2, sort_keys=True) + "\n",
+                )
             self.write_manifest("running")
 
     def _file_records(self) -> list[dict[str, Any]]:
@@ -1322,7 +1497,9 @@ class ArtifactStore:
             "error": error,
         }
         assert self.manifest_path is not None
-        self.manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        temporary = self.manifest_path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(temporary, self.manifest_path)
 
     def write_public(self, report: Mapping[str, Any]) -> None:
         if self.mode == "off":
@@ -1363,9 +1540,10 @@ def run_codex(
     sandbox: str,
     task: TaskSpec | None = None,
     artifacts: ArtifactStore | None = None,
+    call_id: str | None = None,
 ) -> tuple[CodexResult, str]:
     source_codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
-    eval_codex_home = workspace / "codex-homes" / f"{arm}-{task_id}"
+    eval_codex_home = workspace / "codex-homes" / (call_id or f"r{repetition}-{arm}-{task_id}")
     eval_codex_home.mkdir(parents=True)
     auth_file = source_codex_home / "auth.json"
     if auth_file.is_file():
@@ -1390,7 +1568,7 @@ def run_codex(
         "--json",
     ]
     if task is not None:
-        schema_path = workspace / "schemas" / f"{task_id}.schema.json"
+        schema_path = workspace / "schemas" / f"{call_id or task_id}.schema.json"
         schema_path.parent.mkdir(parents=True, exist_ok=True)
         schema_path.write_text(json.dumps(answer_schema(task)), encoding="utf-8")
         command.extend(("--output-schema", str(schema_path)))
@@ -1468,19 +1646,23 @@ def run_codex(
     cross_route_ids: tuple[str, ...] = ()
     cross_route_unique_leaf_count = 0
     cross_route_fallback: bool | None = None
-    cross_configured_documents: tuple[str, ...] = ()
+    cross_declared_documents: tuple[str, ...] = ()
+    cross_expected_documents: tuple[str, ...] = ()
     cross_observed_documents: tuple[str, ...] = ()
     cross_missing_route_ids: tuple[str, ...] = ()
     cross_missing_documents: tuple[str, ...] = ()
     cross_unexpected_documents: tuple[str, ...] = ()
     cross_requirement_count = 0
     cross_covered_requirement_count = 0
+    cross_conflicting_requirements: tuple[str, ...] = ()
+    cross_uncovered_requirements: tuple[str, ...] = ()
+    cross_unresolved_documents: tuple[str, ...] = ()
     cross_coverage_status = "not_applicable"
-    cross_minimality_status = "not_applicable"
+    cross_irredundancy_status = "not_applicable"
     cross_redundant_documents: tuple[str, ...] = ()
     cross_estimated_tokens = 0
     cross_token_estimator = "not_applicable"
-    if task_id == "note_task_links" and arm == "pkf":
+    if task is not None and task.retrieval_mode == "cross_capability" and arm == "pkf":
         cross_route_marker_status = str(route_marker["status"])
         cross_route_ids = tuple(route_marker["route_ids"])
         cross_route_unique_leaf_count = int(route_marker["unique_leaf_count"])
@@ -1489,12 +1671,16 @@ def run_codex(
             repo,
             cross_route_ids,
         )
-        cross_configured_documents = tuple(configured["loads"])
+        cross_declared_documents = tuple(configured["declared_loads"])
+        cross_expected_documents = tuple(configured["expected_loads"])
         cross_missing_route_ids = tuple(configured["missing_route_ids"])
         cross_requirement_count = int(configured["requirement_count"])
         cross_covered_requirement_count = int(configured["covered_requirement_count"])
+        cross_conflicting_requirements = tuple(configured["conflicting_requirements"])
+        cross_uncovered_requirements = tuple(configured["uncovered_requirements"])
+        cross_unresolved_documents = tuple(configured["unresolved_loads"])
         cross_coverage_status = str(configured["coverage_status"])
-        cross_minimality_status = str(configured["minimality_status"])
+        cross_irredundancy_status = str(configured["irredundancy_status"])
         cross_redundant_documents = tuple(configured["redundant_loads"])
         cross_estimated_tokens = int(configured["estimated_tokens"])
         cross_token_estimator = str(configured["token_estimator"])
@@ -1505,10 +1691,10 @@ def run_codex(
         }
         cross_observed_documents = tuple(sorted(leaf_reads))
         cross_missing_documents = tuple(
-            sorted(set(cross_configured_documents) - leaf_reads)
+            sorted(set(cross_expected_documents) - leaf_reads)
         )
         cross_unexpected_documents = tuple(
-            sorted(leaf_reads - set(cross_configured_documents))
+            sorted(leaf_reads - set(cross_expected_documents))
         )
     changes = changed_paths(repo)
     result = CodexResult(
@@ -1573,15 +1759,19 @@ def run_codex(
         cross_route_ids=cross_route_ids,
         cross_route_unique_leaf_count=cross_route_unique_leaf_count,
         cross_route_fallback=cross_route_fallback,
-        cross_configured_document_paths=cross_configured_documents,
+        cross_declared_document_paths=cross_declared_documents,
+        cross_expected_document_paths=cross_expected_documents,
         cross_observed_document_paths=cross_observed_documents,
         cross_missing_route_ids=cross_missing_route_ids,
         cross_missing_document_paths=cross_missing_documents,
         cross_unexpected_document_paths=cross_unexpected_documents,
         cross_requirement_count=cross_requirement_count,
         cross_covered_requirement_count=cross_covered_requirement_count,
+        cross_conflicting_requirement_ids=cross_conflicting_requirements,
+        cross_uncovered_requirement_ids=cross_uncovered_requirements,
+        cross_unresolved_document_paths=cross_unresolved_documents,
         cross_coverage_status=cross_coverage_status,
-        cross_minimality_status=cross_minimality_status,
+        cross_irredundancy_status=cross_irredundancy_status,
         cross_redundant_document_paths=cross_redundant_documents,
         cross_estimated_tokens=cross_estimated_tokens,
         cross_token_estimator=cross_token_estimator,
@@ -1594,6 +1784,7 @@ def run_codex(
             schema_path=schema_path,
             repo=repo,
             workspace=workspace,
+            call_id=call_id,
         )
     return result, event_text
 
@@ -1656,8 +1847,8 @@ def pkf_materialization_inventory(repo: Path) -> dict[str, int]:
     knowledge = repo / ".ai" / "knowledge"
     if not knowledge.is_dir():
         return inventory
-    for path in knowledge.rglob("*.md"):
-        if path.name == "INDEX.md":
+    for path in knowledge.glob("*/*.md"):
+        if path.name not in LEAF_MODULE_DOCS:
             continue
         header = path.read_text(encoding="utf-8", errors="replace")[:8_192]
         match = re.search(r"(?m)^\s*materialization:\s*(complete|pending)\s*$", header)
@@ -1670,9 +1861,9 @@ def pkf_materialization_inventory(repo: Path) -> dict[str, int]:
     return inventory
 
 
-def run_focused_test(repo: Path) -> bool:
+def run_focused_test(repo: Path, command: Sequence[str]) -> bool:
     completed = run_command(
-        ("npm", "run", "test", "--prefix", "frontend", "--", "noteSectionState.test.ts"),
+        command,
         cwd=repo,
         check=False,
         timeout=600,
@@ -1680,35 +1871,15 @@ def run_focused_test(repo: Path) -> bool:
     return completed.returncode == 0
 
 
-def prepare_closeout_arms(workspace: Path, arms: Mapping[str, Path]) -> dict[str, Path]:
-    prepared: dict[str, Path] = {}
-    for arm in ("probe_only", "pkf"):
-        destination = workspace / f"{arm}-isolated-closeout"
-        shutil.copytree(arms[arm], destination, symlinks=True)
-        completed = run_command(
-            ("git", "apply", str(ISOLATED_CLOSEOUT_PATCH)),
-            cwd=destination,
-            check=False,
-        )
-        if completed.returncode != 0:
-            raise EvaluationError(f"isolated closeout patch did not apply to {arm}: {completed.stderr.strip()}")
-        if not run_focused_test(destination):
-            raise EvaluationError(f"isolated closeout patch failed focused test in {arm}")
-        prepared[arm] = destination
-    return prepared
-
-
 def score_closeout(
     result: CodexResult,
     repo: Path,
     arm: str,
+    closeout: CloseoutSpec,
     artifacts: ArtifactStore | None = None,
 ) -> CodexResult:
     changes = changed_paths(repo)
-    expected = {
-        "frontend/src/notes/noteSectionState.ts",
-        "frontend/src/notes/noteSectionState.test.ts",
-    }
+    expected = set(closeout.expected_paths)
     valid: bool | None = None
     if arm == "pkf":
         valid, validation_output = validate_pkf(repo)
@@ -1729,12 +1900,12 @@ def score_mutation(
     result: CodexResult,
     repo: Path,
     arm: str,
+    mutation: MutationSpec,
     artifacts: ArtifactStore | None = None,
 ) -> CodexResult:
     changes = changed_paths(repo)
-    expected_source = "frontend/src/notes/noteSectionState.ts" in changes
-    expected_test = "frontend/src/notes/noteSectionState.test.ts" in changes
-    focused_test_passed = run_focused_test(repo)
+    expected_changes = set(mutation.expected_paths).issubset(changes)
+    focused_test_passed = run_focused_test(repo, mutation.test_command)
     pkf_validation_passed: bool | None = None
     if arm == "pkf":
         pkf_validation_passed, validation_output = validate_pkf(repo)
@@ -1749,7 +1920,7 @@ def score_mutation(
     return replace_result(
         result,
         changed_path_count=len(changes),
-        changed_expected_paths=expected_source and expected_test,
+        changed_expected_paths=expected_changes,
         focused_test_passed=focused_test_passed,
         pkf_validation_passed=pkf_validation_passed,
     )
@@ -1768,35 +1939,36 @@ def two_arm_order(repetition: int) -> tuple[str, ...]:
     return ("probe_only", "pkf") if repetition % 2 else ("pkf", "probe_only")
 
 
-def build_schedule(repetitions: int, suite: str = "lifecycle") -> list[dict[str, Any]]:
-    if suite not in EVALUATION_SUITES:
-        raise EvaluationError(f"unknown evaluation suite: {suite}")
+def build_schedule(
+    repetitions: int,
+    phases: Sequence[str],
+    spec: BenchmarkSpec,
+) -> list[dict[str, Any]]:
     schedule: list[dict[str, Any]] = []
+    if "retrieval" in phases and not spec.retrieval_tasks:
+        raise EvaluationError("selected retrieval phase has no tasks in benchmark spec")
     for repetition in range(1, repetitions + 1):
-        schedule.append({"repetition": repetition, "arm": "pkf", "task_id": "initialize", "phase": "setup"})
-        if suite in {"retrieval", "all"}:
-            for task in READ_ONLY_TASKS:
+        if "retrieval" in phases:
+            for task in spec.retrieval_tasks:
                 for arm in three_arm_order(repetition):
                     schedule.append({"repetition": repetition, "arm": arm, "task_id": task.task_id, "phase": "retrieval"})
-        if suite == "regression":
-            cross_task = next(task for task in READ_ONLY_TASKS if task.task_id == "note_task_links")
+        if "mutation" in phases:
+            if spec.mutation is None:
+                raise EvaluationError("selected mutation phase is absent from benchmark spec")
             for arm in two_arm_order(repetition):
-                schedule.append(
-                    {
-                        "repetition": repetition,
-                        "arm": arm,
-                        "task_id": cross_task.task_id,
-                        "phase": "retrieval",
-                    }
-                )
-        if suite in {"lifecycle", "all"}:
+                schedule.append({"repetition": repetition, "arm": arm, "task_id": spec.mutation.task_id, "phase": "mutation"})
+        if "post_mutation" in phases:
+            if spec.post_mutation is None:
+                raise EvaluationError("selected post_mutation phase is absent from benchmark spec")
             for arm in two_arm_order(repetition):
-                schedule.append({"repetition": repetition, "arm": arm, "task_id": "favorite_visibility_mutation", "phase": "mutation"})
+                schedule.append({"repetition": repetition, "arm": arm, "task_id": spec.post_mutation.task_id, "phase": "post_mutation", "depends_on": spec.mutation.task_id if "mutation" in phases and spec.mutation else "state_from"})
+        if "closeout" in phases:
+            if spec.closeout is None:
+                raise EvaluationError("selected closeout phase is absent from benchmark spec")
             for arm in two_arm_order(repetition):
-                schedule.append({"repetition": repetition, "arm": arm, "task_id": POST_MUTATION_TASK.task_id, "phase": "post_mutation"})
-        if suite in {"closeout", "regression", "all"}:
-            for arm in two_arm_order(repetition):
-                schedule.append({"repetition": repetition, "arm": arm, "task_id": "isolated_closeout", "phase": "closeout"})
+                schedule.append({"repetition": repetition, "arm": arm, "task_id": spec.closeout.task_id, "phase": "closeout"})
+    for index, item in enumerate(schedule, 1):
+        item["call_id"] = f"{index:03d}-r{item['repetition']}-{slug(item['arm'])}-{slug(item['task_id'])}"
     return schedule
 
 
@@ -1847,8 +2019,6 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
     attribution_metrics = (
         "closeout_unexpected_read_path_count",
         "closeout_validation_call_count",
-        "initialization_validation_call_count",
-        "initialization_helper_source_read_count",
     )
     for (task_id, arm), grouped in sorted(groups.items()):
         entry = {
@@ -1880,7 +2050,7 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             status: sum(result.initial_route_status == status for result in grouped)
             for status in ("mapped", "partial", "unmapped", "not_run", "invalid")
         }
-        if task_id == "note_task_links" and arm == "pkf":
+        if arm == "pkf" and any(result.cross_coverage_status != "not_applicable" for result in grouped):
             entry["cross_route_count"] = median(
                 [len(result.cross_route_ids) for result in grouped]
             )
@@ -1893,6 +2063,12 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             entry["cross_covered_requirement_count"] = median(
                 [result.cross_covered_requirement_count for result in grouped]
             )
+            entry["cross_conflicting_requirement_count"] = median(
+                [len(result.cross_conflicting_requirement_ids) for result in grouped]
+            )
+            entry["cross_uncovered_requirement_count"] = median(
+                [len(result.cross_uncovered_requirement_ids) for result in grouped]
+            )
             entry["cross_redundant_leaf_count"] = median(
                 [len(result.cross_redundant_document_paths) for result in grouped]
             )
@@ -1903,9 +2079,9 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
                 status: sum(result.cross_coverage_status == status for result in grouped)
                 for status in ("complete", "incomplete", "unknown")
             }
-            entry["cross_minimality_statuses"] = {
-                status: sum(result.cross_minimality_status == status for result in grouped)
-                for status in ("minimal", "redundant", "invalid", "unknown")
+            entry["cross_irredundancy_statuses"] = {
+                status: sum(result.cross_irredundancy_status == status for result in grouped)
+                for status in ("irredundant", "redundant", "invalid", "unknown")
             }
             entry["cross_fallback_rate"] = (
                 sum(result.cross_route_fallback is True for result in grouped) / len(grouped)
@@ -1944,9 +2120,7 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
     operational_by_repetition: list[dict[str, Any]] = []
     for repetition in sorted({result.repetition for result in results}):
         repeated = [result for result in results if result.repetition == repetition]
-        has_integrated_mutation = any(
-            result.task_id == "favorite_visibility_mutation" for result in repeated
-        )
+        has_integrated_mutation = any(result.phase == "mutation" for result in repeated)
         entry: dict[str, Any] = {"repetition": repetition}
         for arm in ("source_only", "probe_only", "pkf"):
             arm_results = [
@@ -1974,22 +2148,22 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
     phase_cost_metrics = (*usage_metrics, "duration_ms", *trace_metrics)
     for repetition in sorted({result.repetition for result in results}):
         by_key = {
-            (result.task_id, result.arm): result
+            (result.phase, result.arm): result
             for result in results
             if result.repetition == repetition
         }
         required = {
-            ("favorite_visibility_mutation", "probe_only"),
-            ("favorite_visibility_mutation", "pkf"),
-            ("isolated_closeout", "probe_only"),
-            ("isolated_closeout", "pkf"),
+            ("mutation", "probe_only"),
+            ("mutation", "pkf"),
+            ("closeout", "probe_only"),
+            ("closeout", "pkf"),
         }
         if not required.issubset(by_key):
             continue
-        implementation = by_key[("favorite_visibility_mutation", "probe_only")]
-        integrated = by_key[("favorite_visibility_mutation", "pkf")]
-        closeout_control = by_key[("isolated_closeout", "probe_only")]
-        closeout = by_key[("isolated_closeout", "pkf")]
+        implementation = by_key[("mutation", "probe_only")]
+        integrated = by_key[("mutation", "pkf")]
+        closeout_control = by_key[("closeout", "probe_only")]
+        closeout = by_key[("closeout", "pkf")]
 
         def metric_value(result: CodexResult, metric: str) -> int:
             if metric in usage_metrics:
@@ -2038,7 +2212,11 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
     activated_savings: dict[str, list[float]] = {metric: [] for metric in usage_metrics}
     bypassed_deltas: dict[str, dict[str, list[float]]] = {}
     for repetition in sorted({result.repetition for result in results}):
-        for task_id in {task.task_id for task in (*READ_ONLY_TASKS, POST_MUTATION_TASK)}:
+        for task_id in {
+            result.task_id
+            for result in results
+            if result.phase in {"retrieval", "post_mutation"}
+        }:
             result_by_arm = {
                 result.arm: result
                 for result in results
@@ -2080,26 +2258,6 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             task_comparisons[label] = comparison
         comparisons[task_id] = task_comparisons
 
-    break_even: dict[str, int | None] = {}
-    for metric in ("input_tokens", "non_cached_input_tokens"):
-        per_read_saving = median(activated_savings[metric])
-        init_cost = median(
-            [
-                value
-                for result in results
-                if result.arm == "pkf"
-                and result.task_id == "initialize"
-                and (value := usage_value(result, metric)) is not None
-            ]
-        )
-        closeout = comparisons.get("isolated_closeout", {}).get("probe_vs_pkf", {}).get(metric, {})
-        mutation_premium = max(0.0, float(closeout.get("delta", 0.0)))
-        break_even[metric] = (
-            math.ceil((init_cost + mutation_premium) / per_read_saving)
-            if per_read_saving > 0
-            else None
-        )
-
     return {
         "by_task": by_task,
         "comparisons": comparisons,
@@ -2117,11 +2275,14 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             }
             for task_id, metric_values in sorted(bypassed_deltas.items())
         },
-        "break_even_activated_tasks": break_even,
     }
 
 
-def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict[str, Any]:
+def performance_advisories(
+    metrics: Mapping[str, Any],
+    repetitions: int,
+    spec: BenchmarkSpec,
+) -> dict[str, Any]:
     comparisons = metrics.get("comparisons", {})
     phases: dict[str, dict[str, Any]] = {
         "local_bypass": {
@@ -2144,16 +2305,6 @@ def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict
             "checks": [],
             "measurements": {},
         },
-        "initialization": {
-            "purpose": "One-time setup is reported for coverage and runaway detection, not historical cost parity.",
-            "checks": [],
-            "measurements": {},
-        },
-        "amortization": {
-            "purpose": "Break-even estimates relate setup and maintenance premiums to activated retrieval savings.",
-            "checks": [],
-            "measurements": {},
-        },
     }
 
     def add_check(
@@ -2167,25 +2318,31 @@ def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict
             {"phase": phase, "name": name, "value": value, "target": target, "met": met}
         )
 
-    for task_id in ("boards_add_task", POST_MUTATION_TASK.task_id):
+    local_task_ids = [
+        task.task_id for task in spec.retrieval_tasks if task.retrieval_mode == "local"
+    ]
+    if spec.post_mutation is not None:
+        local_task_ids.append(spec.post_mutation.task_id)
+    for task_id in local_task_ids:
         local = comparisons.get(task_id, {}).get("probe_vs_pkf", {})
         if not local:
             continue
-        for metric in ("non_cached_input_tokens", "duration_ms", "tool_call_count"):
-            value = local.get(metric, {}).get("percent")
-            add_check(
-                "local_bypass",
-                f"{task_id}_{metric}_overhead",
-                value,
-                "<= 5%",
-                value is not None and value <= 5.0,
-            )
+        value = local.get("non_cached_input_tokens", {}).get("percent")
+        add_check(
+            "local_bypass",
+            f"{task_id}_non_cached_input_tokens_overhead",
+            value,
+            "<= 5%",
+            value is not None and value <= 5.0,
+        )
         phases["local_bypass"]["measurements"][task_id] = {
             metric: local.get(metric, {})
             for metric in ("input_tokens", "non_cached_input_tokens", "duration_ms", "tool_call_count")
         }
-    cross = comparisons.get("note_task_links", {}).get("probe_vs_pkf", {})
-    if cross:
+    for cross_task in (task for task in spec.retrieval_tasks if task.retrieval_mode == "cross_capability"):
+        cross = comparisons.get(cross_task.task_id, {}).get("probe_vs_pkf", {})
+        if not cross:
+            continue
         non_cached_delta = cross.get("non_cached_input_tokens", {}).get("delta")
         add_check(
             "cross_retrieval",
@@ -2194,16 +2351,8 @@ def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict
             "< 0",
             non_cached_delta is not None and non_cached_delta < 0,
         )
-        tool_delta = cross.get("tool_call_count", {}).get("delta")
-        add_check(
-            "cross_retrieval",
-            "cross_capability_tool_call_delta",
-            tool_delta,
-            "< 0",
-            tool_delta is not None and tool_delta < 0,
-        )
-        pkf_cross = metrics.get("by_task", {}).get("note_task_links", {}).get("pkf", {})
-        phases["cross_retrieval"]["measurements"] = {
+        pkf_cross = metrics.get("by_task", {}).get(cross_task.task_id, {}).get("pkf", {})
+        phases["cross_retrieval"]["measurements"][cross_task.task_id] = {
             "input_tokens": cross.get("input_tokens", {}),
             "non_cached_input_tokens": cross.get("non_cached_input_tokens", {}),
             "output_tokens": cross.get("output_tokens", {}),
@@ -2218,33 +2367,6 @@ def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict
             "estimated_route_tokens": float(pkf_cross.get("cross_estimated_tokens", 0)),
             "fallback_rate": float(pkf_cross.get("cross_fallback_rate", 0)),
         }
-    initialized = metrics.get("by_task", {}).get("initialize", {}).get("pkf", {})
-    if initialized:
-        phases["initialization"]["measurements"] = {
-            metric: float(initialized.get(metric, 0))
-            for metric in (
-                "input_tokens",
-                "non_cached_input_tokens",
-                "output_tokens",
-                "duration_ms",
-                "tool_call_count",
-                "initialization_validation_call_count",
-                "initialization_helper_source_read_count",
-                "fallback_invocation_count",
-            )
-        }
-    isolated_closeout = metrics.get("by_task", {}).get("isolated_closeout", {}).get("pkf", {})
-    if isolated_closeout:
-        tool_calls = float(isolated_closeout.get("tool_call_count", 0))
-        mapped_count = isolated_closeout.get("initial_route_statuses", {}).get("mapped", 0)
-        if mapped_count:
-            add_check(
-                "closeout",
-                "mapped_closeout_tool_calls",
-                tool_calls,
-                "<= 6",
-                tool_calls <= 6,
-            )
     phase_costs = metrics.get("lifecycle_phase_cost_summary", {})
     if phase_costs:
         phases["mutation_implementation"]["measurements"] = {
@@ -2257,9 +2379,6 @@ def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict
             "closeout_incremental": phase_costs["closeout_incremental"],
             "composed_probe_plus_closeout": phase_costs["composed_probe_plus_closeout"],
         }
-    phases["amortization"]["measurements"] = {
-        "break_even_activated_tasks": metrics.get("break_even_activated_tasks", {})
-    }
 
     checks = [check for phase in phases.values() for check in phase["checks"]]
     for phase in phases.values():
@@ -2282,11 +2401,26 @@ def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict
 def public_result(result: CodexResult) -> dict[str, Any]:
     value = asdict(result)
     value.pop("answer", None)
+    for key in tuple(value):
+        if key.startswith("initialization_"):
+            value.pop(key)
     return value
 
 
-def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> list[str]:
+def evaluation_errors(
+    results: Sequence[CodexResult],
+    expected_count: int,
+    spec: BenchmarkSpec,
+) -> list[str]:
     errors: list[str] = []
+    local_task_ids = {
+        task.task_id for task in spec.retrieval_tasks if task.retrieval_mode == "local"
+    }
+    if spec.post_mutation is not None:
+        local_task_ids.add(spec.post_mutation.task_id)
+    cross_task_ids = {
+        task.task_id for task in spec.retrieval_tasks if task.retrieval_mode == "cross_capability"
+    }
     if len(results) != expected_count:
         errors.append(f"expected {expected_count} calls but recorded {len(results)}")
     for result in results:
@@ -2297,28 +2431,7 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
             errors.append(f"{label}: missing token usage")
         if result.answer_correct is False:
             errors.append(f"{label}: incorrect structured answer")
-        if result.task_id == "initialize" and result.pkf_validation_passed is not True:
-            errors.append(f"{label}: initialized PKF failed strict validation")
-        if result.task_id == "initialize" and result.initialization_validation_call_count != 1:
-            errors.append(
-                f"{label}: initialization must run exactly one explicit post-extraction validation "
-                f"(observed {result.initialization_validation_call_count})"
-            )
-        if result.task_id == "initialize" and result.initialization_helper_source_read_count:
-            paths = ", ".join(result.initialization_helper_source_read_paths)
-            errors.append(f"{label}: initialization read opaque helper source: {paths}")
-        if result.task_id == "initialize" and result.fallback_invocation_count > 1:
-            errors.append(
-                f"{label}: initialization repeated broad repository scans "
-                f"({result.fallback_invocation_count} fallback-style invocations)"
-            )
-        if result.task_id == "initialize" and result.initialization_route_status != "mapped":
-            unmatched = ", ".join(result.initialization_unmatched_paths) or "unknown paths"
-            errors.append(
-                f"{label}: initialization routing-coverage defect; public mutation paths were "
-                f"{result.initialization_route_status}: {unmatched}"
-            )
-        if result.task_id in {"boards_add_task", POST_MUTATION_TASK.task_id}:
+        if result.task_id in local_task_ids:
             if result.explicit_ai_read_path_count or result.explicit_skill_read_path_count:
                 errors.append(f"{label}: local task explicitly read PKF or Token Atlas paths")
             if result.arm == "pkf" and result.retrieval_decision != "bypassed":
@@ -2327,7 +2440,7 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
                 errors.append(f"{label}: bypassed local task emitted a PKF route marker")
         if result.arm != "pkf" and result.route_marker_emitted:
             errors.append(f"{label}: non-PKF arm emitted a PKF route marker")
-        if result.task_id == "note_task_links" and result.arm == "pkf":
+        if result.task_id in cross_task_ids and result.arm == "pkf":
             if result.explicit_ai_read_path_count < 1:
                 errors.append(f"{label}: cross-capability task did not activate PKF retrieval")
             if result.retrieval_decision != "activated":
@@ -2344,33 +2457,46 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
             if result.cross_missing_route_ids:
                 route_ids = ", ".join(result.cross_missing_route_ids)
                 errors.append(f"{label}: route marker named undefined routes: {route_ids}")
+            if result.cross_conflicting_requirement_ids:
+                requirement_ids = ", ".join(result.cross_conflicting_requirement_ids)
+                errors.append(
+                    f"{label}: conflicting authoritative owners for requirements: {requirement_ids}"
+                )
+            if result.cross_uncovered_requirement_ids:
+                requirement_ids = ", ".join(result.cross_uncovered_requirement_ids)
+                errors.append(f"{label}: uncovered selected-route requirements: {requirement_ids}")
+            if result.cross_unresolved_document_paths:
+                paths = ", ".join(result.cross_unresolved_document_paths)
+                errors.append(f"{label}: selected routes reference unresolved leaves: {paths}")
             if result.cross_coverage_status != "complete":
                 errors.append(
                     f"{label}: configured route requirement coverage is {result.cross_coverage_status}"
                 )
-            if result.cross_minimality_status != "minimal":
-                errors.append(
-                    f"{label}: configured route minimality is {result.cross_minimality_status}"
-                )
             if result.cross_redundant_document_paths:
                 paths = ", ".join(result.cross_redundant_document_paths)
-                errors.append(f"{label}: configured route contains redundant leaves: {paths}")
-            if not result.cross_configured_document_paths:
-                errors.append(f"{label}: selected routes configured no leaf documents")
-            if result.cross_route_unique_leaf_count != len(result.cross_configured_document_paths):
+                errors.append(
+                    f"{label}: redundant route-declared leaf selection: {paths}"
+                )
+            elif result.cross_irredundancy_status != "irredundant":
+                errors.append(
+                    f"{label}: selected-route irredundancy is {result.cross_irredundancy_status}"
+                )
+            if not result.cross_expected_document_paths:
+                errors.append(f"{label}: selected routes resolve no authoritative leaf documents")
+            if result.cross_route_unique_leaf_count != len(result.cross_expected_document_paths):
                 errors.append(
                     f"{label}: route marker reported {result.cross_route_unique_leaf_count} unique leaves "
-                    f"but configuration resolves {len(result.cross_configured_document_paths)}"
+                    f"but authoritative ownership resolves {len(result.cross_expected_document_paths)}"
                 )
             if result.cross_route_fallback is not False or result.fallback_search:
                 errors.append(f"{label}: configured cross-capability retrieval used fallback discovery")
             if result.cross_missing_document_paths:
                 paths = ", ".join(result.cross_missing_document_paths)
-                errors.append(f"{label}: cross-capability retrieval skipped configured leaves: {paths}")
+                errors.append(f"{label}: cross-capability retrieval skipped expected leaves: {paths}")
             if result.cross_unexpected_document_paths:
                 paths = ", ".join(result.cross_unexpected_document_paths)
                 errors.append(f"{label}: cross-capability retrieval read outside its explicit route: {paths}")
-        if result.task_id == "favorite_visibility_mutation":
+        if result.phase == "mutation":
             if result.changed_expected_paths is not True:
                 errors.append(f"{label}: mutation did not make the expected source/test change")
             if result.focused_test_passed is not True:
@@ -2402,7 +2528,7 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
                     errors.append(
                         f"{label}: mutation routing-coverage defect; initial route was {result.initial_route_status}"
                     )
-        if result.task_id == "isolated_closeout":
+        if result.phase == "closeout":
             if result.arm == "pkf":
                 if result.implementation_explicit_ai_read_path_count or result.implementation_explicit_skill_read_path_count:
                     errors.append(f"{label}: isolated closeout loaded PKF or Token Atlas before routing")
@@ -2435,212 +2561,278 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
     return errors
 
 
+def copy_job_repo(source: Path, destination: Path) -> Path:
+    shutil.copytree(source, destination, symlinks=True)
+    return destination
+
+
+def state_repository(
+    state_from: Path,
+    repetition: int,
+    arm: str,
+    *,
+    target: Mapping[str, str],
+    baseline_manifest: Mapping[str, Any],
+) -> Path:
+    root = state_from.resolve()
+    candidates = (
+        root / f"r{repetition}" / arm / "repository",
+        root / "private" / "states" / f"r{repetition}" / arm / "repository",
+        root / "states" / f"r{repetition}" / arm / "repository",
+    )
+    for candidate in candidates:
+        if candidate.is_dir():
+            manifest_path = candidate.parent / "manifest.json"
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise EvaluationError(f"saved mutation state manifest is unreadable: {manifest_path}") from exc
+            if (
+                manifest.get("schema_version") != 1
+                or manifest.get("repetition") != repetition
+                or manifest.get("arm") != arm
+                or manifest.get("target", {}).get("commit") != target.get("commit")
+                or manifest.get("target", {}).get("tree") != target.get("tree")
+                or manifest.get("baseline_runtime_sha256") != baseline_manifest.get("runtime_sha256")
+            ):
+                raise EvaluationError(f"saved mutation state identity does not match this run: {manifest_path}")
+            return candidate
+    raise EvaluationError(f"saved mutation state is missing for repetition {repetition} arm {arm}: {root}")
+
+
+def save_mutation_state(
+    artifacts: ArtifactStore,
+    repo: Path,
+    *,
+    repetition: int,
+    arm: str,
+    target: Mapping[str, str],
+    baseline_manifest: Mapping[str, Any],
+    workspace_links: Sequence[str] = (),
+) -> None:
+    if artifacts.mode != "full":
+        return
+    destination = artifacts.private_dir / "states" / f"r{repetition}" / arm
+    with artifacts._lock:
+        saved_repository = destination / "repository"
+        shutil.copytree(
+            repo,
+            saved_repository,
+            symlinks=True,
+            ignore=shutil.ignore_patterns(".git"),
+        )
+        for value in workspace_links:
+            linked = saved_repository / value
+            if linked.is_symlink():
+                linked.unlink()
+        (destination / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "repetition": repetition,
+                    "arm": arm,
+                    "target": dict(target),
+                    "baseline_runtime_sha256": baseline_manifest.get("runtime_sha256"),
+                    "excluded_workspace_links": list(workspace_links),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        artifacts.write_manifest("running")
+
+
 def execute(
     args: argparse.Namespace,
     target: Mapping[str, str],
     artifacts: ArtifactStore,
+    spec: BenchmarkSpec,
+    baseline: Path,
+    baseline_manifest: Mapping[str, Any],
 ) -> dict[str, Any]:
     runtime_root = args.runtime_root.resolve()
     runtime_root.mkdir(parents=True, exist_ok=True)
-    results: list[CodexResult] = []
-    initialization_inventories: list[dict[str, int]] = []
-    for repetition in range(1, args.repetitions + 1):
-        with tempfile.TemporaryDirectory(
-            prefix=f".pkf-savings-{repetition}-",
-            dir=runtime_root,
-        ) as raw_workspace:
-            workspace = Path(raw_workspace)
-            arms = prepare_arms(
-                workspace,
+    schedule = build_schedule(args.repetitions, args.phases, spec)
+    schedule_by_id = {item["call_id"]: item for item in schedule}
+    results_by_id: dict[str, CodexResult] = {}
+    started = time.monotonic()
+    active = 0
+    peak_active = 0
+    active_lock = threading.Lock()
+
+    with tempfile.TemporaryDirectory(prefix=".pkf-savings-", dir=runtime_root) as raw_workspace:
+        workspace = Path(raw_workspace)
+        base_arms: dict[int, dict[str, Path]] = {}
+        for repetition in range(1, args.repetitions + 1):
+            repetition_root = workspace / f"r{repetition}"
+            repetition_root.mkdir(parents=True)
+            base_arms[repetition] = prepare_arms(
+                repetition_root,
                 target_repo=args.target_repo.resolve(),
                 target_commit=target["commit"],
+                baseline=baseline,
+                workspace_links=spec.workspace_links,
             )
 
-            print(
-                f"[{repetition}/{args.repetitions}] pkf initialize",
-                file=sys.stderr,
-                flush=True,
-            )
-            init_result, _ = run_codex(
-                repetition=repetition,
-                arm="pkf",
-                task_id="initialize",
-                phase="setup",
-                prompt=INITIALIZE_PROMPT,
-                repo=arms["pkf"],
-                model=args.model,
-                reasoning_effort=args.model_reasoning_effort,
-                timeout_seconds=args.timeout_seconds,
-                workspace=workspace,
-                sandbox="workspace-write",
-                artifacts=artifacts,
-            )
-            init_valid, validation_error = validate_pkf(arms["pkf"])
-            route_status, unmatched_paths, route_output = probe_route_coverage(
-                arms["pkf"], MUTATION_PATHS
-            )
-            init_result = replace_result(
-                init_result,
-                pkf_validation_passed=init_valid,
-                initialization_route_status=route_status,
-                initialization_unmatched_paths=unmatched_paths,
-                error=init_result.error or sanitized_error(
-                    validation_error,
-                    (arms["pkf"], workspace, ROOT),
-                ),
-            )
-            results.append(init_result)
-            inventory = pkf_materialization_inventory(arms["pkf"])
-            initialization_inventories.append({"repetition": repetition, **inventory})
-            artifacts.record_validation(
-                f"r{repetition}-initialize",
-                passed=init_valid,
-                output=validation_error,
-            )
-            artifacts.record_validation(
-                f"r{repetition}-initialize-route-coverage",
-                passed=route_status == "mapped",
-                output=route_output,
-            )
-            artifacts.snapshot_pkf(f"r{repetition}-initialize", arms["pkf"])
-            if init_result.returncode == 0 and init_valid:
-                commit_generated_pkf(arms["pkf"])
+        retrieval_by_id = {task.task_id: task for task in spec.retrieval_tasks}
+        mutation_repos: dict[tuple[int, str], Path] = {}
 
-            closeout_arms = (
-                prepare_closeout_arms(workspace, arms)
-                if args.suite in {"closeout", "regression", "all"}
-                else {}
-            )
+        def prepare_repo(item: Mapping[str, Any]) -> Path:
+            repetition = int(item["repetition"])
+            arm = str(item["arm"])
+            call_id = str(item["call_id"])
+            destination = workspace / "jobs" / call_id / "repository"
+            if item["phase"] == "post_mutation":
+                if "mutation" in args.phases:
+                    source = mutation_repos[(repetition, arm)]
+                else:
+                    assert args.state_from is not None
+                    source = state_repository(
+                        args.state_from,
+                        repetition,
+                        arm,
+                        target=target,
+                        baseline_manifest=baseline_manifest,
+                    )
+                return copy_job_repo(source, destination)
+            repo = copy_job_repo(base_arms[repetition][arm], destination)
+            if item["phase"] == "closeout":
+                assert spec.closeout is not None
+                completed = run_command(("git", "apply", str(spec.closeout.patch)), cwd=repo, check=False)
+                if completed.returncode != 0:
+                    raise EvaluationError(f"closeout patch did not apply for {call_id}: {completed.stderr.strip()}")
+                if not run_focused_test(repo, spec.closeout.test_command):
+                    raise EvaluationError(f"closeout pre-applied mutation failed its focused test for {call_id}")
+            return repo
 
-            if args.suite in {"retrieval", "all"}:
-                for task in READ_ONLY_TASKS:
-                    for arm in three_arm_order(repetition):
-                        print(f"[{repetition}/{args.repetitions}] {arm} {task.task_id}", file=sys.stderr, flush=True)
-                        result, _ = run_codex(
-                            repetition=repetition,
-                            arm=arm,
-                            task_id=task.task_id,
-                            phase="retrieval",
-                            prompt=task.prompt,
-                            repo=arms[arm],
-                            model=args.model,
-                            reasoning_effort=args.model_reasoning_effort,
-                            timeout_seconds=args.timeout_seconds,
-                            workspace=workspace,
-                            sandbox="read-only",
-                            task=task,
-                            artifacts=artifacts,
+        def run_item(item: Mapping[str, Any], repo: Path) -> CodexResult:
+            nonlocal active, peak_active
+            repetition = int(item["repetition"])
+            arm = str(item["arm"])
+            phase = str(item["phase"])
+            task_id = str(item["task_id"])
+            call_id = str(item["call_id"])
+            with active_lock:
+                active += 1
+                peak_active = max(peak_active, active)
+            try:
+                print(f"[{call_id}] {phase} {arm}/{task_id}", file=sys.stderr, flush=True)
+                if phase == "retrieval":
+                    task = retrieval_by_id[task_id]
+                    result, _ = run_codex(
+                        repetition=repetition, arm=arm, task_id=task_id, phase=phase,
+                        prompt=task.prompt, repo=repo, model=args.model,
+                        reasoning_effort=args.model_reasoning_effort,
+                        timeout_seconds=args.timeout_seconds, workspace=workspace,
+                        sandbox="read-only", task=task, artifacts=artifacts, call_id=call_id,
+                    )
+                    return result
+                if phase == "mutation":
+                    assert spec.mutation is not None
+                    result, _ = run_codex(
+                        repetition=repetition, arm=arm, task_id=task_id, phase=phase,
+                        prompt=spec.mutation.prompt, repo=repo, model=args.model,
+                        reasoning_effort=args.model_reasoning_effort,
+                        timeout_seconds=args.timeout_seconds, workspace=workspace,
+                        sandbox="workspace-write", artifacts=artifacts, call_id=call_id,
+                    )
+                    scored = score_mutation(result, repo, arm, spec.mutation, artifacts)
+                    mutation_repos[(repetition, arm)] = repo
+                    save_mutation_state(
+                        artifacts, repo, repetition=repetition, arm=arm,
+                        target=target, baseline_manifest=baseline_manifest,
+                        workspace_links=spec.workspace_links,
+                    )
+                    return scored
+                if phase == "post_mutation":
+                    assert spec.post_mutation is not None
+                    result, _ = run_codex(
+                        repetition=repetition, arm=arm, task_id=task_id, phase=phase,
+                        prompt=spec.post_mutation.prompt, repo=repo, model=args.model,
+                        reasoning_effort=args.model_reasoning_effort,
+                        timeout_seconds=args.timeout_seconds, workspace=workspace,
+                        sandbox="read-only", task=spec.post_mutation,
+                        artifacts=artifacts, call_id=call_id,
+                    )
+                    return result
+                assert spec.closeout is not None
+                result, _ = run_codex(
+                    repetition=repetition, arm=arm, task_id=task_id, phase=phase,
+                    prompt=spec.closeout.pkf_prompt if arm == "pkf" else spec.closeout.control_prompt,
+                    repo=repo, model=args.model, reasoning_effort=args.model_reasoning_effort,
+                    timeout_seconds=args.timeout_seconds, workspace=workspace,
+                    sandbox="workspace-write" if arm == "pkf" else "read-only",
+                    artifacts=artifacts, call_id=call_id,
+                )
+                return score_closeout(result, repo, arm, spec.closeout, artifacts)
+            finally:
+                with active_lock:
+                    active -= 1
+
+        independent = [item for item in schedule if item["phase"] != "post_mutation" or "mutation" not in args.phases]
+        dependent = {
+            (int(item["repetition"]), str(item["arm"])): item
+            for item in schedule
+            if item["phase"] == "post_mutation" and "mutation" in args.phases
+        }
+        worker_count = max(1, len(schedule) if args.jobs == 0 else min(args.jobs, len(schedule)))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures: dict[concurrent.futures.Future[CodexResult], tuple[dict[str, Any], Path]] = {}
+            for item in independent:
+                repo = prepare_repo(item)
+                futures[executor.submit(run_item, item, repo)] = (item, repo)
+            while futures:
+                done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                for future in done:
+                    item, repo = futures.pop(future)
+                    result = future.result()
+                    results_by_id[str(item["call_id"])] = result
+                    if item["phase"] == "mutation":
+                        post = dependent.pop((int(item["repetition"]), str(item["arm"])), None)
+                        mutation_ready = (
+                            result.returncode == 0
+                            and result.changed_expected_paths is True
+                            and result.focused_test_passed is True
                         )
-                        results.append(result)
+                        if post is not None and mutation_ready:
+                            post_repo = prepare_repo(post)
+                            futures[executor.submit(run_item, post, post_repo)] = (post, post_repo)
+            if dependent:
+                raise EvaluationError("post-mutation dependencies were not satisfied")
 
-            if args.suite == "regression":
-                task = next(task for task in READ_ONLY_TASKS if task.task_id == "note_task_links")
-                for arm in two_arm_order(repetition):
-                    print(
-                        f"[{repetition}/{args.repetitions}] {arm} {task.task_id}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
-                    result, _ = run_codex(
-                        repetition=repetition,
-                        arm=arm,
-                        task_id=task.task_id,
-                        phase="retrieval",
-                        prompt=task.prompt,
-                        repo=arms[arm],
-                        model=args.model,
-                        reasoning_effort=args.model_reasoning_effort,
-                        timeout_seconds=args.timeout_seconds,
-                        workspace=workspace,
-                        sandbox="read-only",
-                        task=task,
-                        artifacts=artifacts,
-                    )
-                    results.append(result)
-
-            if args.suite in {"lifecycle", "all"}:
-                for arm in two_arm_order(repetition):
-                    print(f"[{repetition}/{args.repetitions}] {arm} favorite_visibility_mutation", file=sys.stderr, flush=True)
-                    result, _ = run_codex(
-                        repetition=repetition,
-                        arm=arm,
-                        task_id="favorite_visibility_mutation",
-                        phase="mutation",
-                        prompt=MUTATION_PROMPT,
-                        repo=arms[arm],
-                        model=args.model,
-                        reasoning_effort=args.model_reasoning_effort,
-                        timeout_seconds=args.timeout_seconds,
-                        workspace=workspace,
-                        sandbox="workspace-write",
-                        artifacts=artifacts,
-                    )
-                    results.append(score_mutation(result, arms[arm], arm, artifacts))
-
-                for arm in two_arm_order(repetition):
-                    print(f"[{repetition}/{args.repetitions}] {arm} {POST_MUTATION_TASK.task_id}", file=sys.stderr, flush=True)
-                    result, _ = run_codex(
-                        repetition=repetition,
-                        arm=arm,
-                        task_id=POST_MUTATION_TASK.task_id,
-                        phase="post_mutation",
-                        prompt=POST_MUTATION_TASK.prompt,
-                        repo=arms[arm],
-                        model=args.model,
-                        reasoning_effort=args.model_reasoning_effort,
-                        timeout_seconds=args.timeout_seconds,
-                        workspace=workspace,
-                        sandbox="read-only",
-                        task=POST_MUTATION_TASK,
-                        artifacts=artifacts,
-                    )
-                    results.append(result)
-
-            if args.suite in {"closeout", "regression", "all"}:
-                for arm in two_arm_order(repetition):
-                    print(f"[{repetition}/{args.repetitions}] {arm} isolated_closeout", file=sys.stderr, flush=True)
-                    result, _ = run_codex(
-                        repetition=repetition,
-                        arm=arm,
-                        task_id="isolated_closeout",
-                        phase="closeout",
-                        prompt=CLOSEOUT_PKF_PROMPT if arm == "pkf" else CLOSEOUT_CONTROL_PROMPT,
-                        repo=closeout_arms[arm],
-                        model=args.model,
-                        reasoning_effort=args.model_reasoning_effort,
-                        timeout_seconds=args.timeout_seconds,
-                        workspace=workspace,
-                        sandbox="workspace-write" if arm == "pkf" else "read-only",
-                        artifacts=artifacts,
-                    )
-                    results.append(score_closeout(result, closeout_arms[arm], arm, artifacts))
-
-    expected_count = len(build_schedule(args.repetitions, args.suite))
-    errors = evaluation_errors(results, expected_count)
+    results = [results_by_id[item["call_id"]] for item in schedule if item["call_id"] in results_by_id]
+    errors = evaluation_errors(results, len(schedule), spec)
+    metrics = aggregate_metrics(results)
+    performance = performance_advisories(metrics, args.repetitions, spec)
     token_atlas_commit = run_command(("git", "rev-parse", "HEAD"), cwd=ROOT).stdout.strip()
     codex_version = run_command(("codex", "--version"), cwd=ROOT).stdout.strip()
-    metrics = aggregate_metrics(results)
-    performance = performance_advisories(metrics, args.repetitions)
-    report = {
-        "schema_version": 7,
+    inventory = pkf_materialization_inventory(baseline / "runtime")
+    return {
+        "schema_version": REPORT_SCHEMA_VERSION,
         "run_id": artifacts.run_id,
         "artifact_manifest_path": "../manifest.json" if artifacts.mode != "off" else None,
-        "benchmark": "token-atlas-adaptive-attribution",
+        "benchmark": spec.benchmark_id,
+        "benchmark_spec": {
+            "path": publishable_path(spec.path, "external-spec"),
+            "sha256": spec.digest,
+            "schema_version": spec.schema_version,
+        },
         "evaluation_kind": "real_repository_performance",
         "arm_definitions": ARM_DEFINITIONS,
-        "suite": args.suite,
+        "phases_selected": list(args.phases),
         "run_class": run_class(args.repetitions),
         "replicated": args.repetitions >= 3,
         "status": "failed" if errors else ("preliminary" if args.repetitions < 3 else "completed"),
         "quality_status": "failed" if errors else "passed",
         "performance": performance,
         "recorded_at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
-        "target": {
-            "name": TARGET_NAME,
-            "repository": "duelistraj/tether-brain",
-            "commit": target["commit"],
-            "tree": target["tree"],
-            "visibility_at_measurement": "private",
+        "target": {"name": args.target_repo.resolve().name, "commit": target["commit"], "tree": target["tree"]},
+        "baseline": {
+            "path": publishable_path(baseline, "external-baseline"),
+            "runtime_sha256": baseline_manifest.get("runtime_sha256"),
+            "created_at": baseline_manifest.get("created_at"),
         },
         "token_atlas": {
             "commit": token_atlas_commit,
@@ -2652,49 +2844,25 @@ def execute(
             "reasoning_effort": args.model_reasoning_effort,
             "repetitions": args.repetitions,
             "codex_version": codex_version,
-            "scheduled_calls": expected_count,
+            "scheduled_calls": len(schedule),
+            "jobs": args.jobs,
+            "peak_parallel_calls": peak_active,
+            "makespan_ms": int((time.monotonic() - started) * 1000),
+            "state_from": publishable_path(args.state_from, "external-state") if args.state_from is not None else None,
         },
         "methodology": {
             "arms": ["source_only", "probe_only", "pkf"],
-            "arm_definitions": ARM_DEFINITIONS,
-            "task_ids": sorted({item["task_id"] for item in build_schedule(1, args.suite)}),
-            "arm_order": "three-arm Latin square and alternating two-arm phases",
-            "trace_accounting": (
-                "ordered tool events segmented into implementation, first valid route call, and post-route closeout; "
-                "token and duration usage remain call-level"
-            ),
-            "phase_cost_accounting": (
-                "probe-only mutation measures implementation, isolated PKF closeout measures closeout, "
-                "and integrated PKF mutation remains the observed combined total"
-            ),
-            "initialization_objective": (
-                "maximize verified public-behavior and routing coverage while enforcing one final "
-                "validation, opaque helpers, and bounded atomic routes; no historical cost target"
-            ),
-            "performance_interpretation": (
-                "phase-specific advisory targets remain separate from blocking quality gates; "
-                "closeout is reported as a required maintenance premium"
-            ),
-            "ambient_user_config": "ignored; authentication copied only",
-            "raw_traces_published": False,
+            "task_ids": sorted({item["task_id"] for item in schedule}),
+            "schedule": schedule,
+            "initialization": "excluded; the immutable one-time baseline is reused",
+            "primary_metric": "non_cached_input_tokens",
+            "secondary_token_telemetry": ["input_tokens", "cached_input_tokens", "output_tokens"],
         },
-        "pkf_inventory": {
-            "materialized_leaf_count": median(
-                [entry["materialized_leaf_count"] for entry in initialization_inventories]
-            ),
-            "pending_leaf_count": median(
-                [entry["pending_leaf_count"] for entry in initialization_inventories]
-            ),
-            "unknown_leaf_count": median(
-                [entry["unknown_leaf_count"] for entry in initialization_inventories]
-            ),
-            "by_repetition": initialization_inventories,
-        },
+        "pkf_inventory": inventory,
         "metrics": metrics,
         "runs": [public_result(result) for result in results],
         "errors": errors,
     }
-    return report
 
 
 def render_markdown(
@@ -2711,13 +2879,13 @@ def render_markdown(
     lines = [
         "# Token Atlas Benchmarks",
         "",
-        f"## Adaptive attribution benchmark — {report['suite']} — {run_label}",
+        f"## Adaptive attribution benchmark — {report['benchmark']} — {run_label}",
         "",
         (
             "This benchmark separates generic source discovery, the adaptive local-probe "
-            "policy, and PKF knowledge on Tether Brain at commit "
-            f"`{target['commit']}`. The repository was private when measured; no source, "
-            "credentials, local paths, or raw traces are published."
+            "policy, and PKF knowledge on the selected repository at commit "
+            f"`{target['commit']}`. The target-specific tasks come only from the external "
+            "benchmark specification."
         ),
         "",
         f"Publication class: **{run_label}**<br>",
@@ -2727,7 +2895,8 @@ def render_markdown(
         f"Performance: **{report['performance']['status']}**<br>",
         f"Recorded: `{report['recorded_at']}`<br>",
         f"Model: `{environment['model']}` at `{environment['reasoning_effort']}` reasoning<br>",
-        f"Repetitions: `{environment['repetitions']}` (`{environment['scheduled_calls']}` calls)",
+        f"Repetitions: `{environment['repetitions']}` (`{environment['scheduled_calls']}` calls; "
+        f"peak parallelism `{environment.get('peak_parallel_calls', 0)}`)",
         "",
     ]
     if raw_result_link:
@@ -2779,30 +2948,30 @@ def render_markdown(
             )
     lines.extend(("", "### Routing and validation evidence", ""))
     for run in report["runs"]:
-        if run["task_id"] == "initialize":
-            helper_paths = ", ".join(run.get("initialization_helper_source_read_paths", [])) or "none"
-            lines.append(
-                f"- Initialization: {run.get('initialization_validation_call_count', 0)} explicit "
-                f"validation(s); opaque helper source reads: {helper_paths}; fallback-style broad "
-                f"scan invocations: {run.get('fallback_invocation_count', 0)}."
-            )
-        elif run["task_id"] == "note_task_links" and run["arm"] == "pkf":
+        if run.get("cross_coverage_status") != "not_applicable" and run["arm"] == "pkf":
             route_ids = " + ".join(run.get("cross_route_ids", [])) or "none"
-            configured = ", ".join(run.get("cross_configured_document_paths", [])) or "none"
+            declared = ", ".join(run.get("cross_declared_document_paths", [])) or "none"
+            expected = ", ".join(run.get("cross_expected_document_paths", [])) or "none"
             observed = ", ".join(run.get("cross_observed_document_paths", [])) or "none"
             missing = ", ".join(run.get("cross_missing_document_paths", [])) or "none"
             unexpected = ", ".join(run.get("cross_unexpected_document_paths", [])) or "none"
+            conflicts = ", ".join(run.get("cross_conflicting_requirement_ids", [])) or "none"
+            uncovered = ", ".join(run.get("cross_uncovered_requirement_ids", [])) or "none"
+            unresolved = ", ".join(run.get("cross_unresolved_document_paths", [])) or "none"
+            redundant = ", ".join(run.get("cross_redundant_document_paths", [])) or "none"
             lines.append(
                 f"- Cross routes `{route_ids}` ({run.get('cross_route_marker_status', 'missing')} marker, "
                 f"{run.get('cross_route_unique_leaf_count', 0)} reported unique leaves, "
                 f"coverage={run.get('cross_coverage_status', 'unknown')}, "
-                f"minimality={run.get('cross_minimality_status', 'unknown')}, "
+                f"irredundancy={run.get('cross_irredundancy_status', 'unknown')}, "
                 f"requirements={run.get('cross_covered_requirement_count', 0)}/"
                 f"{run.get('cross_requirement_count', 0)}, "
-                f"estimated tokens={run.get('cross_estimated_tokens', 0)}): configured {configured}; "
+                f"conflicts={conflicts}, uncovered={uncovered}, unresolved={unresolved}, "
+                f"estimated route-content tokens={run.get('cross_estimated_tokens', 0)} "
+                f"({run.get('cross_token_estimator', 'unknown')})): declared {declared}; redundant {redundant}; expected {expected}; "
                 f"observed {observed}; missing {missing}; unexpected {unexpected}."
             )
-        elif run["task_id"] in {"favorite_visibility_mutation", "isolated_closeout"} and run["arm"] == "pkf":
+        elif run.get("phase") in {"mutation", "closeout"} and run["arm"] == "pkf":
             unexpected = ", ".join(run.get("closeout_unexpected_read_paths", [])) or "none"
             lines.append(
                 f"- `{run['task_id']}` closeout: {run.get('closeout_validation_call_count', 0)} "
@@ -2834,7 +3003,7 @@ def render_markdown(
             )
         integrated_segments = (
             metrics.get("by_task", {})
-            .get("favorite_visibility_mutation", {})
+            .get(next((task for task, arms in report["metrics"].get("by_task", {}).items() if "pkf" in arms and any(run.get("task_id") == task and run.get("phase") == "mutation" for run in report.get("runs", []))), ""), {})
             .get("pkf", {})
             .get("trace_segments", {})
         )
@@ -2848,7 +3017,7 @@ def render_markdown(
                     f"fallback rate {values['fallback_rate'] * 100:.0f}%."
                 )
     else:
-        lines.append("- Requires both lifecycle and isolated-closeout evidence; use the `all` suite.")
+        lines.append("- Mutation and closeout phase evidence was not selected together.")
     knowledge_savings = metrics.get("activated_pkf_knowledge_savings", {})
     lines.extend(("", "### PKF knowledge savings", ""))
     lines.append(
@@ -2861,13 +3030,6 @@ def render_markdown(
         f"saving: `{knowledge_savings.get('input_tokens', 0):.0f}`; median non-cached "
         f"input saving: `{knowledge_savings.get('non_cached_input_tokens', 0):.0f}`."
     )
-    break_even = metrics.get("break_even_activated_tasks", {})
-    lines.append(
-        f"Estimated break-even activated tasks: input "
-        f"`{break_even.get('input_tokens') if break_even.get('input_tokens') is not None else 'not reached'}`, "
-        f"non-cached input "
-        f"`{break_even.get('non_cached_input_tokens') if break_even.get('non_cached_input_tokens') is not None else 'not reached'}`."
-    )
     lines.extend(("", "### Bypassed environment deltas", ""))
     bypassed = metrics.get("bypassed_pkf_environment_deltas", {})
     if bypassed:
@@ -2878,7 +3040,7 @@ def render_markdown(
                 f"{values.get('non_cached_input_tokens', 0):+.0f}."
             )
     else:
-        lines.append("- No PKF-arm task bypassed retrieval in this suite.")
+        lines.append("- No selected PKF-arm task bypassed retrieval.")
     lines.extend(("", "### Attribution deltas", ""))
     for task_id, comparisons in sorted(metrics["comparisons"].items()):
         for label, values in sorted(comparisons.items()):
@@ -2951,7 +3113,7 @@ def write_report(
         savings_label = "Activated-task paired" if report.get("run_class") == "one_pass_preflight" else "Median activated-task paired"
         print(f"PKF savings eval: {report['status']}")
         print(f"Run class: {report['run_class']}")
-        print(f"Suite: {report['suite']}")
+        print(f"Phases: {','.join(report['phases_selected'])}")
         print(f"Calls: {len(report['runs'])}/{report['environment']['scheduled_calls']}")
         print(f"{savings_label} read-only input saving: {savings['input_tokens']:.0f}")
         print(f"Performance: {report['performance']['status']}")
@@ -2963,14 +3125,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     artifacts: ArtifactStore | None = None
     try:
         target = verify_target(args.target_repo, args.target_commit)
-        schedule = build_schedule(args.repetitions, args.suite)
+        spec = load_benchmark_spec(args.benchmark_spec)
+        baseline, baseline_manifest = resolve_baseline(args, target)
+        schedule = build_schedule(args.repetitions, args.phases, spec)
         if args.dry_run:
             output = {
                 "dry_run": True,
-                "target": {"name": TARGET_NAME, **target},
+                "target": {"name": args.target_repo.resolve().name, **target},
+                "baseline": {"path": str(baseline), "runtime_sha256": baseline_manifest.get("runtime_sha256")},
+                "benchmark_spec": {"id": spec.benchmark_id, "path": str(spec.path), "sha256": spec.digest},
                 "model": args.model,
                 "reasoning_effort": args.model_reasoning_effort,
-                "suite": args.suite,
+                "phases_selected": list(args.phases),
+                "jobs": args.jobs,
+                "state_from": str(args.state_from.resolve()) if args.state_from is not None else None,
                 "run_class": run_class(args.repetitions),
                 "replicated": args.repetitions >= 3,
                 "scheduled_calls": len(schedule),
@@ -2980,10 +3148,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         artifacts = ArtifactStore(
             root=args.artifacts_root,
-            run_id=make_run_id(args),
+            run_id=make_run_id(args, spec),
             mode=args.artifact_mode,
         )
-        report = execute(args, target, artifacts)
+        report = execute(args, target, artifacts, spec, baseline, baseline_manifest)
         write_report(report, args, artifacts)
         return 1 if report["status"] == "failed" else 0
     except (EvaluationError, OSError, subprocess.SubprocessError) as exc:

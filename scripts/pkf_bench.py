@@ -27,7 +27,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from pkf_contract import REQUIRED_FRONT_MATTER  # noqa: E402
+from pkf_contract import LEAF_MODULE_DOCS, REQUIRED_FRONT_MATTER  # noqa: E402
 from pkf_lib import PkfParseError, listify, parse_yaml_block, read_front_matter, rel  # noqa: E402
 from pkf_tokens import count_tokens  # noqa: E402
 from pkf_validate import validate_pkf  # noqa: E402
@@ -53,7 +53,7 @@ REQUIRED_MANIFEST_KEYS = {
     "forbidden_loads",
     "expected_warnings",
     "expected_errors",
-    "token_thresholds",
+    "token_measurements",
     "exit_behavior",
 }
 
@@ -435,7 +435,7 @@ def verify_expected_route_composition(
     metadata = read_front_matter(index) if index.is_file() else {}
     pkf = metadata.get("pkf") if isinstance(metadata, dict) else None
     routes = pkf.get("routes") if isinstance(pkf, dict) else None
-    configured_loads: set[str] = set()
+    declared_loads: set[str] = set()
     requirements: set[str] = set()
     coverage_by_load: dict[str, set[str]] = {}
     metadata_valid = True
@@ -449,7 +449,7 @@ def verify_expected_route_composition(
         )
         if isinstance(route, dict):
             route_loads = {str(value) for value in listify(route.get("loads"))}
-            configured_loads.update(route_loads)
+            declared_loads.update(route_loads)
             route_requirements = route.get("requirements")
             load_coverage = route.get("load_coverage")
             if (
@@ -460,47 +460,64 @@ def verify_expected_route_composition(
             ):
                 metadata_valid = False
                 continue
-            scoped_requirements = {f"{route_id}:{value}" for value in route_requirements}
-            requirements.update(scoped_requirements)
+            route_requirement_set = {str(value) for value in route_requirements}
+            requirements.update(route_requirement_set)
             for load, raw_coverage in load_coverage.items():
-                if not isinstance(raw_coverage, list) or not raw_coverage:
+                if not isinstance(raw_coverage, list):
                     metadata_valid = False
                     continue
-                coverage_by_load.setdefault(str(load), set()).update(
-                    f"{route_id}:{value}" for value in raw_coverage
-                )
+                covered = {str(value) for value in raw_coverage}
+                if not covered <= route_requirement_set:
+                    metadata_valid = False
+                coverage_by_load.setdefault(str(load), set()).update(covered & route_requirement_set)
     expected_loads = set(unique_loads)
     add_check(
         result,
-        configured_loads == expected_loads,
+        declared_loads == expected_loads,
         f"composed route union matches {len(expected_loads)} unique leaves",
-        f"composed route union mismatch: expected {sorted(expected_loads)}, got {sorted(configured_loads)}",
+        f"composed route union mismatch: expected {sorted(expected_loads)}, got {sorted(declared_loads)}",
     )
     result["selected_routes"] = list(route_ids)
-    result["unique_leaf_count"] = len(configured_loads)
+    result["unique_leaf_count"] = len(declared_loads)
     covered = set().union(*coverage_by_load.values()) if coverage_by_load else set()
-    provider_counts = {
-        requirement: sum(requirement in values for values in coverage_by_load.values())
+    providers = {
+        requirement: {
+            load
+            for load, load_requirements in coverage_by_load.items()
+            if requirement in load_requirements
+        }
         for requirement in requirements
     }
-    redundant = sorted(
+    conflicts = sorted(requirement for requirement, loads in providers.items() if len(loads) > 1)
+    uncovered = sorted(requirements - covered)
+    authoritative_loads = {
+        next(iter(loads))
+        for loads in providers.values()
+        if len(loads) == 1
+    }
+    unresolved = sorted(
         load
-        for load in configured_loads
-        if not any(provider_counts.get(requirement) == 1 for requirement in coverage_by_load.get(load, set()))
+        for load in declared_loads
+        if not (repo / load).is_file() or (repo / load).name not in LEAF_MODULE_DOCS
     )
-    complete = metadata_valid and requirements == covered
+    complete = metadata_valid and not conflicts and not uncovered and not unresolved and requirements == covered
+    redundant = sorted(declared_loads - authoritative_loads) if complete else []
     result["requirement_count"] = len(requirements)
     result["covered_requirement_count"] = len(covered)
+    result["conflicting_requirement_ids"] = conflicts
+    result["uncovered_requirement_ids"] = uncovered
+    result["unresolved_leaf_paths"] = unresolved
+    result["redundant_leaf_paths"] = redundant
     result["coverage_status"] = "complete" if complete else "incomplete"
-    result["minimality_status"] = "minimal" if complete and not redundant else "redundant" if redundant else "invalid"
+    result["irredundancy_status"] = "irredundant" if complete and not redundant else "redundant" if complete and redundant else "invalid"
     route_text = "\n".join(
         (repo / load).read_text(encoding="utf-8")
-        for load in sorted(configured_loads)
+        for load in sorted(authoritative_loads)
         if (repo / load).is_file()
     )
     result["estimated_route_tokens"] = count_tokens(route_text, None)[0]
-    add_check(result, complete, "composed route requirements are completely covered", "composed route requirement coverage is incomplete")
-    add_check(result, not redundant, "composed route has no redundant leaves", f"composed route has redundant leaves: {redundant}")
+    add_check(result, complete, "composed route requirements have complete authoritative ownership", "composed route requirement ownership or coverage is invalid")
+    add_check(result, not redundant, "composed route is irredundant", f"composed route has redundant leaves: {redundant}")
     expected_requirement_count = expected.get("requirement_count")
     if expected_requirement_count is not None:
         add_check(
@@ -587,7 +604,7 @@ def verify_exports_static(repo: Path, manifest: dict[str, Any], result: dict[str
     off_files = expected_exports.get("off", [])
     add_check(result, not retrieval.exists() or not off_files, "retrieval exports are not source truth")
     result["token_impact"]["exports_do_not_change_startup_cost_when_off"] = bool(
-        manifest.get("token_thresholds", {}).get("exports_do_not_change_startup_cost_when_off")
+        manifest.get("token_measurements", {}).get("exports_do_not_change_startup_cost_when_off")
     )
 
 
@@ -686,7 +703,7 @@ def build_codex_prompt(manifest: dict[str, Any], skill_copy: Path, metadata_dir:
         "Apply the Token Atlas skill instructions from the copied skill docs.\n"
         "Return a JSON object matching the provided output schema. Include selected modules, "
         "the complete generated module inventory, required docs, exact source targets, targeted commands, fallback-search status and reason, "
-        "and selected atomic route IDs plus requirement coverage, minimality, deduplicated leaf count, and actual estimated route tokens when the fixture defines route composition, "
+        "and selected atomic route IDs plus authoritative requirement coverage, irredundancy, deduplicated leaf count, conflicting or uncovered requirement IDs, unresolved or redundant leaf paths, and estimated route-content tokens when the fixture defines route composition, "
         "forbidden automatic loads status, warnings, errors, token impact, exit "
         "behavior, and compact evidence. Expected benchmark defects should be reported as errors "
         "in the report rather than hidden.\n"
@@ -749,8 +766,12 @@ def score_codex_report(manifest: dict[str, Any], report: dict[str, Any], result:
         result["unique_leaf_count"] = unique_leaf_count
         result["requirement_count"] = report.get("requirement_count", 0)
         result["covered_requirement_count"] = report.get("covered_requirement_count", 0)
+        result["conflicting_requirement_ids"] = report.get("conflicting_requirement_ids", [])
+        result["uncovered_requirement_ids"] = report.get("uncovered_requirement_ids", [])
+        result["unresolved_leaf_paths"] = report.get("unresolved_leaf_paths", [])
+        result["redundant_leaf_paths"] = report.get("redundant_leaf_paths", [])
         result["coverage_status"] = report.get("coverage_status", "unknown")
-        result["minimality_status"] = report.get("minimality_status", "unknown")
+        result["irredundancy_status"] = report.get("irredundancy_status", "unknown")
         result["estimated_route_tokens"] = report.get("estimated_route_tokens", 0)
         add_check(
             result,
@@ -781,9 +802,9 @@ def score_codex_report(manifest: dict[str, Any], report: dict[str, Any], result:
         )
         add_check(
             result,
-            report.get("minimality_status") == "minimal",
-            "Codex reported minimum-sufficient route composition",
-            f"Codex reported route minimality {report.get('minimality_status', 'missing')}",
+            report.get("irredundancy_status") == "irredundant",
+            "Codex reported sufficient, deduplicated, and irredundant route composition",
+            f"Codex reported route irredundancy {report.get('irredundancy_status', 'missing')}",
         )
 
     expected_errors = expected_errors_for_scoring(manifest)
@@ -858,8 +879,12 @@ def empty_mode_result(mode: str) -> dict[str, Any]:
         "unique_leaf_count": 0,
         "requirement_count": 0,
         "covered_requirement_count": 0,
+        "conflicting_requirement_ids": [],
+        "uncovered_requirement_ids": [],
+        "unresolved_leaf_paths": [],
+        "redundant_leaf_paths": [],
         "coverage_status": "unknown",
-        "minimality_status": "unknown",
+        "irredundancy_status": "unknown",
         "estimated_route_tokens": 0,
         "generated_modules": [],
         "required_docs": [],

@@ -31,14 +31,14 @@ Update only the affected OKF documents so they accurately reflect the current re
 
 If `.ai/` was just initialized:
 
-- Perform a **Hybrid Extraction**: materialize shared knowledge and leaves that
-  own public package, service, CLI, API, or primary UI entry points. Leave other
-  skeleton leaves pending.
+- Perform **Complete Initialization Extraction**: materialize shared knowledge
+  and every applicable leaf owning verified public behavior, important mutation
+  entrypoints, and source-backed cross-capability contracts. Omit
+  nonapplicable leaf types instead of creating skeletons.
 
 Otherwise:
 
-- Perform an **On-Demand Extraction** for a selected pending leaf, or an
-  **Incremental Extraction** for turn-owned source changes.
+- Perform **Incremental Extraction** for turn-owned source changes.
 
 Perform a **Full Repository Extraction** only when explicitly requested or
 required by CI.
@@ -69,8 +69,9 @@ For Full Repository Extraction:
 
 Analyze the entire repository.
 
-For Hybrid Extraction, inspect repository structure and public entry points but
-do not scan unrelated implementation solely to materialize every leaf.
+For Complete Initialization Extraction, inspect the complete relevant source
+and test surface before sealing. Completeness concerns applicable durable
+behavior and routing knowledge, not creation of every possible leaf type.
 
 ---
 
@@ -127,7 +128,8 @@ Every non-placeholder fact should include compact evidence:
 
 - Source path.
 - Exact symbol, route, command, config key, or test name when applicable.
-- Status: `verified` or `TODO`.
+- Status: `verified`. Remove unverifiable facts instead of retaining unresolved
+  placeholders.
 
 For every implementation-bearing leaf:
 
@@ -140,13 +142,14 @@ For every implementation-bearing leaf:
 - Keep current implementation facts, not chronological feature summaries. Put
   durable policies in `business_rules.md` and still-relevant history in
   `decision_log.md`.
-- Use `source_symbols: {}` and `- TODO: No source-backed facts.` for an empty
-  complete leaf. Deferred leaves retain `pkf.materialization: pending`,
-  `source_symbols: {}`, and `- TODO: Pending source extraction.`.
+- Every emitted leaf is `pkf.materialization: complete`, has non-empty resolving
+  `source_symbols`, and contains source-backed facts. Omit empty or deferred
+  leaves.
 
 Do not paste large code blocks. Summarize behavior and point to source.
 
-When a fact can no longer be verified because source evidence was removed, remove the fact or mark it `TODO` with stale evidence noted.
+When a fact can no longer be verified because source evidence was removed,
+remove the fact and repair affected routing.
 
 ---
 
@@ -166,8 +169,9 @@ Ensure metadata reflects the current repository.
 
 Keep `pkf.loads` limited to documents that are normally required for the specific document's task.
 Keep architecture and index `pkf.related` empty; leaf-level related paths remain optional.
-Store verified cross-capability intents as narrow atomic root-index `pkf.routes` entries with explicit requirements, exact complete leaves, and per-leaf requirement coverage.
-Broad tasks compose matching routes, deduplicate the combined leaves, and remove leaves without unique coverage.
+Store verified cross-capability intents as narrow atomic root-index `pkf.routes` entries with complete `requirements`, exact complete leaves, and `load_coverage` metadata.
+Inspect existing routes before assigning globally descriptive requirement IDs. Reuse the same authoritative leaf for an existing ID, allow one leaf to own several IDs, and split any requirement that would otherwise need multiple owners.
+Broad tasks compose matching routes and deduplicate repeated requirement IDs and leaf references. Semantic vagueness and differently named duplicate requirements remain model-reviewed authoring concerns.
 
 For a capability spanning multiple source paths, use the narrowest common
 existing path for `resource`. Fall back to repository root (`.`) when there is
@@ -235,7 +239,7 @@ Phase 2 succeeds when:
 - Runtime documents are synchronized when necessary.
 - Root and module `INDEX.md` files route correctly.
 - OKF metadata is valid and current.
-- Unknown information is marked as `TODO`.
+- Unknown information is omitted rather than represented as durable knowledge.
 - No duplicate knowledge exists.
-- Stale references from deleted or renamed evidence are removed, replaced, or marked `TODO`.
+- Stale references from deleted or renamed evidence are removed or replaced.
 - The repository is ready for Phase 3.

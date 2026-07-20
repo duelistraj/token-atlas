@@ -41,10 +41,10 @@ After activation:
 
 1. Read `.ai/PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, and
    `.ai/knowledge/INDEX.md` once, then cache them for the session.
-2. Select the owning module and read one module `INDEX.md` plus one or two
-   task-specific leaves. Follow `pkf.related` only when the task expands.
-3. If a selected leaf has `pkf.materialization: pending`, materialize only that
-   leaf from source before relying on it.
+2. Select matching routes or the owning module and load only the complete leaves
+   required for the task. Deduplicate shared requirements and leaves.
+3. Treat an absent or incomplete selected leaf as a routing-coverage defect and
+   repair it from source before relying on it.
 4. Open only the paths and symbols in `source_symbols`; use the Edit Map's
    targeted locator before reading a large file.
 
@@ -61,7 +61,7 @@ Route: PKF -> INDEX -> <module>/{api.md, ui.md} -> <source-file-a>, <source-file
 Targets: <source-file-a>:<symbol-a>, <source-file-b>:<symbol-b>
 Commands: <targeted sg or rg commands>
 Fallback search: no
-Budget: 1 module index, 2 leaves, <estimated tokens>
+Context: <actual unique leaves>, <estimated tokens>
 ```
 
 If fallback is required, set `Fallback search: yes` and add `Fallback reason:`.
@@ -89,9 +89,8 @@ After changing code, update each leaf doc that owns a fact you changed (add
 `pkf.related` links instead of duplicating a fact). If you cannot update the
 knowledge base in the same change, state exactly which leaf docs are now stale.
 
-A normal route loads at most one module index and two leaves. A legitimate
-cross-cutting task may exceed the document count only when the trace explains why
-and each capability slice stays minimal.
+A route loads the sufficient, deduplicated, and irredundant leaf set. Leaf and
+token counts are measured without numeric ceilings.
 
 ## Closeout Protocol (MANDATORY)
 
@@ -147,10 +146,10 @@ claiming them as synchronized.
 - Keep changed durable facts, `source_symbols`, Edit Maps, tests, styles/tokens,
   and locator commands synchronized with source truth.
 - Route changed paths directly to their existing leaves. Read a module or root
-  index only for a new or unmapped path. Materialize an affected pending leaf.
+  index only for a new or unmapped path. Repair any incomplete affected leaf.
 - Repair deletes and renames, and update indexes only when ownership or routing
   changed.
-- Optimize only affected routes that exceed a token budget, duplicate facts,
+- Optimize only affected routes that are unnecessarily broad, duplicate facts,
   load unrelated context, or required fallback search.
 - Run affected-slice advisory validation with summary output after changing
   `.ai/` knowledge. Do not emit successful-check inventories during closeout.

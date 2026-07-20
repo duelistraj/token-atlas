@@ -81,7 +81,7 @@ class PkfBenchTests(unittest.TestCase):
 
             self.assertIn("forbidden generated module exists: coarse-module", result["errors"])
 
-    def test_route_composition_contract_uses_functional_minimum_sufficient_routes(self):
+    def test_route_composition_contract_uses_functional_irredundant_routes(self):
         fixture_dir = (
             ROOT
             / ".agents"
@@ -99,14 +99,25 @@ class PkfBenchTests(unittest.TestCase):
             pkf_bench.apply_patch_file(repo, fixture_dir / str(manifest["patch"]), result)
 
             pkf_bench.verify_expected_route_composition(repo, manifest, result)
+            pkf_bench.verify_validator_result(repo, manifest, result)
 
-        self.assertEqual(result["selected_routes"], ["note-task-visibility", "note-task-policy"])
+        self.assertEqual(
+            result["selected_routes"],
+            ["note-visibility", "link-permissions", "link-lifecycle"],
+        )
         self.assertEqual(result["unique_leaf_count"], 4)
-        self.assertEqual(result["requirement_count"], 4)
-        self.assertEqual(result["covered_requirement_count"], 4)
+        self.assertEqual(result["requirement_count"], 5)
+        self.assertEqual(result["covered_requirement_count"], 5)
         self.assertEqual(result["coverage_status"], "complete")
-        self.assertEqual(result["minimality_status"], "minimal")
+        self.assertEqual(result["irredundancy_status"], "irredundant")
+        self.assertEqual(result["conflicting_requirement_ids"], [])
         self.assertEqual(result["checks"]["passed"], result["checks"]["total"])
+        schema = (
+            ROOT
+            / ".agents/skills/token-atlas/benchmarks/schemas/codex_fixture_report.schema.json"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"irredundancy_status"', schema)
+        self.assertNotIn('"minimality_status"', schema)
 
     def test_local_quick_suite_passes(self):
         args = Namespace(mode="local", keep_workspaces=False)

@@ -2,13 +2,14 @@
 type: schema
 title: Backend Schema
 description: Backend schema facts for the missing-runtime fixture.
-resource: .ai/knowledge/backend/schema.md
+resource: src/backend/models/catalogItem.ts
 tags: [missing-runtime, backend, schema]
 timestamp: 2026-07-08
 source_symbols:
   src/backend/models/catalogItem.ts:
     - CatalogItem
 pkf:
+  materialization: complete
   loads: []
   related: []
 ---

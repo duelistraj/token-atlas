@@ -6,8 +6,8 @@ Evaluate Token Atlas with deterministic fixture-based conformance checks and a
 separate real-repository performance benchmark.
 
 Conformance fixtures measure whether the skill creates and maintains accurate,
-source-backed, minimal-context PKF and OKF knowledge. The pinned Tether Brain
-lifecycle harness measures end-to-end performance; do not treat synthetic
+source-backed, minimal-context PKF and OKF knowledge. The lifecycle harness
+measures an explicitly selected external repository; do not treat synthetic
 fixture timings as real-repository savings.
 
 Do not benchmark by running Token Atlas against the token-atlas skill repository itself.
@@ -109,98 +109,86 @@ skill package.
 
 ### Real Repository Adaptive Attribution Eval
 
-Use the maintainer-only `scripts/pkf_savings_eval.py` to separate generic source
-discovery, the adaptive local-probe policy, and PKF knowledge on a pinned
-external repository. Run it only with explicit approval. The default target is
-Tether Brain commit `5c458df3c737f0af2a2193186d98af90c45163f0`; the runner
-requires a local checkout containing that commit, exports the tree into isolated
-workspaces, and never targets this maintenance repository.
+Use the maintainer-only baseline and performance tools only with explicit
+approval. They have no default repository, commit, task, model, reasoning
+setting, or phase. Repository-specific prompts, expected answers, patches,
+commands, and optional untracked workspace links live in an explicitly supplied
+JSON specification under `benchmarks/targets/` or another caller-selected path;
+they never influence Token Atlas generation policy.
 
-The runner provides split suites:
+#### One-time immutable PKF baseline
 
-| Suite | Per repetition | Purpose |
-| --- | ---: | --- |
-| `retrieval` | 7 calls | Initialization plus both read-only tasks across source-only, probe-only, and PKF arms. |
-| `lifecycle` | 5 calls | Initialization plus mutation and post-mutation work across probe-only and PKF. |
-| `closeout` | 3 calls | Initialization plus an identical pre-applied mutation control and PKF closeout. |
-| `regression` | 5 calls | Token-limited gate: initialization, cross-capability probe/PKF pair, and isolated closeout control/PKF pair. |
-| `all` | 13 calls | All phases sharing one initialization. |
+Create the PKF once for a pinned target tree with `scripts/pkf_baseline.py`.
+Archive extraction excludes the target commit's `.ai/` and installed Token Atlas
+packages before any file reaches the draft. Only the managed Token Atlas block
+is removed from `AGENTS.md`; unrelated repository instructions are preserved,
+and unmanaged PKF instructions fail preparation rather than contaminating the
+new initialization.
 
-The retrieval suite uses a Latin-square three-arm order; two-arm phases alternate
-by repetition. The closeout suite applies the checked-in patch under
-`benchmarks/patches/` to identical clean workspaces and supplies the same changed
-paths and semantic summary to both calls.
-
-Use `regression` as an optional developer smoke check after initialization,
-retrieval-routing, attribution, or closeout changes. It is not a formal
-preflight or a headline replacement for `all`. The formal one-pass preflight is
-`--suite all --repetitions 1` and publishes all 13 calls.
-
-Pin the model and reasoning explicitly and inspect the call matrix before
-execution:
+`--prepare-only` performs no model call and leaves a persistent resumable draft.
+Without that flag, the tool performs complete initialization, an independent
+repository-derived completeness and capability-boundary review, strict
+validation, and an unresolved-marker scan. Successful passes are checkpointed:
+a failed review resumes from the existing initialized PKF and does not rerun the
+initialization pass. A baseline is sealed atomically only after all checks pass.
+An existing sealed baseline is verified and reused; it is never silently
+regenerated. The performance runner also requires its recorded public-skill
+digest to match the current package; a mismatch requires an explicit migration
+or approval for a new baseline rather than silent mutation.
 
 ```text
-python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite regression --model gpt-5.6-luna --model-reasoning-effort high --repetitions 1 --dry-run
-python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite regression --model gpt-5.6-luna --model-reasoning-effort high --repetitions 1
-python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 1 --dry-run
-python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 1
-python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3 --dry-run
-python scripts/pkf_savings_eval.py --target-repo /path/to/tether-brain --suite all --model gpt-5.6-luna --model-reasoning-effort high --repetitions 3
+python scripts/pkf_baseline.py create --target-repo /path/to/repository --target-commit <commit> --prepare-only
+python scripts/pkf_baseline.py create --target-repo /path/to/repository --target-commit <commit> --model <model-id> --model-reasoning-effort <effort>
+python scripts/pkf_baseline.py validate --target-repo /path/to/repository --target-commit <commit>
 ```
 
-Publish total, cached, non-cached, and output tokens separately. Parse tool input
-and output separately and report explicit read targets, searched roots, `.ai`
-read/search calls, skill/reference reads, and unverified path mentions as
-different metrics. Classify actual shell invocations rather than command-text
-substrings: a `--detail` argument is not `tail`, and searching a validator path
-is not a validator execution. Publish exact unexpected read paths, initialization
-validation counts, opaque-helper source reads, and selected cross-route leaves.
-Keep initialization, local retrieval, cross-capability
-retrieval, mutation, post-mutation, and closeout phases separable.
+#### Independently selectable phases
+
+The performance runner never initializes PKF. It requires the matching sealed
+baseline and explicit comma-separated `--phases` selected from:
+
+| Phase | Calls per repetition | State |
+| --- | ---: | --- |
+| `retrieval` | Each configured task across `source_only`, `probe_only`, and `pkf` | Clean baseline |
+| `mutation` | Configured mutation across `probe_only` and `pkf` | Saves reusable state in full artifact mode |
+| `post_mutation` | Configured read across `probe_only` and `pkf` | Depends on same-run mutation or `--state-from` |
+| `closeout` | Pre-applied control and PKF closeout | Clean baseline plus configured patch |
+
+There is no performance `--suite` and no implicit `all`. The `quick`, `core`,
+and `full` suites belong only to deterministic fixture conformance. Select every
+performance phase explicitly when desired. Independent calls run concurrently;
+`--jobs 0` uses all ready jobs, while a positive value caps parallelism.
+Post-mutation work starts as soon as its matching mutation finishes. Each call
+uses an isolated workspace and a deterministic call ID.
+
+```text
+python scripts/pkf_savings_eval.py --target-repo /path/to/repository --target-commit <commit> --benchmark-spec /path/to/spec.json --phases retrieval --model <model-id> --model-reasoning-effort <effort> --repetitions 1 --dry-run
+python scripts/pkf_savings_eval.py --target-repo /path/to/repository --target-commit <commit> --benchmark-spec /path/to/spec.json --phases retrieval,mutation,post_mutation,closeout --model <model-id> --model-reasoning-effort <effort> --repetitions 1
+python scripts/pkf_savings_eval.py --target-repo /path/to/repository --target-commit <commit> --benchmark-spec /path/to/spec.json --phases post_mutation --state-from /path/to/prior-run/private/states --model <model-id> --model-reasoning-effort <effort> --repetitions 1
+```
 
 The three arms have fixed meanings:
 
-- `source_only`: no PKF and no adaptive probe instructions.
-- `probe_only`: the bounded adaptive local probe with no PKF installed.
-- `pkf`: PKF installed with adaptive retrieval and closeout; a particular task
-  may still bypass PKF.
+- `source_only`: sanitized target instructions, no PKF, and no adaptive probe policy.
+- `probe_only`: the same target instructions plus bounded adaptive local-probe policy, with no PKF installed.
+- `pkf`: the same pinned source plus the immutable baseline and adaptive closeout; a task may still bypass retrieval.
 
-Record `retrieval_decision` as `activated`, `bypassed`, or `not_applicable` for
-every call. Calculate PKF knowledge savings only from paired tasks whose PKF arm
-was `activated`. Report PKF-arm tasks that bypassed retrieval separately as
-environment deltas; do not attribute those differences to PKF reads. Include
-materialized and pending leaf counts and the number of routed leaf documents.
+Publish total, cached, non-cached, and output tokens separately. Non-cached
+input is the primary performance metric; duration and tools are telemetry.
+Calculate PKF retrieval savings only for pairs whose PKF arm actually activated
+retrieval. Report bypass deltas separately. Initialization is a one-time baseline
+provenance cost and is excluded from recurring phase totals.
 
-Correctness, zero local-task PKF reads, required cross-capability activation, a valid compact route marker, selected route IDs that exist in `pkf.routes`, complete requirement coverage, zero redundant leaves, exact reads of the deduplicated configured leaf union, zero fallback or cross-route skill reads, one explicit initialization validation, zero opaque-helper source reads, focused tests, route-specific closeout, and validation are blocking quality gates.
-Do not hard-code a benchmark-specific route ID, leaf names, or a global task-route leaf cap.
+Correctness, zero local-task PKF reads, required cross-capability activation,
+valid route markers, authoritative requirement ownership, complete coverage,
+selected-route irredundancy, exact expected leaf reads, no unexpected reads,
+focused tests, route-specific closeout, and validation remain blocking quality
+gates. Leaf and token counts are observations, not ceilings.
 
-Performance uses a phase scorecard rather than a universal 5% verdict:
-
-- Local bypass targets no more than 5% overhead in non-cached input, duration,
-  and tool calls relative to `probe_only`.
-- Cross-capability retrieval targets lower non-cached input and fewer tools than `probe_only`, while reporting route count, requirement coverage, minimality, deduplicated leaf count, and estimated route tokens.
-- Mutation implementation must remain source-first; closeout is attributed and
-  reported separately.
-- Mapped closeout retains its six-tool target and structural fast-path gates;
-  its token and latency cost are a knowledge-maintenance premium, not a 5%
-  comparison with doing no maintenance.
-- Initialization reports cost, materialization coverage, one final validation,
-  opaque-helper behavior, and repeated broad-scan defects without a historical
-  cost target.
-- Amortization reports the activated retrieval count needed to recover setup and
-  maintenance premiums.
-
-Performance targets are advisory and never change quality status. A negative
-saving remains a valid reported result.
-
-Three repetitions remain the default and are required for replicated claims.
-`--repetitions 1` is a publishable one-pass preflight: publish its complete
-sanitized report, calculate performance checks with `directional` evidence, and
-label its status `preliminary`. It must not replace a headline replicated result
-or be pooled into a later three-repetition run.
-Sanitize local paths, credentials, source contents, and raw traces. Pin both the
-target commit, public-skill digest, and benchmark-harness digest so future skill
-revisions can rerun the same application baseline and measurement logic.
+Three repetitions remain the default for replicated claims. One repetition is a
+publishable preliminary preflight and must not be pooled into a later replicated
+run. New lifecycle reports use schema version 9. Existing artifacts remain
+unchanged.
 
 By default each run writes incrementally to
 `benchmarks/artifacts/<run-id>/`: `manifest.json` plus sanitized
@@ -211,10 +199,13 @@ diffs, route-helper output, and validation output. `public` omits that subtree;
 `off` disables artifact retention. `--artifacts-root` changes the root and
 `--run-id` supplies a validated stable ID.
 
-Never retain authentication, a Codex home directory, a complete target source
-workspace, `.git`, `node_modules`, or other dependency trees. Update the
-manifest after every completed call and mark it failed if execution terminates.
-Public artifacts may be versioned; exact private artifacts stay local.
+Never retain authentication or an executor home directory. Public artifacts
+must never contain a target source workspace, `.git`, dependency trees, or raw
+traces. Full local-only artifacts may retain the exact mutation-state workspace
+needed by `--state-from`, but must still exclude `.git`, configured workspace
+links, and dependency trees. Update the manifest after every completed call and
+mark it failed if execution terminates. Public artifacts may be versioned;
+exact private artifacts stay local.
 
 This lifecycle eval is internal maintainer tooling and must not be copied into
 the public skill package. Human-readable findings live in root
@@ -232,11 +223,11 @@ Each conformance fixture directory must include a `README.md` with:
 - Expected selected modules.
 - Expected and forbidden generated module inventories when module discovery or migration is under test.
 - Expected required docs.
-- Expected route IDs, requirement count, coverage status, minimality status, unique leaves, and estimated route tokens when route composition is under test.
+- Expected route IDs, requirement count, coverage status, irredundancy status, unique leaves, and estimated route-content tokens when route composition is under test.
 - Forbidden automatic loads.
 - Expected warnings.
 - Expected errors.
-- Token threshold expectations.
+- Token measurement expectations.
 - Exit behavior.
 
 Fixtures may include source files, existing `.ai/` Markdown, and optional expected report snapshots. Generated outputs must be compared deterministically and must not become source truth.
@@ -293,7 +284,7 @@ Generated modules: <complete inventory>
 Forbidden automatic loads: <passed or failed>
 Warnings: <expected and unexpected warnings>
 Errors: <expected and unexpected errors>
-Token impact: <threshold status>
+Token impact: <observed measurements>
 Source targets: <path:symbol entries>
 Targeted commands: <commands>
 Fallback search: <yes/no and reason>
@@ -317,7 +308,7 @@ Produce a conformance aggregate containing:
 - Passed, warning, and failed counts.
 - Failing fixture names.
 - Regression summary by benchmark dimension.
-- Token budget regressions.
+- Token measurement regressions.
 - Unexpected broad loads.
 - Unexpected stale or unsupported facts.
 - Fallback-search count and rate across reported fixture routes.
@@ -345,7 +336,6 @@ Treat these as warnings:
 
 - Ambiguous but evidence-backed routing.
 - Approximate token estimates when exact tokenization is unavailable.
-- Startup or module token costs above warning thresholds.
 - Duplicate facts that do not affect source truth, routing, `pkf.loads`, or module ownership.
 
 ---

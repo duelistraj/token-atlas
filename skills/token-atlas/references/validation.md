@@ -9,7 +9,7 @@ Only report findings unless the user asks for fixes.
 ## Profiles
 
 - `advisory`: report warnings and errors without treating default local workflows as failed.
-- `ci`: fail on blocking errors, missing required simulations, unrelated automatic loads, stale source truth, and token budget gates.
+- `ci`: fail on blocking errors, missing required simulations, unrelated automatic loads, and stale source truth.
 
 ## Checks
 
@@ -19,23 +19,26 @@ Validate:
 - `PKF.md` sets `pkf.runtime_version: 4` and `pkf.retrieval` to `adaptive` or
   `mandatory`; missing or older runtimes require migration, and newer versions
   are reported as unsupported rather than downgraded.
-- Every detected module has `INDEX.md`, `api.md`, `schema.md`, `business_rules.md`, and `ui.md`.
+- Every detected module has `INDEX.md` and at least one applicable complete
+  evidence-backed leaf. Nonapplicable leaf types are omitted.
 - Every module is a flat directory directly under `.ai/knowledge/`; nested module indexes are invalid.
-- Shared docs exist: `glossary.md`, `dependencies.md`, `decision_log.md`.
+- Applicable shared docs are source-backed; nonapplicable shared docs are omitted.
 - Every participating `.ai/**/*.md` document has valid OKF front matter.
 - Every module leaf has a `source_symbols` path-to-symbol-list mapping; each path
   resolves, each symbol occurs in that source, and empty leaves use the standard marker.
-- Every module leaf is complete or explicitly `pkf.materialization: pending`.
-  Pending leaves have no source symbols and use the pending extraction marker.
+- Every emitted module leaf is complete, has non-empty resolving
+  `source_symbols`, and contains no TODO, pending, unknown, or placeholder
+  knowledge.
 - Every implementation-bearing leaf has an Edit Map with specific behavior,
   declared source symbols, tests, styles/tokens, and a targeted locator per row;
   placeholder behavior labels and omitted declared symbols are defects.
 - `pkf.loads` and `pkf.related` are lists and resolve to existing docs.
 - Architecture, root-index, and module-index `pkf.related` values are empty.
-- Root-index `pkf.routes`, when present, is keyed by route ID; every route has a non-empty narrow intent and triggers, names at least two exact modules, lists complete leaf loads, and maps every leaf to requirement IDs.
-  Every requirement is covered and every leaf is the exclusive provider of at least one requirement.
+- Root-index `pkf.routes`, when present, is keyed by route ID; every route has a non-empty narrow intent and triggers, names at least two exact modules, and contains mandatory `requirements`, complete leaf `loads`, and exact `load_coverage` metadata.
+  Requirement IDs are global within the root catalog: each ID resolves to one authoritative leaf, repeated IDs reuse that leaf, one leaf may own several IDs, every requirement is covered, and every route-declared leaf contributes.
+  Deterministic validation proves selected-route ownership and irredundancy, not semantic distinction between differently named IDs or route-to-task relevance.
   Broad tasks may compose routes, must deduplicate their leaf union, and must remove leaves without unique coverage.
-- `resource` paths resolve or are marked `TODO`.
+- `resource` paths resolve and contain no placeholder value.
 - APIs, schemas, business rules, UI facts, commands, dependencies, and architecture match source truth.
 - Deleted or renamed evidence is not cited as current.
 - No duplicate authoritative facts exist.
@@ -49,9 +52,8 @@ Validate:
   or model.
 - Simulation output is present when enabled.
 - Token budget output is present at the selected detail level.
-- Startup and individual leaves respect the 2,500 and 1,500 token gates.
-  Advisory mode warns and CI mode fails over-budget documents.
-  Task-route leaf counts and tokens are reported as telemetry without an absolute gate.
+- Startup, leaf, and task-route token counts are reported as observed telemetry.
+  No numeric leaf or token ceiling determines validity.
 
 ## Required Simulation Scenarios
 
@@ -88,7 +90,8 @@ Routine semantic closeout uses `--scope affected --detail summary` with every
 turn-owned changed source or leaf path. Runtime, shared architecture, or index
 changes automatically require full validation. Full detail remains the default
 for explicit validation and CI.
-Summary output contains counts, findings, measured task routes, and structural token routes that violate a threshold; it omits successful structural-route inventory.
+Summary output contains counts, findings, and measured task routes; it omits
+successful structural-route inventory.
 
 ## CI Exit Meaning
 

@@ -1,15 +1,21 @@
 ---
 type: rules
-title: Backend Business Rules
-description: Backend rule facts for the missing-runtime fixture.
-resource: .ai/knowledge/backend/business_rules.md
+title: Catalog Business Rules
+description: Source-backed catalog filtering behavior.
+resource: src/backend/routes/catalog.ts
 tags: [missing-runtime, backend, rules]
 timestamp: 2026-07-08
-source_symbols: {}
+source_symbols:
+  src/backend/routes/catalog.ts:
+    - listCatalogItems
 pkf:
-  materialization: pending
+  materialization: complete
   loads: []
   related: []
 ---
 
-- TODO: Pending source extraction.
+## Edit Map
+
+| Behavior | Source symbols | Tests | Styles/tokens | Locator |
+|---|---|---|---|---|
+| Return only active catalog items | `src/backend/routes/catalog.ts:listCatalogItems` | Not documented | N/A | `rg -n -F -- 'listCatalogItems' 'src/backend/routes/catalog.ts'` |

@@ -70,9 +70,10 @@ python -S .ai/tools/pkf_route.py --path . \
 ```
 
 Repeat `--changed-path` for rename endpoints and every other turn-owned path.
-The helper returns mapped leaves, pending state, unmatched paths, index fallback,
-and the required validation scope without exposing leaf contents to model
-context. A valid `partial` or `unmapped` result is not a tooling failure.
+The helper returns mapped leaves, incomplete-state evidence, unmatched paths,
+index fallback, and the required validation scope without exposing leaf
+contents to model context. A valid `partial` or `unmapped` result is not a
+tooling failure.
 
 - For `mapped`, read and synchronize only returned leaves whose
   `pkf.materialization` is `complete`. Do not read the skill, this reference,
@@ -88,19 +89,19 @@ context. A valid `partial` or `unmapped` result is not a tooling failure.
 
 - Route turn-owned changed paths with `pkf_route.py`. Preserve its compact JSON
   result as closeout evidence. Read a root or module index only for a new,
-  pending, or unmapped path; never replay the startup chain.
+  incomplete or unmapped path; never replay the startup chain.
 - Update only leaves whose durable facts changed. Keep `source_symbols`, Edit
   Maps, tests, styles/tokens, and locator commands exact.
 - Before validation, reconcile every turn-owned source and test path with the
   returned leaf's `source_symbols`, and ensure every declared symbol and Edit Map
   evidence entry still resolves. Validation is the final check, not a discovery
   loop.
-- Treat an affected `pkf.materialization: pending` leaf as exceptional
-  maintenance: load the extraction guidance, materialize it from source, and
-  mark it `complete`. This is not the routine mapped fast path.
+- Treat any affected incomplete leaf as a routing-coverage defect: load the
+  extraction guidance, replace it with complete source-backed knowledge, and
+  repair the route. This is not the routine mapped fast path.
 - Remove or repair evidence made stale by deletes and renames.
 - Update an index only when ownership or routing changed.
-- Optimize only an affected route that exceeds a token budget, duplicates a
+- Optimize only an affected route that is unnecessarily broad, duplicates a
   fact, loads unrelated context, or required fallback search.
 - Run exactly one affected-slice advisory validation with summary detail after changing PKF
   knowledge. The bundled validator invocation is:

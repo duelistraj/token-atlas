@@ -1,6 +1,6 @@
-name: functional-route-minimality
+name: functional-route-irredundancy
 suites: [core, full]
-goal: Verify minimum-sufficient functional routes support one-leaf and multi-leaf cross-capability retrieval without numeric ceilings.
+goal: Verify functional routes provide sufficient, deduplicated, and irredundant selected-route context without numeric ceilings.
 repo_root: ../broad-loads/repo
 language: typescript
 workflow: [simulate, validation]
@@ -52,8 +52,8 @@ expected_required_docs:
   - .ai/knowledge/boards/business_rules.md
   - .ai/knowledge/notes/business_rules.md
 expected_route_composition:
-  route_ids: [note-task-visibility, note-task-policy]
-  requirement_count: 4
+  route_ids: [note-visibility, link-permissions, link-lifecycle]
+  requirement_count: 5
   unique_loads:
     - .ai/knowledge/notes/ui.md
     - .ai/knowledge/boards/api.md
@@ -62,7 +62,7 @@ expected_route_composition:
 forbidden_loads: []
 expected_warnings: []
 expected_errors: []
-token_thresholds:
-  full_token_budget_required: true
+token_measurements:
+  full_report_required: true
 exit_behavior:
   ci: 0

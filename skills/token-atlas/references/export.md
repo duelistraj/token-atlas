@@ -57,7 +57,7 @@ Before success, verify:
 - IDs are stable and unique per file.
 - Source paths resolve to canonical Markdown or cited repository evidence.
 - Relationship endpoints resolve.
-- Claims are source-backed or marked `TODO`.
+- Claims are source-backed; omit unresolved claims.
 - Export files match the selected mode.
 
 ## Rules

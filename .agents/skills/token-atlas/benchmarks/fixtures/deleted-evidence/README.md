@@ -39,7 +39,7 @@ Verify stale references to deleted source evidence are detected and treated as v
 - Stale reference to the deleted evidence path.
 - Removed symbol, route, schema, command, config key, or test still cited as current if present.
 
-## Token Thresholds
+## Token Measurements
 
 - Token budget must still be reported when validation fails.
 
@@ -47,4 +47,3 @@ Verify stale references to deleted source evidence are detected and treated as v
 
 - Advisory validation reports blocking recommendations and exits successfully.
 - CI validation exits nonzero.
-

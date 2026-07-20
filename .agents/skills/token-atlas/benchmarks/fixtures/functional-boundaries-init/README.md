@@ -34,7 +34,7 @@ instead of copying technical-layer or placeholder names.
 
 - None when capability evidence and ownership are unambiguous.
 
-## Token Thresholds And Exit Behavior
+## Token Measurements And Exit Behavior
 
-- Startup and selected-module routes remain below their warning thresholds.
+- Startup and selected-module route sizes are observed without numeric ceilings.
 - Advisory and CI validation exit successfully.

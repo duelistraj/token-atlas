@@ -114,7 +114,7 @@ Ensure:
 - `tags` remain accurate.
 - `pkf.loads` loads only the minimum required documents.
 - `pkf.related` references only meaningful related knowledge.
-- Automatic load paths stay within token budget thresholds.
+- Automatic load paths contain only sufficient, contributing context.
 
 Remove obsolete metadata.
 
@@ -207,19 +207,20 @@ For each reported entry include:
 - Documents loaded automatically.
 - Estimated token cost.
 - Estimator type: `exact` or `approximate`.
-- Threshold status: `passed`, `warning`, or `error`.
+- Measurement status and retrieval-quality findings.
 - Retrieval impact.
 
 Use an exact tokenizer when available locally for the target model. Otherwise use the deterministic approximate estimator `ceil(character_count / 4)` and label the report as approximate.
 
-Default structural thresholds and retrieval policy:
+Retrieval measurement policy:
 
-- Startup path above 2,500 tokens: warning locally, error in CI.
-- Any leaf above 1,500 tokens: warning locally, error in CI.
-- Any unrelated module loaded automatically: blocking error.
+- Report startup, leaf, and selected-route token counts as telemetry without
+  numeric ceilings.
+- Treat any unrelated module loaded automatically as a blocking error.
 
 Treat every task as a minimum-sufficient context problem.
-Compose broad work from atomic routes, deduplicate their combined leaves, and remove any leaf without unique requirement coverage.
+Compose broad work from atomic routes, deduplicate global requirement IDs and authoritative leaves, and remove any route-declared leaf without selected-route requirement coverage.
+Treat minimum-sufficient context as the objective while reporting sufficient, deduplicated, and irredundant selected-route context as the validated property.
 Report route leaf counts and token estimates as telemetry; never optimize toward an allowance or reject a complete route because of its absolute size.
 
 ---
@@ -253,8 +254,7 @@ Phase 3 succeeds when:
 - Shared knowledge contains only repository-wide information.
 - All cross references are valid.
 - AI retrieval requires only the minimum necessary context.
-- Token budget output is generated at the selected summary or full level and threshold status is recorded.
-- Startup context is at or below warning threshold, or warnings are reported with recommendations.
+- Token measurements are generated at the selected summary or full level.
 - Retrieval simulations produce evidence-backed reports when enabled; required scenarios run in `ci`, `full`, or `simulation: required|all` mode.
 - No unrelated modules are loaded automatically.
 - The knowledge base is optimized for long-term maintenance.

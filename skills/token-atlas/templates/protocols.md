@@ -22,10 +22,12 @@ After activation:
 
 1. Read `.ai/PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, and
    `.ai/knowledge/INDEX.md` once and cache them for the session.
-2. For a cross-capability intent, select the smallest set of matching atomic keyed `pkf.routes` entries that completely covers the task requirements.
-   Deduplicate their leaves and remove any leaf that no longer provides unique requirement coverage.
+2. For a cross-capability intent, select the matching atomic keyed `pkf.routes` entries that cover the task.
+   Form the global selected-route requirement union, verify that each requirement resolves to one authoritative leaf, and deduplicate repeated requirement IDs and leaf references.
+   Every route-declared leaf must contribute at least one selected-route requirement.
    Otherwise select the owning module and load only the task-specific leaves required to answer or implement the task.
-3. Materialize a selected pending leaf from source before relying on it.
+3. Treat an absent or incomplete selected leaf as a routing-coverage defect;
+   verify from source and repair the route before relying on it.
 4. Open only the paths and symbols in `source_symbols` and use targeted
    locators before reading a large file.
 
@@ -36,7 +38,8 @@ contradictory.
 
 Do not run broad search after activation until the route proves absent,
 incomplete, or inconsistent with source truth.
-Record the route, targets, commands, fallback status and reason, actual leaf/token telemetry, requirement coverage, and minimality status in the task report.
+Record the route, targets, commands, fallback status and reason, leaf counts, estimated route-content tokens and estimator, requirement coverage, and irredundancy status in the task report.
+Sufficient, deduplicated, and irredundant context is validated. Minimum-sufficient context remains the retrieval objective but is not mathematically proven. Irredundancy is relative to selected routes; route-to-task relevance remains an agent-selection concern.
 For activated keyed-route retrieval, include exactly one compact marker:
 
 ```text
@@ -60,7 +63,7 @@ the marker when PKF is bypassed.
 After changing code, update each leaf that owns a changed fact. Add
 `pkf.related` links instead of duplicating facts. If synchronization cannot
 finish, name the stale leaves. A normal route uses one module index and one or
-more task-required leaves; broad cross-capability tasks compose minimum-sufficient atomic routes.
+more task-required leaves; broad cross-capability tasks compose sufficient, deduplicated, and irredundant atomic routes without numeric ceilings.
 
 ## Closeout Protocol (MANDATORY)
 
@@ -103,8 +106,7 @@ the turn and report ambiguous pre-existing changes as `stale`.
   startup documents, workflow references, or indexes.
 - For `partial`, use returned leaves plus only module indexes named by
   `fallback_routes`. For `unmapped`, report the routing-coverage defect and use
-  exceptional maintenance. Materialize affected pending leaves and repair
-  deletes or renames there.
+  exceptional maintenance. Repair missing coverage, deletes, or renames there.
 - Update indexes only when ownership or routing changed.
 - Before validation, reconcile every turn-owned source and test path with each
   returned leaf's `source_symbols` and Edit Map so all declared evidence and

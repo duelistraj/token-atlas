@@ -19,6 +19,7 @@ from pkf_contract import (  # noqa: E402
     LEAF_MATERIALIZATION_FIELD,
     LEAF_MODULE_DOCS,
     LEAF_SOURCE_SYMBOLS_FIELD,
+    MODULE_OWNERSHIP_FIELD,
     MODULE_OWNERSHIP_ROOTS_FIELD,
     SHARED_DOCS,
 )
@@ -74,7 +75,14 @@ def module_fallbacks(repo: Path, knowledge: Path, unmatched: list[str]) -> tuple
         except PkfParseError as exc:
             raise RouteError(str(exc)) from exc
         pkf = metadata.get("pkf")
-        roots = pkf.get(MODULE_OWNERSHIP_ROOTS_FIELD, []) if isinstance(pkf, dict) else []
+        ownership_map = pkf.get(MODULE_OWNERSHIP_FIELD) if isinstance(pkf, dict) else None
+        roots = (
+            list(ownership_map)
+            if isinstance(ownership_map, dict)
+            else pkf.get(MODULE_OWNERSHIP_ROOTS_FIELD, [])
+            if isinstance(pkf, dict)
+            else []
+        )
         if not isinstance(roots, list):
             continue
         index_ref = index.relative_to(repo).as_posix()

@@ -35,8 +35,7 @@ class ContractConsistencyTests(unittest.TestCase):
     def test_contract_values_appear_in_docs_and_fixtures(self):
         corpus = self.read_corpus()
 
-        for threshold in TOKEN_THRESHOLDS.values():
-            self.assertIn(f"{threshold:,}", corpus)
+        self.assertTrue(all(value is None for value in TOKEN_THRESHOLDS.values()))
         self.assertIn(ESTIMATOR_FORMULA, corpus)
         self.assertIn(LEAF_SOURCE_SYMBOLS_FIELD, corpus)
         self.assertIn(CLOSEOUT_PROTOCOL_HEADING, corpus)
@@ -48,16 +47,25 @@ class ContractConsistencyTests(unittest.TestCase):
         self.assertEqual(RETRIEVAL_MODES, ("adaptive", "mandatory"))
         self.assertEqual(LEAF_MATERIALIZATION_MODES, ("complete", "pending"))
         self.assertEqual(LEGACY_CLOSEOUT_PHRASES, ("every user turn", "every final response"))
-        self.assertEqual(TOKEN_THRESHOLDS, {"startup": 2500, "leaf": 1500})
+        self.assertEqual(TOKEN_THRESHOLDS, {"startup": None, "leaf": None})
         self.assertIn(CROSS_ROUTE_REQUIREMENTS_FIELD, corpus)
         self.assertIn(CROSS_ROUTE_LOAD_COVERAGE_FIELD, corpus)
         for field in REQUIRED_FRONT_MATTER:
             self.assertRegex(corpus, rf"\b{re.escape(field)}\b")
 
-    def test_no_known_contradicting_thresholds(self):
-        corpus = self.read_corpus()
+    def test_current_runtime_has_no_numeric_context_ceiling(self):
+        current = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                ROOT / "README.md",
+                ROOT / "skills" / "token-atlas" / "SKILL.md",
+                ROOT / "skills" / "token-atlas" / "references" / "optimize.md",
+                ROOT / "skills" / "token-atlas" / "references" / "validation.md",
+            )
+        )
 
-        self.assertNotRegex(corpus, r"\b(4500|4,500|5000|5,000)\b")
+        self.assertNotRegex(current, r"\b(1,500|2,500|4,000|8,000)\b")
+        self.assertIn("without numeric ceilings", current)
 
     def test_current_contract_has_no_numeric_task_route_allowance(self):
         current = "\n".join(

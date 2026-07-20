@@ -43,7 +43,7 @@ Verify retrieval export behavior and JSONL integrity.
 - None for valid exports.
 - Invalid JSONL, missing required fields, unresolved relationship endpoints, or unsupported claims fail the fixture.
 
-## Token Thresholds
+## Token Measurements
 
 - Exports must not change default startup token cost when `retrieval_exports: off`.
 

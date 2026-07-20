@@ -14,11 +14,10 @@ Prefer incremental extraction. Update only affected PKF/OKF documents whenever p
 
 ## Extraction Mode
 
-- If `.ai/` was just initialized, perform hybrid extraction: materialize shared
-  knowledge and leaves owning public package, service, CLI, API, or primary UI
-  entry points; leave other skeleton leaves pending.
-- If adaptive retrieval selects a pending leaf, perform on-demand extraction for
-  that leaf only.
+- If `.ai/` was just initialized, perform complete initialization extraction:
+  materialize shared knowledge and every applicable leaf owning verified public
+  behavior, mutation entrypoints, and cross-capability contracts. Omit
+  nonapplicable leaf types instead of creating skeletons.
 - If `.ai/` exists and source changed, perform incremental extraction from the
   turn-owned changed paths or exceptional maintenance impact.
 - Perform full extraction only when explicitly requested or required by CI.
@@ -43,7 +42,8 @@ Every durable fact must be:
 - Stored in the narrowest authoritative document.
 - Traceable to an exact source path and symbol, plus a route, command, config key,
   or test where relevant.
-- Removed or marked `TODO` when no longer verifiable.
+- Removed when no longer verifiable. A sealed runtime must not carry unresolved
+  TODO facts.
 
 Use compact evidence labels. Do not paste large source snippets.
 
@@ -63,14 +63,15 @@ Use compact evidence labels. Do not paste large source snippets.
 5. Refresh metadata for affected docs. For a cross-path capability, use the narrowest common existing `resource` path, falling back to `.` while retaining exact evidence paths in the body.
 6. Update `ARCHITECTURE.md`, root and module routing, and every affected `pkf.loads` or `pkf.related` edge.
    Keep `pkf.related` empty on architecture and index surfaces.
-   Store verified cross-capability intents as narrow atomic root-index `pkf.routes` entries, each with explicit requirements, exact complete leaf loads, and per-leaf requirement coverage.
-   Broad tasks compose matching routes, deduplicate the combined leaves, and remove leaves without unique coverage.
+   Store verified cross-capability intents as narrow atomic root-index `pkf.routes` entries with complete `requirements`, exact complete leaf loads, and `load_coverage` metadata.
+   Inspect existing routes before assigning globally descriptive requirement IDs. Reuse the same authoritative leaf for an existing ID, allow one leaf to own several IDs, and split any requirement that would otherwise need multiple owners.
+   Broad tasks compose matching routes and deduplicate repeated requirement IDs and leaf references. Semantic vagueness and differently named duplicate requirements remain model-reviewed authoring concerns.
 7. Remove a superseded module directory only after every durable fact and manual note is accounted for and no reference targets it.
 8. Run validation after extraction.
 
-For hybrid extraction, stop after shared knowledge, routing, and public entry
-points are materialized. Do not scan unrelated implementation merely to replace
-pending markers.
+For complete initialization extraction, inspect the entire relevant source and
+test surface before sealing. Completeness concerns applicable durable behavior
+and routing knowledge, not a requirement to create every possible leaf type.
 
 ## Rules
 
@@ -82,8 +83,7 @@ pending markers.
 - Keep only current implementation facts in leaves. Put durable policies in
   `business_rules.md`, keep only still-relevant decisions in `decision_log.md`,
   and remove chronological feature summaries.
-- Use `source_symbols: {}` plus `- TODO: No source-backed facts.` for an empty
-  complete leaf. Use `pkf.materialization: pending`, `source_symbols: {}`, and
-  `- TODO: Pending source extraction.` for deferred knowledge; do not invent
-  placeholder symbols.
+- Every emitted leaf is `pkf.materialization: complete`, has non-empty resolving
+  `source_symbols`, and contains source-backed facts. Omit empty or deferred
+  leaves; do not invent placeholder facts or symbols.
 - Keep modules flat and derive their names from the target repository; never introduce a reusable prescribed vocabulary.

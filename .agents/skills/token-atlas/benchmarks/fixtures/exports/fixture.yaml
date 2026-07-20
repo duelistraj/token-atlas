@@ -50,7 +50,7 @@ forbidden_loads:
 expected_warnings:
   - Approximate token estimates if exact tokenization is unavailable.
 expected_errors: []
-token_thresholds:
+token_measurements:
   exports_do_not_change_startup_cost_when_off: true
 exit_behavior:
   off: 0

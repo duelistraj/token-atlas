@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Create a target repository's `.ai/` runtime and OKF knowledge skeleton when
-`.ai/PKF.md` is missing. Use deterministic scaffolding for mechanical files;
-keep capability boundaries and durable facts source-backed and model-reviewed.
+Create a complete target-repository `.ai/` runtime when `.ai/PKF.md` is missing.
+Initialization is a one-time installation lifecycle: derive repository knowledge,
+validate it end to end, and leave no deferred or placeholder knowledge.
 
 Do not run Token Atlas against its own maintenance repository.
 
@@ -17,18 +17,19 @@ python <skill-root>/scripts/pkf_scaffold.py inspect --path .
 python <skill-root>/scripts/pkf_scaffold.py create --path .
 ```
 
-`inspect` writes `.ai/.pkf-init.json` and prints only a compact summary. It
+`inspect` writes `.pkf-init.json` outside the runtime and prints only a compact summary. It
 never emits a full file inventory: each pass includes at most 40 candidate
 directories and three representative paths per candidate. When
 `inspection.truncated` is true, repeat inspection with targeted `--root`
 values before finalizing capabilities.
 
-Review the specification before `create`. Populate `capabilities` with flat,
-repository-derived capability IDs and their ownership roots:
+Review the schema-2 specification before `create`. Populate `capabilities` with
+flat repository-derived IDs, symbol-scoped ownership, and only applicable
+evidence-backed leaves:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "project": {"name": "<project>"},
   "technologies": [],
   "roots": {"source": [], "test": [], "config": [], "docs": []},
@@ -37,26 +38,38 @@ repository-derived capability IDs and their ownership roots:
     {
       "id": "<module>",
       "title": "<capability>",
-      "source_roots": ["<repository-relative-path>"]
+      "ownership": {
+        "<repository-relative-path>": ["<owned-symbol>"]
+      },
+      "leaves": [
+        {
+          "file": "<api.md|schema.md|business_rules.md|ui.md>",
+          "title": "<title>",
+          "description": "<description>",
+          "resource": "<resolving-source-path>",
+          "source_symbols": {"<path>": ["<symbol>"]},
+          "body": "<complete source-backed Markdown with Edit Map>"
+        }
+      ]
     }
   ]
 }
 ```
 
-The helper rejects path traversal, duplicate ownership roots, nested or invalid
-module IDs, and overwriting an existing runtime. On success it:
+The helper rejects path traversal, conflicting path-symbol ownership, unresolved
+symbols, nested or invalid module IDs, incomplete leaves, and overwriting an
+existing runtime. On success it:
 
-- Creates `PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, shared knowledge docs,
-  and one flat module skeleton per reviewed capability.
+- Creates complete runtime documents and one flat module per reviewed capability.
 - Embeds the adaptive retrieval and closeout protocols from packaged templates.
 - Augments `AGENTS.md` inside managed markers without replacing existing
   instructions.
 - Installs dependency-free route and validation helpers under `.ai/tools/` so
   routine closeout never needs to locate the installed skill.
-- Records machine-readable `pkf.ownership_roots` on each module index.
-- Marks every implementation leaf pending.
+- Records machine-readable symbol-scoped `pkf.ownership` on each module index.
+- Emits only applicable leaves and marks every emitted leaf complete.
 - Runs compact deterministic validation.
-- Removes `.ai/.pkf-init.json` unless `--keep-spec` is set.
+- Removes `.pkf-init.json` unless `--keep-spec` is set.
 
 Do not read or reproduce the template assets during normal initialization; the
 helper owns that mechanical context.
@@ -92,7 +105,7 @@ module names.
 
 ---
 
-## Hybrid Extraction
+## Complete Initialization Extraction
 
 After scaffolding:
 
@@ -103,8 +116,11 @@ After scaffolding:
    Separate leaves when ownership, evidence sets, or retrieval intents differ; do not impose a fixed per-capability leaf count.
 3. Record every verified cross-capability contract as a keyed entry under `pkf.routes` in `.ai/knowledge/INDEX.md`.
    Each atomic route represents one narrow intent and contains `intent`, a non-empty `triggers` list, exact `modules`, requirement IDs, exact complete leaf paths in `loads`, and a `load_coverage` mapping.
-   Every requirement must be covered and every leaf must be the exclusive provider of at least one requirement.
-   A broad task composes matching routes, deduplicates their leaves, and removes any leaf that no longer contributes unique coverage.
+   Inspect existing root-route metadata before assigning requirements. Use globally descriptive, non-empty kebab-case IDs and reuse an existing authoritative leaf whenever an ID already exists.
+   Every requirement ID must resolve to exactly one authoritative leaf across the root route catalog; one leaf may own several related requirements, and a requirement that needs multiple owners must be split into narrower IDs.
+   Every requirement must be covered and every route-declared leaf must contribute at least one requirement.
+   A broad task composes matching routes and deduplicates repeated requirement IDs and leaf references.
+   Avoid semantically broad, vague, or duplicate requirements, but treat that judgment as model-reviewed authoring quality rather than a deterministic validator capability.
 
    ```yaml
    requirements:
@@ -117,29 +133,24 @@ After scaffolding:
 
 4. Prefer the complete route combination with the fewest unique leaves.
    When alternatives use the same leaf count, prefer the lower estimated token cost, then the narrower source evidence.
-   Record actual counts as telemetry rather than treating them as an allowance or ceiling.
-5. Leave unrelated implementation details and genuinely deferred surfaces with
-   `pkf.materialization: pending`,
-   `source_symbols: {}`, and the exact body marker
-   `- TODO: Pending source extraction.`.
-6. Every materialized leaf must map repository-relative paths to exact symbols
+   Sufficient, deduplicated, and irredundant context is validated. Minimum-sufficient context remains the retrieval objective but is not mathematically proven.
+   Record leaf counts and estimated route-content tokens as telemetry rather than treating them as an allowance or ceiling.
+5. Omit nonapplicable knowledge leaves. Do not emit empty, pending, unknown, or
+   placeholder leaves merely to complete a fixed document set.
+6. Every emitted leaf must map repository-relative paths to exact symbols
    in `source_symbols` and include a targeted Edit Map. Public-behavior UI and
    business-rule leaves must inspect capability-local state/behavior helpers and
    focused tests; every source or test cited by the Edit Map must be included in
    `source_symbols`.
-7. A complete leaf with no source-backed facts uses
-   `pkf.materialization: complete` and
-   `- TODO: No source-backed facts.`.
-
-Pending leaves are materialized on demand when retrieval or semantic closeout
-selects them. Never inspect unrelated implementation merely to complete the
-initial knowledge inventory.
+7. Inspect the complete relevant public behavior, mutation entrypoint, ownership,
+   and cross-capability surface before sealing. Do not claim facts that source
+   evidence cannot verify.
 
 ## Validation And Optional Work
 
-The scaffold helper performs the initial mechanical validation. After hybrid
-extraction, run exactly one explicit final validation at the selected
-strictness. Author and reconcile all leaf metadata before this final invocation.
+The scaffold helper performs mechanical validation. After extraction, run strict
+validation, repair every finding, and revalidate until the complete runtime
+passes. A failed draft remains resumable and must not be treated as installed.
 
 Run affected validation again only if a subsequent optimization changes PKF
 files. In the default core profile:
@@ -183,6 +194,7 @@ exact repository-local commands embedded by the scaffold.
 - Public-behavior implementation helpers and focused tests route directly to
   their materialized leaves.
 - Changed-route simulation covers every newly materialized route.
-- Deferred leaves are explicitly pending.
+- No generated Markdown contains TODO, pending materialization, unresolved
+  metadata, or placeholder knowledge.
 - One final post-extraction validation completes.
 - No application source or test file is modified.

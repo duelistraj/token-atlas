@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://token-atlas.local/schemas/benchmark-spec.schema.json",
+  "type": "object",
+  "required": ["schema_version", "id", "retrieval"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"},
+    "retrieval": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/task"}
+    },
+    "mutation": {"$ref": "#/$defs/mutation"},
+    "post_mutation": {"$ref": "#/$defs/task"},
+    "closeout": {"$ref": "#/$defs/closeout"},
+    "workspace_links": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "task": {
+      "type": "object",
+      "required": ["id", "prompt", "expected_answers"],
+      "properties": {
+        "id": {"type": "string"},
+        "prompt": {"type": "string", "minLength": 1},
+        "retrieval_mode": {"enum": ["local", "cross_capability"]},
+        "expected_answers": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"type": "boolean"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "mutation": {
+      "type": "object",
+      "required": ["id", "prompt", "expected_paths", "test_command"],
+      "properties": {
+        "id": {"type": "string"},
+        "prompt": {"type": "string", "minLength": 1},
+        "expected_paths": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "test_command": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "closeout": {
+      "type": "object",
+      "required": ["id", "control_prompt", "pkf_prompt", "patch", "expected_paths", "test_command"],
+      "properties": {
+        "id": {"type": "string"},
+        "control_prompt": {"type": "string", "minLength": 1},
+        "pkf_prompt": {"type": "string", "minLength": 1},
+        "patch": {"type": "string", "minLength": 1},
+        "expected_paths": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "test_command": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -34,8 +34,8 @@ expected_warnings: []
 expected_errors:
   - Stale reference to deleted evidence path src/backend/routes/legacyOrders.ts.
   - Removed route getLegacyOrderRoute still cited as current.
-token_thresholds:
-  token_report_required_on_failure: true
+token_measurements:
+  report_required_on_failure: true
 exit_behavior:
   advisory: 0
   ci: 1

@@ -37,7 +37,7 @@ forbidden_loads:
   - unrelated module docs
 expected_warnings: []
 expected_errors: []
-token_thresholds:
-  leaf_warn_above: 1500
+token_measurements:
+  leaves: observed
 exit_behavior:
   ci: 0

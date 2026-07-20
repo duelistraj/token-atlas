@@ -1,0 +1,4193 @@
+{
+  "arm_definitions": {
+    "pkf": "PKF installed with adaptive retrieval and repository-local semantic closeout; an individual task may bypass retrieval.",
+    "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
+    "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only."
+  },
+  "artifact_manifest_path": "../manifest.json",
+  "benchmark": "token-atlas-adaptive-attribution",
+  "environment": {
+    "codex_version": "codex-cli 0.144.5",
+    "model": "gpt-5.6-luna",
+    "reasoning_effort": "high",
+    "repetitions": 1,
+    "scheduled_calls": 13
+  },
+  "errors": [
+    "repetition 1 pkf/initialize: initialized PKF failed strict validation",
+    "repetition 1 pkf/initialize: initialization read opaque helper source: .ai/tools",
+    "repetition 1 pkf/note_task_links: configured cross-capability retrieval used fallback discovery",
+    "repetition 1 pkf/favorite_visibility_mutation: PKF failed validation after mutation",
+    "repetition 1 pkf/favorite_visibility_mutation: mapped mutation closeout used fallback discovery",
+    "repetition 1 pkf/favorite_visibility_mutation: mapped mutation closeout read paths outside returned leaves: frontend/node_modules, frontend/src/notes/noteSectionState.test.ts, frontend/src/notes/noteSectionState.ts, frontend/vite.config.ts",
+    "repetition 1 pkf/isolated_closeout: isolated closeout left PKF invalid",
+    "repetition 1 pkf/isolated_closeout: mapped isolated closeout read paths outside returned leaves: frontend/src/notes/noteSectionState.test.ts, frontend/src/notes/noteSectionState.ts"
+  ],
+  "evaluation_kind": "real_repository_performance",
+  "methodology": {
+    "ambient_user_config": "ignored; authentication copied only",
+    "arm_definitions": {
+      "pkf": "PKF installed with adaptive retrieval and repository-local semantic closeout; an individual task may bypass retrieval.",
+      "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
+      "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only."
+    },
+    "arm_order": "three-arm Latin square and alternating two-arm phases",
+    "arms": [
+      "source_only",
+      "probe_only",
+      "pkf"
+    ],
+    "initialization_objective": "maximize verified public-behavior and routing coverage while enforcing one final validation, opaque helpers, and bounded atomic routes; no historical cost target",
+    "performance_interpretation": "phase-specific advisory targets remain separate from blocking quality gates; closeout is reported as a required maintenance premium",
+    "phase_cost_accounting": "probe-only mutation measures implementation, isolated PKF closeout measures closeout, and integrated PKF mutation remains the observed combined total",
+    "raw_traces_published": false,
+    "task_ids": [
+      "boards_add_task",
+      "favorite_visibility_after_change",
+      "favorite_visibility_mutation",
+      "initialize",
+      "isolated_closeout",
+      "note_task_links"
+    ],
+    "trace_accounting": "ordered tool events segmented into implementation, first valid route call, and post-route closeout; token and duration usage remain call-level"
+  },
+  "metrics": {
+    "activated_pkf_knowledge_savings": {
+      "cached_input_tokens": -14336.0,
+      "input_tokens": -21919.0,
+      "non_cached_input_tokens": -7583.0,
+      "output_tokens": -2445.0,
+      "paired_count": 1
+    },
+    "break_even_activated_tasks": {
+      "input_tokens": null,
+      "non_cached_input_tokens": null
+    },
+    "by_task": {
+      "boards_add_task": {
+        "pkf": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 23040.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 34049.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 2.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 0.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 48427.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 4.0,
+          "non_cached_input_tokens": 25387.0,
+          "output_tokens": 1057.0,
+          "read_or_search_command_count": 2.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 1,
+            "not_applicable": 0
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 2.0,
+          "tool_input_chars": 280.0,
+          "tool_output_chars": 68814.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 2.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 2.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 2.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 47360.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 31034.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 1.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 0.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 69820.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 36.0,
+          "non_cached_input_tokens": 22460.0,
+          "output_tokens": 983.0,
+          "read_or_search_command_count": 3.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 363.0,
+          "tool_output_chars": 62317.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 1.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 3.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 3.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        },
+        "source_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 50432.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 41554.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 3.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 0.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 83719.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 12.0,
+          "non_cached_input_tokens": 33287.0,
+          "output_tokens": 1127.0,
+          "read_or_search_command_count": 3.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 641.0,
+          "tool_output_chars": 79531.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 3.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 3.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 3.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        }
+      },
+      "favorite_visibility_after_change": {
+        "pkf": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 101120.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 51471.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 6.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 0.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 129980.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 70.0,
+          "non_cached_input_tokens": 28860.0,
+          "output_tokens": 1849.0,
+          "read_or_search_command_count": 4.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 1,
+            "not_applicable": 0
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 4.0,
+          "tool_input_chars": 936.0,
+          "tool_output_chars": 174562.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 6.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 4.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 4.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 28160.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 57331.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 3.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 1.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 50542.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 89.0,
+          "non_cached_input_tokens": 22382.0,
+          "output_tokens": 1030.0,
+          "read_or_search_command_count": 2.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 2.0,
+          "tool_input_chars": 375.0,
+          "tool_output_chars": 35708.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 3.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 1.0,
+              "fallback_rate": 1.0,
+              "read_or_search_command_count": 2.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 2.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        }
+      },
+      "favorite_visibility_mutation": {
+        "pkf": {
+          "ai_read_or_search_command_count": 1.0,
+          "cached_input_tokens": 516608.0,
+          "closeout_unexpected_read_path_count": 4.0,
+          "closeout_validation_call_count": 1.0,
+          "correctness_rate": null,
+          "duration_ms": 171487.0,
+          "explicit_ai_read_path_count": 1.0,
+          "explicit_read_path_count": 8.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 1.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 1,
+            "not_run": 0,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 554539.0,
+          "mentioned_ai_path_count": 3.0,
+          "mentioned_path_count": 51.0,
+          "non_cached_input_tokens": 37931.0,
+          "output_tokens": 6774.0,
+          "read_or_search_command_count": 10.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 1.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 20.0,
+          "tool_input_chars": 2752.0,
+          "tool_output_chars": 76967.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 1.0,
+              "explicit_read_path_count": 5.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 1.0,
+              "fallback_rate": 1.0,
+              "read_or_search_command_count": 5.0,
+              "routed_document_count": 1.0,
+              "tool_call_count": 13.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 5.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 5.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 6.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 1.0
+            }
+          }
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 364544.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": null,
+          "duration_ms": 126053.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 6.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 2.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 396895.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 29.0,
+          "non_cached_input_tokens": 32351.0,
+          "output_tokens": 5001.0,
+          "read_or_search_command_count": 4.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 12.0,
+          "tool_input_chars": 2130.0,
+          "tool_output_chars": 60828.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 6.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 2.0,
+              "fallback_rate": 1.0,
+              "read_or_search_command_count": 4.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 12.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        }
+      },
+      "initialize": {
+        "pkf": {
+          "ai_read_or_search_command_count": 13.0,
+          "cached_input_tokens": 4500992.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": null,
+          "duration_ms": 1184882.0,
+          "explicit_ai_read_path_count": 17.0,
+          "explicit_read_path_count": 56.0,
+          "explicit_skill_read_path_count": 1.0,
+          "fallback_invocation_count": 1.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 1.0,
+          "initialization_validation_call_count": 1.0,
+          "input_tokens": 4661416.0,
+          "mentioned_ai_path_count": 37.0,
+          "mentioned_path_count": 230.0,
+          "non_cached_input_tokens": 160424.0,
+          "output_tokens": 55160.0,
+          "read_or_search_command_count": 21.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 10.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 56.0,
+          "tool_input_chars": 14829.0,
+          "tool_output_chars": 292044.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 17.0,
+              "explicit_read_path_count": 56.0,
+              "explicit_skill_read_path_count": 1.0,
+              "fallback_invocation_count": 1.0,
+              "fallback_rate": 1.0,
+              "read_or_search_command_count": 21.0,
+              "routed_document_count": 10.0,
+              "tool_call_count": 56.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        }
+      },
+      "isolated_closeout": {
+        "pkf": {
+          "ai_read_or_search_command_count": 1.0,
+          "cached_input_tokens": 90368.0,
+          "closeout_unexpected_read_path_count": 2.0,
+          "closeout_validation_call_count": 1.0,
+          "correctness_rate": null,
+          "duration_ms": 57073.0,
+          "explicit_ai_read_path_count": 1.0,
+          "explicit_read_path_count": 3.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 0.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 1,
+            "not_run": 0,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 102078.0,
+          "mentioned_ai_path_count": 3.0,
+          "mentioned_path_count": 12.0,
+          "non_cached_input_tokens": 11710.0,
+          "output_tokens": 1829.0,
+          "read_or_search_command_count": 3.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 1.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 6.0,
+          "tool_input_chars": 1061.0,
+          "tool_output_chars": 10823.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 1.0,
+              "explicit_read_path_count": 3.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 3.0,
+              "routed_document_count": 1.0,
+              "tool_call_count": 5.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 1.0
+            }
+          }
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 4864.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": null,
+          "duration_ms": 21940.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 0.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 0.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 11005.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 0.0,
+          "non_cached_input_tokens": 6141.0,
+          "output_tokens": 66.0,
+          "read_or_search_command_count": 0.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 0.0,
+          "tool_input_chars": 0.0,
+          "tool_output_chars": 0.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        }
+      },
+      "note_task_links": {
+        "pkf": {
+          "ai_read_or_search_command_count": 5.0,
+          "cached_input_tokens": 296960.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": 1.0,
+          "cross_conflicting_requirement_count": 0.0,
+          "cross_coverage_statuses": {
+            "complete": 1,
+            "incomplete": 0,
+            "unknown": 0
+          },
+          "cross_covered_requirement_count": 3.0,
+          "cross_estimated_tokens": 2867.0,
+          "cross_fallback_rate": 0.0,
+          "cross_irredundancy_statuses": {
+            "invalid": 0,
+            "irredundant": 1,
+            "redundant": 0,
+            "unknown": 0
+          },
+          "cross_redundant_leaf_count": 0.0,
+          "cross_requirement_count": 3.0,
+          "cross_route_count": 1.0,
+          "cross_uncovered_requirement_count": 0.0,
+          "cross_unique_leaf_count": 3.0,
+          "duration_ms": 137529.0,
+          "explicit_ai_read_path_count": 10.0,
+          "explicit_read_path_count": 19.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 1.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 366529.0,
+          "mentioned_ai_path_count": 26.0,
+          "mentioned_path_count": 93.0,
+          "non_cached_input_tokens": 69569.0,
+          "output_tokens": 5649.0,
+          "read_or_search_command_count": 12.0,
+          "retrieval_decisions": {
+            "activated": 1,
+            "bypassed": 0,
+            "not_applicable": 0
+          },
+          "routed_document_count": 3.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 12.0,
+          "tool_input_chars": 5098.0,
+          "tool_output_chars": 166902.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 10.0,
+              "explicit_read_path_count": 19.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 1.0,
+              "fallback_rate": 1.0,
+              "read_or_search_command_count": 12.0,
+              "routed_document_count": 3.0,
+              "tool_call_count": 12.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 282624.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 89239.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 5.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 0.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 344610.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 33.0,
+          "non_cached_input_tokens": 61986.0,
+          "output_tokens": 3204.0,
+          "read_or_search_command_count": 8.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 8.0,
+          "tool_input_chars": 1559.0,
+          "tool_output_chars": 188406.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 5.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 8.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 8.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        },
+        "source_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 391936.0,
+          "closeout_unexpected_read_path_count": 0.0,
+          "closeout_validation_call_count": 0.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 84280.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 9.0,
+          "explicit_skill_read_path_count": 0.0,
+          "fallback_invocation_count": 1.0,
+          "initial_route_statuses": {
+            "invalid": 0,
+            "mapped": 0,
+            "not_run": 1,
+            "partial": 0,
+            "unmapped": 0
+          },
+          "initialization_helper_source_read_count": 0.0,
+          "initialization_validation_call_count": 0.0,
+          "input_tokens": 471838.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 174.0,
+          "non_cached_input_tokens": 79902.0,
+          "output_tokens": 3001.0,
+          "read_or_search_command_count": 8.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 8.0,
+          "tool_input_chars": 2901.0,
+          "tool_output_chars": 265495.0,
+          "trace_segments": {
+            "closeout": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            },
+            "implementation": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 9.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 1.0,
+              "fallback_rate": 1.0,
+              "read_or_search_command_count": 8.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 8.0
+            },
+            "routing": {
+              "explicit_ai_read_path_count": 0.0,
+              "explicit_read_path_count": 0.0,
+              "explicit_skill_read_path_count": 0.0,
+              "fallback_invocation_count": 0.0,
+              "fallback_rate": 0.0,
+              "read_or_search_command_count": 0.0,
+              "routed_document_count": 0.0,
+              "tool_call_count": 0.0
+            }
+          }
+        }
+      }
+    },
+    "bypassed_pkf_environment_deltas": {
+      "boards_add_task": {
+        "cached_input_tokens": -24320.0,
+        "input_tokens": -21393.0,
+        "non_cached_input_tokens": 2927.0,
+        "output_tokens": 74.0,
+        "paired_count": 1
+      },
+      "favorite_visibility_after_change": {
+        "cached_input_tokens": 72960.0,
+        "input_tokens": 79438.0,
+        "non_cached_input_tokens": 6478.0,
+        "output_tokens": 819.0,
+        "paired_count": 1
+      }
+    },
+    "comparisons": {
+      "boards_add_task": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 47360.0,
+            "candidate": 23040.0,
+            "delta": -24320.0,
+            "percent": -51.35135135135135
+          },
+          "duration_ms": {
+            "baseline": 31034.0,
+            "candidate": 34049.0,
+            "delta": 3015.0,
+            "percent": 9.71515112457305
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 1.0,
+            "candidate": 2.0,
+            "delta": 1.0,
+            "percent": 100.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "fallback_invocation_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 69820.0,
+            "candidate": 48427.0,
+            "delta": -21393.0,
+            "percent": -30.640217702663993
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 36.0,
+            "candidate": 4.0,
+            "delta": -32.0,
+            "percent": -88.88888888888889
+          },
+          "non_cached_input_tokens": {
+            "baseline": 22460.0,
+            "candidate": 25387.0,
+            "delta": 2927.0,
+            "percent": 13.032056990204808
+          },
+          "output_tokens": {
+            "baseline": 983.0,
+            "candidate": 1057.0,
+            "delta": 74.0,
+            "percent": 7.527975584944049
+          },
+          "read_or_search_command_count": {
+            "baseline": 3.0,
+            "candidate": 2.0,
+            "delta": -1.0,
+            "percent": -33.33333333333333
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 3.0,
+            "candidate": 2.0,
+            "delta": -1.0,
+            "percent": -33.33333333333333
+          },
+          "tool_input_chars": {
+            "baseline": 363.0,
+            "candidate": 280.0,
+            "delta": -83.0,
+            "percent": -22.865013774104685
+          },
+          "tool_output_chars": {
+            "baseline": 62317.0,
+            "candidate": 68814.0,
+            "delta": 6497.0,
+            "percent": 10.425726527271852
+          }
+        },
+        "source_vs_probe": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 50432.0,
+            "candidate": 47360.0,
+            "delta": -3072.0,
+            "percent": -6.091370558375635
+          },
+          "duration_ms": {
+            "baseline": 41554.0,
+            "candidate": 31034.0,
+            "delta": -10520.0,
+            "percent": -25.31645569620253
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 3.0,
+            "candidate": 1.0,
+            "delta": -2.0,
+            "percent": -66.66666666666666
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "fallback_invocation_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 83719.0,
+            "candidate": 69820.0,
+            "delta": -13899.0,
+            "percent": -16.601966100885104
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 12.0,
+            "candidate": 36.0,
+            "delta": 24.0,
+            "percent": 200.0
+          },
+          "non_cached_input_tokens": {
+            "baseline": 33287.0,
+            "candidate": 22460.0,
+            "delta": -10827.0,
+            "percent": -32.52621143389311
+          },
+          "output_tokens": {
+            "baseline": 1127.0,
+            "candidate": 983.0,
+            "delta": -144.0,
+            "percent": -12.777284826974267
+          },
+          "read_or_search_command_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "tool_input_chars": {
+            "baseline": 641.0,
+            "candidate": 363.0,
+            "delta": -278.0,
+            "percent": -43.36973478939157
+          },
+          "tool_output_chars": {
+            "baseline": 79531.0,
+            "candidate": 62317.0,
+            "delta": -17214.0,
+            "percent": -21.64439023776892
+          }
+        }
+      },
+      "favorite_visibility_after_change": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 28160.0,
+            "candidate": 101120.0,
+            "delta": 72960.0,
+            "percent": 259.09090909090907
+          },
+          "duration_ms": {
+            "baseline": 57331.0,
+            "candidate": 51471.0,
+            "delta": -5860.0,
+            "percent": -10.221346217578622
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 3.0,
+            "candidate": 6.0,
+            "delta": 3.0,
+            "percent": 100.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "fallback_invocation_count": {
+            "baseline": 1.0,
+            "candidate": 0.0,
+            "delta": -1.0,
+            "percent": -100.0
+          },
+          "input_tokens": {
+            "baseline": 50542.0,
+            "candidate": 129980.0,
+            "delta": 79438.0,
+            "percent": 157.17225277986623
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 89.0,
+            "candidate": 70.0,
+            "delta": -19.0,
+            "percent": -21.34831460674157
+          },
+          "non_cached_input_tokens": {
+            "baseline": 22382.0,
+            "candidate": 28860.0,
+            "delta": 6478.0,
+            "percent": 28.942900545080867
+          },
+          "output_tokens": {
+            "baseline": 1030.0,
+            "candidate": 1849.0,
+            "delta": 819.0,
+            "percent": 79.51456310679612
+          },
+          "read_or_search_command_count": {
+            "baseline": 2.0,
+            "candidate": 4.0,
+            "delta": 2.0,
+            "percent": 100.0
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 2.0,
+            "candidate": 4.0,
+            "delta": 2.0,
+            "percent": 100.0
+          },
+          "tool_input_chars": {
+            "baseline": 375.0,
+            "candidate": 936.0,
+            "delta": 561.0,
+            "percent": 149.6
+          },
+          "tool_output_chars": {
+            "baseline": 35708.0,
+            "candidate": 174562.0,
+            "delta": 138854.0,
+            "percent": 388.8596392965162
+          }
+        }
+      },
+      "favorite_visibility_mutation": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "delta": 1.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 364544.0,
+            "candidate": 516608.0,
+            "delta": 152064.0,
+            "percent": 41.71348314606742
+          },
+          "duration_ms": {
+            "baseline": 126053.0,
+            "candidate": 171487.0,
+            "delta": 45434.0,
+            "percent": 36.04356897495498
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "delta": 1.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 6.0,
+            "candidate": 8.0,
+            "delta": 2.0,
+            "percent": 33.33333333333333
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "fallback_invocation_count": {
+            "baseline": 2.0,
+            "candidate": 1.0,
+            "delta": -1.0,
+            "percent": -50.0
+          },
+          "input_tokens": {
+            "baseline": 396895.0,
+            "candidate": 554539.0,
+            "delta": 157644.0,
+            "percent": 39.71932123105607
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 3.0,
+            "delta": 3.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 29.0,
+            "candidate": 51.0,
+            "delta": 22.0,
+            "percent": 75.86206896551724
+          },
+          "non_cached_input_tokens": {
+            "baseline": 32351.0,
+            "candidate": 37931.0,
+            "delta": 5580.0,
+            "percent": 17.248307625730273
+          },
+          "output_tokens": {
+            "baseline": 5001.0,
+            "candidate": 6774.0,
+            "delta": 1773.0,
+            "percent": 35.45290941811638
+          },
+          "read_or_search_command_count": {
+            "baseline": 4.0,
+            "candidate": 10.0,
+            "delta": 6.0,
+            "percent": 150.0
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "delta": 1.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 12.0,
+            "candidate": 20.0,
+            "delta": 8.0,
+            "percent": 66.66666666666666
+          },
+          "tool_input_chars": {
+            "baseline": 2130.0,
+            "candidate": 2752.0,
+            "delta": 622.0,
+            "percent": 29.201877934272304
+          },
+          "tool_output_chars": {
+            "baseline": 60828.0,
+            "candidate": 76967.0,
+            "delta": 16139.0,
+            "percent": 26.53218912343
+          }
+        }
+      },
+      "initialize": {},
+      "isolated_closeout": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "delta": 1.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 4864.0,
+            "candidate": 90368.0,
+            "delta": 85504.0,
+            "percent": 1757.8947368421052
+          },
+          "duration_ms": {
+            "baseline": 21940.0,
+            "candidate": 57073.0,
+            "delta": 35133.0,
+            "percent": 160.13217866909756
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "delta": 1.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 3.0,
+            "delta": 3.0,
+            "percent": null
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "fallback_invocation_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 11005.0,
+            "candidate": 102078.0,
+            "delta": 91073.0,
+            "percent": 827.5601999091322
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 3.0,
+            "delta": 3.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 0.0,
+            "candidate": 12.0,
+            "delta": 12.0,
+            "percent": null
+          },
+          "non_cached_input_tokens": {
+            "baseline": 6141.0,
+            "candidate": 11710.0,
+            "delta": 5569.0,
+            "percent": 90.6855560983553
+          },
+          "output_tokens": {
+            "baseline": 66.0,
+            "candidate": 1829.0,
+            "delta": 1763.0,
+            "percent": 2671.212121212121
+          },
+          "read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 3.0,
+            "delta": 3.0,
+            "percent": null
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "delta": 1.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 0.0,
+            "candidate": 6.0,
+            "delta": 6.0,
+            "percent": null
+          },
+          "tool_input_chars": {
+            "baseline": 0.0,
+            "candidate": 1061.0,
+            "delta": 1061.0,
+            "percent": null
+          },
+          "tool_output_chars": {
+            "baseline": 0.0,
+            "candidate": 10823.0,
+            "delta": 10823.0,
+            "percent": null
+          }
+        }
+      },
+      "note_task_links": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 5.0,
+            "delta": 5.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 282624.0,
+            "candidate": 296960.0,
+            "delta": 14336.0,
+            "percent": 5.072463768115942
+          },
+          "duration_ms": {
+            "baseline": 89239.0,
+            "candidate": 137529.0,
+            "delta": 48290.0,
+            "percent": 54.11311198018803
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 10.0,
+            "delta": 10.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 5.0,
+            "candidate": 19.0,
+            "delta": 14.0,
+            "percent": 280.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "fallback_invocation_count": {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "delta": 1.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 344610.0,
+            "candidate": 366529.0,
+            "delta": 21919.0,
+            "percent": 6.360523490322394
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 26.0,
+            "delta": 26.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 33.0,
+            "candidate": 93.0,
+            "delta": 60.0,
+            "percent": 181.8181818181818
+          },
+          "non_cached_input_tokens": {
+            "baseline": 61986.0,
+            "candidate": 69569.0,
+            "delta": 7583.0,
+            "percent": 12.233407543638886
+          },
+          "output_tokens": {
+            "baseline": 3204.0,
+            "candidate": 5649.0,
+            "delta": 2445.0,
+            "percent": 76.31086142322097
+          },
+          "read_or_search_command_count": {
+            "baseline": 8.0,
+            "candidate": 12.0,
+            "delta": 4.0,
+            "percent": 50.0
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 3.0,
+            "delta": 3.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 8.0,
+            "candidate": 12.0,
+            "delta": 4.0,
+            "percent": 50.0
+          },
+          "tool_input_chars": {
+            "baseline": 1559.0,
+            "candidate": 5098.0,
+            "delta": 3539.0,
+            "percent": 227.0044900577293
+          },
+          "tool_output_chars": {
+            "baseline": 188406.0,
+            "candidate": 166902.0,
+            "delta": -21504.0,
+            "percent": -11.413649246839272
+          }
+        },
+        "source_vs_probe": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 391936.0,
+            "candidate": 282624.0,
+            "delta": -109312.0,
+            "percent": -27.890267798824297
+          },
+          "duration_ms": {
+            "baseline": 84280.0,
+            "candidate": 89239.0,
+            "delta": 4959.0,
+            "percent": 5.883958234456573
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 9.0,
+            "candidate": 5.0,
+            "delta": -4.0,
+            "percent": -44.44444444444444
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "fallback_invocation_count": {
+            "baseline": 1.0,
+            "candidate": 0.0,
+            "delta": -1.0,
+            "percent": -100.0
+          },
+          "input_tokens": {
+            "baseline": 471838.0,
+            "candidate": 344610.0,
+            "delta": -127228.0,
+            "percent": -26.964339455491082
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 174.0,
+            "candidate": 33.0,
+            "delta": -141.0,
+            "percent": -81.03448275862068
+          },
+          "non_cached_input_tokens": {
+            "baseline": 79902.0,
+            "candidate": 61986.0,
+            "delta": -17916.0,
+            "percent": -22.422467522715326
+          },
+          "output_tokens": {
+            "baseline": 3001.0,
+            "candidate": 3204.0,
+            "delta": 203.0,
+            "percent": 6.764411862712429
+          },
+          "read_or_search_command_count": {
+            "baseline": 8.0,
+            "candidate": 8.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 8.0,
+            "candidate": 8.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "tool_input_chars": {
+            "baseline": 2901.0,
+            "candidate": 1559.0,
+            "delta": -1342.0,
+            "percent": -46.2599103757325
+          },
+          "tool_output_chars": {
+            "baseline": 265495.0,
+            "candidate": 188406.0,
+            "delta": -77089.0,
+            "percent": -29.035951712838283
+          }
+        }
+      }
+    },
+    "lifecycle_phase_cost_summary": {
+      "closeout": {
+        "ai_read_or_search_command_count": 1.0,
+        "cached_input_tokens": 90368.0,
+        "duration_ms": 57073.0,
+        "explicit_ai_read_path_count": 1.0,
+        "explicit_read_path_count": 3.0,
+        "explicit_skill_read_path_count": 0.0,
+        "fallback_invocation_count": 0.0,
+        "input_tokens": 102078.0,
+        "mentioned_ai_path_count": 3.0,
+        "mentioned_path_count": 12.0,
+        "non_cached_input_tokens": 11710.0,
+        "output_tokens": 1829.0,
+        "read_or_search_command_count": 3.0,
+        "routed_document_count": 1.0,
+        "searched_root_count": 0.0,
+        "tool_call_count": 6.0,
+        "tool_input_chars": 1061.0,
+        "tool_output_chars": 10823.0
+      },
+      "closeout_control": {
+        "ai_read_or_search_command_count": 0.0,
+        "cached_input_tokens": 4864.0,
+        "duration_ms": 21940.0,
+        "explicit_ai_read_path_count": 0.0,
+        "explicit_read_path_count": 0.0,
+        "explicit_skill_read_path_count": 0.0,
+        "fallback_invocation_count": 0.0,
+        "input_tokens": 11005.0,
+        "mentioned_ai_path_count": 0.0,
+        "mentioned_path_count": 0.0,
+        "non_cached_input_tokens": 6141.0,
+        "output_tokens": 66.0,
+        "read_or_search_command_count": 0.0,
+        "routed_document_count": 0.0,
+        "searched_root_count": 0.0,
+        "tool_call_count": 0.0,
+        "tool_input_chars": 0.0,
+        "tool_output_chars": 0.0
+      },
+      "closeout_incremental": {
+        "ai_read_or_search_command_count": 1.0,
+        "cached_input_tokens": 85504.0,
+        "duration_ms": 35133.0,
+        "explicit_ai_read_path_count": 1.0,
+        "explicit_read_path_count": 3.0,
+        "explicit_skill_read_path_count": 0.0,
+        "fallback_invocation_count": 0.0,
+        "input_tokens": 91073.0,
+        "mentioned_ai_path_count": 3.0,
+        "mentioned_path_count": 12.0,
+        "non_cached_input_tokens": 5569.0,
+        "output_tokens": 1763.0,
+        "read_or_search_command_count": 3.0,
+        "routed_document_count": 1.0,
+        "searched_root_count": 0.0,
+        "tool_call_count": 6.0,
+        "tool_input_chars": 1061.0,
+        "tool_output_chars": 10823.0
+      },
+      "composed_probe_plus_closeout": {
+        "ai_read_or_search_command_count": 1.0,
+        "cached_input_tokens": 454912.0,
+        "duration_ms": 183126.0,
+        "explicit_ai_read_path_count": 1.0,
+        "explicit_read_path_count": 9.0,
+        "explicit_skill_read_path_count": 0.0,
+        "fallback_invocation_count": 2.0,
+        "input_tokens": 498973.0,
+        "mentioned_ai_path_count": 3.0,
+        "mentioned_path_count": 41.0,
+        "non_cached_input_tokens": 44061.0,
+        "output_tokens": 6830.0,
+        "read_or_search_command_count": 7.0,
+        "routed_document_count": 1.0,
+        "searched_root_count": 0.0,
+        "tool_call_count": 18.0,
+        "tool_input_chars": 3191.0,
+        "tool_output_chars": 71651.0
+      },
+      "implementation": {
+        "ai_read_or_search_command_count": 0.0,
+        "cached_input_tokens": 364544.0,
+        "duration_ms": 126053.0,
+        "explicit_ai_read_path_count": 0.0,
+        "explicit_read_path_count": 6.0,
+        "explicit_skill_read_path_count": 0.0,
+        "fallback_invocation_count": 2.0,
+        "input_tokens": 396895.0,
+        "mentioned_ai_path_count": 0.0,
+        "mentioned_path_count": 29.0,
+        "non_cached_input_tokens": 32351.0,
+        "output_tokens": 5001.0,
+        "read_or_search_command_count": 4.0,
+        "routed_document_count": 0.0,
+        "searched_root_count": 0.0,
+        "tool_call_count": 12.0,
+        "tool_input_chars": 2130.0,
+        "tool_output_chars": 60828.0
+      },
+      "integrated_observed": {
+        "ai_read_or_search_command_count": 1.0,
+        "cached_input_tokens": 516608.0,
+        "duration_ms": 171487.0,
+        "explicit_ai_read_path_count": 1.0,
+        "explicit_read_path_count": 8.0,
+        "explicit_skill_read_path_count": 0.0,
+        "fallback_invocation_count": 1.0,
+        "input_tokens": 554539.0,
+        "mentioned_ai_path_count": 3.0,
+        "mentioned_path_count": 51.0,
+        "non_cached_input_tokens": 37931.0,
+        "output_tokens": 6774.0,
+        "read_or_search_command_count": 10.0,
+        "routed_document_count": 1.0,
+        "searched_root_count": 0.0,
+        "tool_call_count": 20.0,
+        "tool_input_chars": 2752.0,
+        "tool_output_chars": 76967.0
+      }
+    },
+    "lifecycle_phase_costs_by_repetition": [
+      {
+        "closeout": {
+          "ai_read_or_search_command_count": 1,
+          "cached_input_tokens": 90368,
+          "duration_ms": 57073,
+          "explicit_ai_read_path_count": 1,
+          "explicit_read_path_count": 3,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "input_tokens": 102078,
+          "mentioned_ai_path_count": 3,
+          "mentioned_path_count": 12,
+          "non_cached_input_tokens": 11710,
+          "output_tokens": 1829,
+          "read_or_search_command_count": 3,
+          "routed_document_count": 1,
+          "searched_root_count": 0,
+          "tool_call_count": 6,
+          "tool_input_chars": 1061,
+          "tool_output_chars": 10823
+        },
+        "closeout_control": {
+          "ai_read_or_search_command_count": 0,
+          "cached_input_tokens": 4864,
+          "duration_ms": 21940,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "input_tokens": 11005,
+          "mentioned_ai_path_count": 0,
+          "mentioned_path_count": 0,
+          "non_cached_input_tokens": 6141,
+          "output_tokens": 66,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "closeout_incremental": {
+          "ai_read_or_search_command_count": 1,
+          "cached_input_tokens": 85504,
+          "duration_ms": 35133,
+          "explicit_ai_read_path_count": 1,
+          "explicit_read_path_count": 3,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "input_tokens": 91073,
+          "mentioned_ai_path_count": 3,
+          "mentioned_path_count": 12,
+          "non_cached_input_tokens": 5569,
+          "output_tokens": 1763,
+          "read_or_search_command_count": 3,
+          "routed_document_count": 1,
+          "searched_root_count": 0,
+          "tool_call_count": 6,
+          "tool_input_chars": 1061,
+          "tool_output_chars": 10823
+        },
+        "composed_probe_plus_closeout": {
+          "ai_read_or_search_command_count": 1,
+          "cached_input_tokens": 454912,
+          "duration_ms": 183126,
+          "explicit_ai_read_path_count": 1,
+          "explicit_read_path_count": 9,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 2,
+          "input_tokens": 498973,
+          "mentioned_ai_path_count": 3,
+          "mentioned_path_count": 41,
+          "non_cached_input_tokens": 44061,
+          "output_tokens": 6830,
+          "read_or_search_command_count": 7,
+          "routed_document_count": 1,
+          "searched_root_count": 0,
+          "tool_call_count": 18,
+          "tool_input_chars": 3191,
+          "tool_output_chars": 71651
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "cached_input_tokens": 364544,
+          "duration_ms": 126053,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 6,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 2,
+          "input_tokens": 396895,
+          "mentioned_ai_path_count": 0,
+          "mentioned_path_count": 29,
+          "non_cached_input_tokens": 32351,
+          "output_tokens": 5001,
+          "read_or_search_command_count": 4,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 12,
+          "tool_input_chars": 2130,
+          "tool_output_chars": 60828
+        },
+        "integrated_observed": {
+          "ai_read_or_search_command_count": 1,
+          "cached_input_tokens": 516608,
+          "duration_ms": 171487,
+          "explicit_ai_read_path_count": 1,
+          "explicit_read_path_count": 8,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 1,
+          "input_tokens": 554539,
+          "mentioned_ai_path_count": 3,
+          "mentioned_path_count": 51,
+          "non_cached_input_tokens": 37931,
+          "output_tokens": 6774,
+          "read_or_search_command_count": 10,
+          "routed_document_count": 1,
+          "searched_root_count": 0,
+          "tool_call_count": 20,
+          "tool_input_chars": 2752,
+          "tool_output_chars": 76967
+        },
+        "repetition": 1
+      }
+    ],
+    "operational_by_repetition": [
+      {
+        "pkf": {
+          "ai_read_or_search_command_count": 6,
+          "cached_input_tokens": 937728,
+          "closeout_unexpected_read_path_count": 4,
+          "closeout_validation_call_count": 1,
+          "duration_ms": 394536,
+          "explicit_ai_read_path_count": 11,
+          "explicit_read_path_count": 35,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 2,
+          "initialization_helper_source_read_count": 0,
+          "initialization_validation_call_count": 0,
+          "input_tokens": 1099475,
+          "mentioned_ai_path_count": 29,
+          "mentioned_path_count": 218,
+          "non_cached_input_tokens": 161747,
+          "output_tokens": 15329,
+          "read_or_search_command_count": 28,
+          "routed_document_count": 4,
+          "searched_root_count": 0,
+          "tool_call_count": 38,
+          "tool_input_chars": 9066,
+          "tool_output_chars": 487245
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0,
+          "cached_input_tokens": 722688,
+          "closeout_unexpected_read_path_count": 0,
+          "closeout_validation_call_count": 0,
+          "duration_ms": 303657,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 15,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 3,
+          "initialization_helper_source_read_count": 0,
+          "initialization_validation_call_count": 0,
+          "input_tokens": 861867,
+          "mentioned_ai_path_count": 0,
+          "mentioned_path_count": 187,
+          "non_cached_input_tokens": 139179,
+          "output_tokens": 10218,
+          "read_or_search_command_count": 17,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 25,
+          "tool_input_chars": 4427,
+          "tool_output_chars": 347259
+        },
+        "repetition": 1,
+        "source_only": {
+          "ai_read_or_search_command_count": 0,
+          "cached_input_tokens": 442368,
+          "closeout_unexpected_read_path_count": 0,
+          "closeout_validation_call_count": 0,
+          "duration_ms": 125834,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 12,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 1,
+          "initialization_helper_source_read_count": 0,
+          "initialization_validation_call_count": 0,
+          "input_tokens": 555557,
+          "mentioned_ai_path_count": 0,
+          "mentioned_path_count": 186,
+          "non_cached_input_tokens": 113189,
+          "output_tokens": 4128,
+          "read_or_search_command_count": 11,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 11,
+          "tool_input_chars": 3542,
+          "tool_output_chars": 345026
+        }
+      }
+    ]
+  },
+  "performance": {
+    "checks": [
+      {
+        "met": false,
+        "name": "boards_add_task_non_cached_input_tokens_overhead",
+        "phase": "local_bypass",
+        "target": "<= 5%",
+        "value": 13.032056990204808
+      },
+      {
+        "met": false,
+        "name": "boards_add_task_duration_ms_overhead",
+        "phase": "local_bypass",
+        "target": "<= 5%",
+        "value": 9.71515112457305
+      },
+      {
+        "met": true,
+        "name": "boards_add_task_tool_call_count_overhead",
+        "phase": "local_bypass",
+        "target": "<= 5%",
+        "value": -33.33333333333333
+      },
+      {
+        "met": false,
+        "name": "favorite_visibility_after_change_non_cached_input_tokens_overhead",
+        "phase": "local_bypass",
+        "target": "<= 5%",
+        "value": 28.942900545080867
+      },
+      {
+        "met": true,
+        "name": "favorite_visibility_after_change_duration_ms_overhead",
+        "phase": "local_bypass",
+        "target": "<= 5%",
+        "value": -10.221346217578622
+      },
+      {
+        "met": false,
+        "name": "favorite_visibility_after_change_tool_call_count_overhead",
+        "phase": "local_bypass",
+        "target": "<= 5%",
+        "value": 100.0
+      },
+      {
+        "met": false,
+        "name": "cross_capability_non_cached_input_tokens_delta",
+        "phase": "cross_retrieval",
+        "target": "< 0",
+        "value": 7583.0
+      },
+      {
+        "met": false,
+        "name": "cross_capability_tool_call_delta",
+        "phase": "cross_retrieval",
+        "target": "< 0",
+        "value": 4.0
+      },
+      {
+        "met": true,
+        "name": "mapped_closeout_tool_calls",
+        "phase": "closeout",
+        "target": "<= 6",
+        "value": 6.0
+      }
+    ],
+    "evidence_strength": "directional",
+    "phases": {
+      "amortization": {
+        "checks": [],
+        "measurements": {
+          "break_even_activated_tasks": {
+            "input_tokens": null,
+            "non_cached_input_tokens": null
+          }
+        },
+        "purpose": "Break-even estimates relate setup and maintenance premiums to activated retrieval savings.",
+        "status": "measured"
+      },
+      "closeout": {
+        "checks": [
+          {
+            "met": true,
+            "name": "mapped_closeout_tool_calls",
+            "phase": "closeout",
+            "target": "<= 6",
+            "value": 6.0
+          }
+        ],
+        "measurements": {
+          "closeout": {
+            "ai_read_or_search_command_count": 1.0,
+            "cached_input_tokens": 90368.0,
+            "duration_ms": 57073.0,
+            "explicit_ai_read_path_count": 1.0,
+            "explicit_read_path_count": 3.0,
+            "explicit_skill_read_path_count": 0.0,
+            "fallback_invocation_count": 0.0,
+            "input_tokens": 102078.0,
+            "mentioned_ai_path_count": 3.0,
+            "mentioned_path_count": 12.0,
+            "non_cached_input_tokens": 11710.0,
+            "output_tokens": 1829.0,
+            "read_or_search_command_count": 3.0,
+            "routed_document_count": 1.0,
+            "searched_root_count": 0.0,
+            "tool_call_count": 6.0,
+            "tool_input_chars": 1061.0,
+            "tool_output_chars": 10823.0
+          },
+          "closeout_control": {
+            "ai_read_or_search_command_count": 0.0,
+            "cached_input_tokens": 4864.0,
+            "duration_ms": 21940.0,
+            "explicit_ai_read_path_count": 0.0,
+            "explicit_read_path_count": 0.0,
+            "explicit_skill_read_path_count": 0.0,
+            "fallback_invocation_count": 0.0,
+            "input_tokens": 11005.0,
+            "mentioned_ai_path_count": 0.0,
+            "mentioned_path_count": 0.0,
+            "non_cached_input_tokens": 6141.0,
+            "output_tokens": 66.0,
+            "read_or_search_command_count": 0.0,
+            "routed_document_count": 0.0,
+            "searched_root_count": 0.0,
+            "tool_call_count": 0.0,
+            "tool_input_chars": 0.0,
+            "tool_output_chars": 0.0
+          },
+          "closeout_incremental": {
+            "ai_read_or_search_command_count": 1.0,
+            "cached_input_tokens": 85504.0,
+            "duration_ms": 35133.0,
+            "explicit_ai_read_path_count": 1.0,
+            "explicit_read_path_count": 3.0,
+            "explicit_skill_read_path_count": 0.0,
+            "fallback_invocation_count": 0.0,
+            "input_tokens": 91073.0,
+            "mentioned_ai_path_count": 3.0,
+            "mentioned_path_count": 12.0,
+            "non_cached_input_tokens": 5569.0,
+            "output_tokens": 1763.0,
+            "read_or_search_command_count": 3.0,
+            "routed_document_count": 1.0,
+            "searched_root_count": 0.0,
+            "tool_call_count": 6.0,
+            "tool_input_chars": 1061.0,
+            "tool_output_chars": 10823.0
+          },
+          "composed_probe_plus_closeout": {
+            "ai_read_or_search_command_count": 1.0,
+            "cached_input_tokens": 454912.0,
+            "duration_ms": 183126.0,
+            "explicit_ai_read_path_count": 1.0,
+            "explicit_read_path_count": 9.0,
+            "explicit_skill_read_path_count": 0.0,
+            "fallback_invocation_count": 2.0,
+            "input_tokens": 498973.0,
+            "mentioned_ai_path_count": 3.0,
+            "mentioned_path_count": 41.0,
+            "non_cached_input_tokens": 44061.0,
+            "output_tokens": 6830.0,
+            "read_or_search_command_count": 7.0,
+            "routed_document_count": 1.0,
+            "searched_root_count": 0.0,
+            "tool_call_count": 18.0,
+            "tool_input_chars": 3191.0,
+            "tool_output_chars": 71651.0
+          }
+        },
+        "purpose": "Required knowledge maintenance is measured as a maintenance premium.",
+        "status": "directional_met"
+      },
+      "cross_retrieval": {
+        "checks": [
+          {
+            "met": false,
+            "name": "cross_capability_non_cached_input_tokens_delta",
+            "phase": "cross_retrieval",
+            "target": "< 0",
+            "value": 7583.0
+          },
+          {
+            "met": false,
+            "name": "cross_capability_tool_call_delta",
+            "phase": "cross_retrieval",
+            "target": "< 0",
+            "value": 4.0
+          }
+        ],
+        "measurements": {
+          "covered_requirement_count": 3.0,
+          "duration_ms": {
+            "baseline": 89239.0,
+            "candidate": 137529.0,
+            "delta": 48290.0,
+            "percent": 54.11311198018803
+          },
+          "estimated_route_tokens": 2867.0,
+          "fallback_rate": 0.0,
+          "input_tokens": {
+            "baseline": 344610.0,
+            "candidate": 366529.0,
+            "delta": 21919.0,
+            "percent": 6.360523490322394
+          },
+          "non_cached_input_tokens": {
+            "baseline": 61986.0,
+            "candidate": 69569.0,
+            "delta": 7583.0,
+            "percent": 12.233407543638886
+          },
+          "output_tokens": {
+            "baseline": 3204.0,
+            "candidate": 5649.0,
+            "delta": 2445.0,
+            "percent": 76.31086142322097
+          },
+          "redundant_leaf_count": 0.0,
+          "requirement_count": 3.0,
+          "route_count": 1.0,
+          "routed_document_count": 3.0,
+          "tool_call_count": {
+            "baseline": 8.0,
+            "candidate": 12.0,
+            "delta": 4.0,
+            "percent": 50.0
+          },
+          "unique_leaf_count": 3.0
+        },
+        "purpose": "Activated PKF should replace broad cross-capability discovery.",
+        "status": "directional_missed"
+      },
+      "initialization": {
+        "checks": [],
+        "measurements": {
+          "duration_ms": 1184882.0,
+          "fallback_invocation_count": 1.0,
+          "initialization_helper_source_read_count": 1.0,
+          "initialization_validation_call_count": 1.0,
+          "input_tokens": 4661416.0,
+          "non_cached_input_tokens": 160424.0,
+          "output_tokens": 55160.0,
+          "tool_call_count": 56.0
+        },
+        "purpose": "One-time setup is reported for coverage and runaway detection, not historical cost parity.",
+        "status": "measured"
+      },
+      "local_bypass": {
+        "checks": [
+          {
+            "met": false,
+            "name": "boards_add_task_non_cached_input_tokens_overhead",
+            "phase": "local_bypass",
+            "target": "<= 5%",
+            "value": 13.032056990204808
+          },
+          {
+            "met": false,
+            "name": "boards_add_task_duration_ms_overhead",
+            "phase": "local_bypass",
+            "target": "<= 5%",
+            "value": 9.71515112457305
+          },
+          {
+            "met": true,
+            "name": "boards_add_task_tool_call_count_overhead",
+            "phase": "local_bypass",
+            "target": "<= 5%",
+            "value": -33.33333333333333
+          },
+          {
+            "met": false,
+            "name": "favorite_visibility_after_change_non_cached_input_tokens_overhead",
+            "phase": "local_bypass",
+            "target": "<= 5%",
+            "value": 28.942900545080867
+          },
+          {
+            "met": true,
+            "name": "favorite_visibility_after_change_duration_ms_overhead",
+            "phase": "local_bypass",
+            "target": "<= 5%",
+            "value": -10.221346217578622
+          },
+          {
+            "met": false,
+            "name": "favorite_visibility_after_change_tool_call_count_overhead",
+            "phase": "local_bypass",
+            "target": "<= 5%",
+            "value": 100.0
+          }
+        ],
+        "measurements": {
+          "boards_add_task": {
+            "duration_ms": {
+              "baseline": 31034.0,
+              "candidate": 34049.0,
+              "delta": 3015.0,
+              "percent": 9.71515112457305
+            },
+            "input_tokens": {
+              "baseline": 69820.0,
+              "candidate": 48427.0,
+              "delta": -21393.0,
+              "percent": -30.640217702663993
+            },
+            "non_cached_input_tokens": {
+              "baseline": 22460.0,
+              "candidate": 25387.0,
+              "delta": 2927.0,
+              "percent": 13.032056990204808
+            },
+            "tool_call_count": {
+              "baseline": 3.0,
+              "candidate": 2.0,
+              "delta": -1.0,
+              "percent": -33.33333333333333
+            }
+          },
+          "favorite_visibility_after_change": {
+            "duration_ms": {
+              "baseline": 57331.0,
+              "candidate": 51471.0,
+              "delta": -5860.0,
+              "percent": -10.221346217578622
+            },
+            "input_tokens": {
+              "baseline": 50542.0,
+              "candidate": 129980.0,
+              "delta": 79438.0,
+              "percent": 157.17225277986623
+            },
+            "non_cached_input_tokens": {
+              "baseline": 22382.0,
+              "candidate": 28860.0,
+              "delta": 6478.0,
+              "percent": 28.942900545080867
+            },
+            "tool_call_count": {
+              "baseline": 2.0,
+              "candidate": 4.0,
+              "delta": 2.0,
+              "percent": 100.0
+            }
+          }
+        },
+        "purpose": "PKF-inactive local work should remain near probe-only cost.",
+        "status": "directional_missed"
+      },
+      "mutation_implementation": {
+        "checks": [],
+        "measurements": {
+          "implementation": {
+            "ai_read_or_search_command_count": 0.0,
+            "cached_input_tokens": 364544.0,
+            "duration_ms": 126053.0,
+            "explicit_ai_read_path_count": 0.0,
+            "explicit_read_path_count": 6.0,
+            "explicit_skill_read_path_count": 0.0,
+            "fallback_invocation_count": 2.0,
+            "input_tokens": 396895.0,
+            "mentioned_ai_path_count": 0.0,
+            "mentioned_path_count": 29.0,
+            "non_cached_input_tokens": 32351.0,
+            "output_tokens": 5001.0,
+            "read_or_search_command_count": 4.0,
+            "routed_document_count": 0.0,
+            "searched_root_count": 0.0,
+            "tool_call_count": 12.0,
+            "tool_input_chars": 2130.0,
+            "tool_output_chars": 60828.0
+          },
+          "integrated_observed": {
+            "ai_read_or_search_command_count": 1.0,
+            "cached_input_tokens": 516608.0,
+            "duration_ms": 171487.0,
+            "explicit_ai_read_path_count": 1.0,
+            "explicit_read_path_count": 8.0,
+            "explicit_skill_read_path_count": 0.0,
+            "fallback_invocation_count": 1.0,
+            "input_tokens": 554539.0,
+            "mentioned_ai_path_count": 3.0,
+            "mentioned_path_count": 51.0,
+            "non_cached_input_tokens": 37931.0,
+            "output_tokens": 6774.0,
+            "read_or_search_command_count": 10.0,
+            "routed_document_count": 1.0,
+            "searched_root_count": 0.0,
+            "tool_call_count": 20.0,
+            "tool_input_chars": 2752.0,
+            "tool_output_chars": 76967.0
+          }
+        },
+        "purpose": "Implementation stays source-first; closeout cost is attributed separately.",
+        "status": "measured"
+      }
+    },
+    "status": "preliminary"
+  },
+  "pkf_inventory": {
+    "by_repetition": [
+      {
+        "materialized_leaf_count": 16,
+        "pending_leaf_count": 4,
+        "repetition": 1,
+        "unknown_leaf_count": 3
+      }
+    ],
+    "materialized_leaf_count": 16.0,
+    "pending_leaf_count": 4.0,
+    "unknown_leaf_count": 3.0
+  },
+  "quality_status": "failed",
+  "recorded_at": "2026-07-20T12:55:51+00:00",
+  "replicated": false,
+  "run_class": "one_pass_preflight",
+  "run_id": "preflight-luna-high-schema8-one-pass-20260720-retry1",
+  "runs": [
+    {
+      "accessed_closeout": false,
+      "accessed_skill": true,
+      "ai_read_or_search_command_count": 13,
+      "answer_correct": null,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 2,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 1184882,
+      "emitted_closeout": false,
+      "error": "ximate\",\n      \"leaf_count\": 1,\n      \"route\": \"leaf:platform-contracts/ui.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 700\n    },\n    {\n      \"document_count\": 5,\n      \"estimator\": \"approximate\",\n      \"leaf_count\": 4,\n      \"route\": \"task:platform-contracts\",\n      \"status\": \"measured\",\n      \"threshold\": null,\n      \"tokens\": 3641\n    },\n    {\n      \"document_count\": 1,\n      \"estimator\": \"approximate\",\n      \"leaf_count\": 1,\n      \"route\": \"leaf:workspace-notes/api.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 1026\n    },\n    {\n      \"document_count\": 1,\n      \"estimator\": \"approximate\",\n      \"leaf_count\": 1,\n      \"route\": \"leaf:workspace-notes/schema.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 81\n    },\n    {\n      \"document_count\": 1,\n      \"estimator\": \"approximate\",\n      \"leaf_count\": 1,\n      \"route\": \"leaf:workspace-notes/business_rules.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 876\n    },\n    {\n      \"document_count\": 1,\n      \"estimator\": \"approximate\",\n      \"leaf_count\": 1,\n      \"route\": \"leaf:workspace-notes/ui.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 748\n    },\n    {\n      \"document_count\": 4,\n      \"estimator\": \"approximate\",\n      \"leaf_count\": 3,\n      \"route\": \"task:workspace-notes\",\n      \"status\": \"measured\",\n      \"threshold\": null,\n      \"tokens\": 2986\n    }\n  ],\n  \"token_impact_count\": 30,\n  \"warnings\": []\n}",
+      "explicit_ai_read_path_count": 17,
+      "explicit_read_path_count": 56,
+      "explicit_skill_read_path_count": 1,
+      "fallback_invocation_count": 1,
+      "fallback_search": true,
+      "final_route_status": "not_run",
+      "focused_test_passed": null,
+      "implementation_explicit_ai_read_path_count": 17,
+      "implementation_explicit_skill_read_path_count": 1,
+      "implementation_fallback_search": true,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 1,
+      "initialization_helper_source_read_paths": [
+        ".ai/tools"
+      ],
+      "initialization_route_status": "mapped",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 1,
+      "mentioned_ai_path_count": 37,
+      "mentioned_path_count": 230,
+      "phase": "setup",
+      "pkf_validation_passed": false,
+      "read_or_search_command_count": 21,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": false,
+      "routed_document_count": 10,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "initialize",
+      "tool_call_count": 56,
+      "tool_input_chars": 14829,
+      "tool_output_chars": 292044,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 13,
+          "explicit_ai_read_path_count": 17,
+          "explicit_read_path_count": 56,
+          "explicit_skill_read_path_count": 1,
+          "fallback_invocation_count": 1,
+          "fallback_search": true,
+          "read_or_search_command_count": 21,
+          "routed_document_count": 10,
+          "searched_root_count": 0,
+          "tool_call_count": 56,
+          "tool_input_chars": 14829,
+          "tool_output_chars": 292044
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 4500992,
+        "input_tokens": 4661416,
+        "output_tokens": 55160
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "source_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 41554,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 3,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 0,
+      "fallback_search": false,
+      "final_route_status": "not_run",
+      "focused_test_passed": null,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": false,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 12,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": false,
+      "routed_document_count": 0,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "boards_add_task",
+      "tool_call_count": 3,
+      "tool_input_chars": 641,
+      "tool_output_chars": 79531,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 3,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 3,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 3,
+          "tool_input_chars": 641,
+          "tool_output_chars": 79531
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 50432,
+        "input_tokens": 83719,
+        "output_tokens": 1127
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "probe_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 31034,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 1,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 0,
+      "fallback_search": false,
+      "final_route_status": "not_run",
+      "focused_test_passed": null,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": false,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 36,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": false,
+      "routed_document_count": 0,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "boards_add_task",
+      "tool_call_count": 3,
+      "tool_input_chars": 363,
+      "tool_output_chars": 62317,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 1,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 3,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 3,
+          "tool_input_chars": 363,
+          "tool_output_chars": 62317
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 47360,
+        "input_tokens": 69820,
+        "output_tokens": 983
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 2,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 34049,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 2,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 0,
+      "fallback_search": false,
+      "final_route_status": "not_run",
+      "focused_test_passed": null,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": false,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 4,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 2,
+      "repetition": 1,
+      "retrieval_decision": "bypassed",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": false,
+      "routed_document_count": 0,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "boards_add_task",
+      "tool_call_count": 2,
+      "tool_input_chars": 280,
+      "tool_output_chars": 68814,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 2,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 2,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 2,
+          "tool_input_chars": 280,
+          "tool_output_chars": 68814
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 23040,
+        "input_tokens": 48427,
+        "output_tokens": 1057
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "source_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 84280,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 9,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 1,
+      "fallback_search": true,
+      "final_route_status": "not_run",
+      "focused_test_passed": null,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": true,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 174,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 8,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": false,
+      "routed_document_count": 0,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "note_task_links",
+      "tool_call_count": 8,
+      "tool_input_chars": 2901,
+      "tool_output_chars": 265495,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 9,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 1,
+          "fallback_search": true,
+          "read_or_search_command_count": 8,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 8,
+          "tool_input_chars": 2901,
+          "tool_output_chars": 265495
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 391936,
+        "input_tokens": 471838,
+        "output_tokens": 3001
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "probe_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 89239,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 5,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 0,
+      "fallback_search": false,
+      "final_route_status": "not_run",
+      "focused_test_passed": null,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": false,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 33,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 8,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": false,
+      "routed_document_count": 0,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "note_task_links",
+      "tool_call_count": 8,
+      "tool_input_chars": 1559,
+      "tool_output_chars": 188406,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 5,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 8,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 8,
+          "tool_input_chars": 1559,
+          "tool_output_chars": 188406
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 282624,
+        "input_tokens": 344610,
+        "output_tokens": 3204
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 5,
+      "answer_correct": true,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 2,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "complete",
+      "cross_covered_requirement_count": 3,
+      "cross_declared_document_paths": [
+        ".ai/knowledge/boards-tasks/api.md",
+        ".ai/knowledge/platform-contracts/api.md",
+        ".ai/knowledge/workspace-notes/api.md"
+      ],
+      "cross_estimated_tokens": 2867,
+      "cross_expected_document_paths": [
+        ".ai/knowledge/boards-tasks/api.md",
+        ".ai/knowledge/platform-contracts/api.md",
+        ".ai/knowledge/workspace-notes/api.md"
+      ],
+      "cross_irredundancy_status": "irredundant",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [
+        ".ai/knowledge/boards-tasks/api.md",
+        ".ai/knowledge/platform-contracts/api.md",
+        ".ai/knowledge/workspace-notes/api.md"
+      ],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 3,
+      "cross_route_fallback": false,
+      "cross_route_ids": [
+        "authenticated-note-task-linking"
+      ],
+      "cross_route_marker_status": "valid",
+      "cross_route_unique_leaf_count": 3,
+      "cross_token_estimator": "approximate",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 137529,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 10,
+      "explicit_read_path_count": 19,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 1,
+      "fallback_search": true,
+      "final_route_status": "not_run",
+      "focused_test_passed": null,
+      "implementation_explicit_ai_read_path_count": 10,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": true,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 26,
+      "mentioned_path_count": 93,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 12,
+      "repetition": 1,
+      "retrieval_decision": "activated",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": true,
+      "routed_document_count": 3,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "note_task_links",
+      "tool_call_count": 12,
+      "tool_input_chars": 5098,
+      "tool_output_chars": 166902,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 5,
+          "explicit_ai_read_path_count": 10,
+          "explicit_read_path_count": 19,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 1,
+          "fallback_search": true,
+          "read_or_search_command_count": 12,
+          "routed_document_count": 3,
+          "searched_root_count": 0,
+          "tool_call_count": 12,
+          "tool_input_chars": 5098,
+          "tool_output_chars": 166902
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 296960,
+        "input_tokens": 366529,
+        "output_tokens": 5649
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": null,
+      "arm": "probe_only",
+      "changed_expected_paths": true,
+      "changed_path_count": 2,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 126053,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 6,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 2,
+      "fallback_search": true,
+      "final_route_status": "not_run",
+      "focused_test_passed": true,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": true,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 29,
+      "phase": "mutation",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 4,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": false,
+      "routed_document_count": 0,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_mutation",
+      "tool_call_count": 12,
+      "tool_input_chars": 2130,
+      "tool_output_chars": 60828,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 6,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 2,
+          "fallback_search": true,
+          "read_or_search_command_count": 4,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 12,
+          "tool_input_chars": 2130,
+          "tool_output_chars": 60828
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 364544,
+        "input_tokens": 396895,
+        "output_tokens": 5001
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 1,
+      "answer_correct": null,
+      "arm": "pkf",
+      "changed_expected_paths": true,
+      "changed_path_count": 4,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": true,
+      "closeout_unexpected_read_path_count": 4,
+      "closeout_unexpected_read_paths": [
+        "frontend/node_modules",
+        "frontend/src/notes/noteSectionState.test.ts",
+        "frontend/src/notes/noteSectionState.ts",
+        "frontend/vite.config.ts"
+      ],
+      "closeout_validation_call_count": 1,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 171487,
+      "emitted_closeout": true,
+      "error": "",
+      "explicit_ai_read_path_count": 1,
+      "explicit_read_path_count": 8,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 1,
+      "fallback_search": true,
+      "final_route_status": "mapped",
+      "focused_test_passed": true,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": false,
+      "initial_route_status": "mapped",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 3,
+      "mentioned_path_count": 51,
+      "phase": "mutation",
+      "pkf_validation_passed": false,
+      "read_or_search_command_count": 10,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "route_attempt_count": 1,
+      "route_attempts": [
+        {
+          "affected_leaves": [
+            ".ai/knowledge/workspace-notes/ui.md"
+          ],
+          "event_index": 6,
+          "fallback_indexes": [],
+          "routing_coverage_defect": false,
+          "schema_version": 2,
+          "status": "mapped",
+          "unmatched_paths": [],
+          "validation_scope": "affected"
+        }
+      ],
+      "route_marker_emitted": false,
+      "routed_document_count": 1,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_mutation",
+      "tool_call_count": 20,
+      "tool_input_chars": 2752,
+      "tool_output_chars": 76967,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 1,
+          "explicit_ai_read_path_count": 1,
+          "explicit_read_path_count": 5,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 1,
+          "fallback_search": true,
+          "read_or_search_command_count": 5,
+          "routed_document_count": 1,
+          "searched_root_count": 0,
+          "tool_call_count": 13,
+          "tool_input_chars": 1728,
+          "tool_output_chars": 14005
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 5,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 5,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 6,
+          "tool_input_chars": 841,
+          "tool_output_chars": 62219
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 1,
+          "tool_input_chars": 183,
+          "tool_output_chars": 743
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 516608,
+        "input_tokens": 554539,
+        "output_tokens": 6774
+      },
+      "used_route_helper": true
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "probe_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 2,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 57331,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 3,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 1,
+      "fallback_search": true,
+      "final_route_status": "not_run",
+      "focused_test_passed": null,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": true,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 89,
+      "phase": "post_mutation",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 2,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": false,
+      "routed_document_count": 0,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_after_change",
+      "tool_call_count": 2,
+      "tool_input_chars": 375,
+      "tool_output_chars": 35708,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 3,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 1,
+          "fallback_search": true,
+          "read_or_search_command_count": 2,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 2,
+          "tool_input_chars": 375,
+          "tool_output_chars": 35708
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 28160,
+        "input_tokens": 50542,
+        "output_tokens": 1030
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 4,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 51471,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 6,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 0,
+      "fallback_search": false,
+      "final_route_status": "not_run",
+      "focused_test_passed": null,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": false,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 70,
+      "phase": "post_mutation",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 4,
+      "repetition": 1,
+      "retrieval_decision": "bypassed",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": false,
+      "routed_document_count": 0,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_after_change",
+      "tool_call_count": 4,
+      "tool_input_chars": 936,
+      "tool_output_chars": 174562,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 6,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 4,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 4,
+          "tool_input_chars": 936,
+          "tool_output_chars": 174562
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 101120,
+        "input_tokens": 129980,
+        "output_tokens": 1849
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": null,
+      "arm": "probe_only",
+      "changed_expected_paths": true,
+      "changed_path_count": 2,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 0,
+      "closeout_unexpected_read_paths": [],
+      "closeout_validation_call_count": 0,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 21940,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 0,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 0,
+      "fallback_search": false,
+      "final_route_status": "not_run",
+      "focused_test_passed": true,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": false,
+      "initial_route_status": "not_run",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 0,
+      "phase": "closeout",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 0,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "route_attempt_count": 0,
+      "route_attempts": [],
+      "route_marker_emitted": false,
+      "routed_document_count": 0,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "isolated_closeout",
+      "tool_call_count": 0,
+      "tool_input_chars": 0,
+      "tool_output_chars": 0,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 4864,
+        "input_tokens": 11005,
+        "output_tokens": 66
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 1,
+      "answer_correct": null,
+      "arm": "pkf",
+      "changed_expected_paths": true,
+      "changed_path_count": 4,
+      "closeout_accessed_closeout": false,
+      "closeout_accessed_skill": false,
+      "closeout_fallback_search": false,
+      "closeout_unexpected_read_path_count": 2,
+      "closeout_unexpected_read_paths": [
+        "frontend/src/notes/noteSectionState.test.ts",
+        "frontend/src/notes/noteSectionState.ts"
+      ],
+      "closeout_validation_call_count": 1,
+      "cross_conflicting_requirement_ids": [],
+      "cross_coverage_status": "not_applicable",
+      "cross_covered_requirement_count": 0,
+      "cross_declared_document_paths": [],
+      "cross_estimated_tokens": 0,
+      "cross_expected_document_paths": [],
+      "cross_irredundancy_status": "not_applicable",
+      "cross_missing_document_paths": [],
+      "cross_missing_route_ids": [],
+      "cross_observed_document_paths": [],
+      "cross_redundant_document_paths": [],
+      "cross_requirement_count": 0,
+      "cross_route_fallback": null,
+      "cross_route_ids": [],
+      "cross_route_marker_status": "not_applicable",
+      "cross_route_unique_leaf_count": 0,
+      "cross_token_estimator": "not_applicable",
+      "cross_uncovered_requirement_ids": [],
+      "cross_unexpected_document_paths": [],
+      "cross_unresolved_document_paths": [],
+      "duration_ms": 57073,
+      "emitted_closeout": true,
+      "error": "",
+      "explicit_ai_read_path_count": 1,
+      "explicit_read_path_count": 3,
+      "explicit_skill_read_path_count": 0,
+      "fallback_invocation_count": 0,
+      "fallback_search": false,
+      "final_route_status": "mapped",
+      "focused_test_passed": true,
+      "implementation_explicit_ai_read_path_count": 0,
+      "implementation_explicit_skill_read_path_count": 0,
+      "implementation_fallback_search": false,
+      "initial_route_status": "mapped",
+      "initialization_helper_source_read_count": 0,
+      "initialization_helper_source_read_paths": [],
+      "initialization_route_status": "not_applicable",
+      "initialization_unmatched_paths": [],
+      "initialization_validation_call_count": 0,
+      "mentioned_ai_path_count": 3,
+      "mentioned_path_count": 12,
+      "phase": "closeout",
+      "pkf_validation_passed": false,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "route_attempt_count": 1,
+      "route_attempts": [
+        {
+          "affected_leaves": [
+            ".ai/knowledge/workspace-notes/ui.md"
+          ],
+          "event_index": 0,
+          "fallback_indexes": [],
+          "routing_coverage_defect": false,
+          "schema_version": 2,
+          "status": "mapped",
+          "unmatched_paths": [],
+          "validation_scope": "affected"
+        }
+      ],
+      "route_marker_emitted": false,
+      "routed_document_count": 1,
+      "routing_coverage_defect": false,
+      "searched_root_count": 0,
+      "task_id": "isolated_closeout",
+      "tool_call_count": 6,
+      "tool_input_chars": 1061,
+      "tool_output_chars": 10823,
+      "trace_segments": {
+        "closeout": {
+          "ai_read_or_search_command_count": 1,
+          "explicit_ai_read_path_count": 1,
+          "explicit_read_path_count": 3,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 3,
+          "routed_document_count": 1,
+          "searched_root_count": 0,
+          "tool_call_count": 5,
+          "tool_input_chars": 878,
+          "tool_output_chars": 10080
+        },
+        "implementation": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 0,
+          "tool_input_chars": 0,
+          "tool_output_chars": 0
+        },
+        "routing": {
+          "ai_read_or_search_command_count": 0,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 0,
+          "explicit_skill_read_path_count": 0,
+          "fallback_invocation_count": 0,
+          "fallback_search": false,
+          "read_or_search_command_count": 0,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 1,
+          "tool_input_chars": 183,
+          "tool_output_chars": 743
+        }
+      },
+      "usage": {
+        "cached_input_tokens": 90368,
+        "input_tokens": 102078,
+        "output_tokens": 1829
+      },
+      "used_route_helper": true
+    }
+  ],
+  "schema_version": 8,
+  "status": "failed",
+  "suite": "all",
+  "target": {
+    "commit": "5c458df3c737f0af2a2193186d98af90c45163f0",
+    "name": "tether-brain",
+    "repository": "duelistraj/tether-brain",
+    "tree": "d679f127ae072f8b4f20dbe39c90f7d5173bedf4",
+    "visibility_at_measurement": "private"
+  },
+  "token_atlas": {
+    "commit": "fd4aada1475fd765d4725c3e8038d472a42db546",
+    "harness_sha256": "c93449edd5e55646325bcfbe4bb7fb4dfc1f6644bdd52af2663a700efc73b05d",
+    "public_skill_sha256": "b8002bb8a5253dfa662c9e6941c1dc36c26f7610cdebdc9599be97304239382e"
+  }
+}

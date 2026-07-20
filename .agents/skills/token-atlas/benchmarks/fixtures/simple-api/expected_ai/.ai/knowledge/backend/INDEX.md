@@ -2,16 +2,17 @@
 type: index
 title: Backend Knowledge
 description: Backend module routing for the simple-api fixture.
-resource: .ai/knowledge/backend/INDEX.md
+resource: src/backend
 tags: [simple-api, backend, routing]
 timestamp: 2026-07-08
 pkf:
-  ownership_roots:
-    - "src/backend"
+  ownership:
+    src/backend: []
   loads: []
   related: []
 ---
 
 | Task | Required doc |
 |---|---|
-| Model or schema changes in `src/backend/models/**` | `schema.md` |
+| Order API or schema changes in `src/backend/routes/**` | `api.md`, `schema.md` |
+| Order lookup behavior | `business_rules.md` |

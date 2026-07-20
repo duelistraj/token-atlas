@@ -66,30 +66,38 @@ diff --git a/.ai/knowledge/INDEX.md b/.ai/knowledge/INDEX.md
 index 7c1b3ff..f129569 100644
 --- a/.ai/knowledge/INDEX.md
 +++ b/.ai/knowledge/INDEX.md
-@@ -6,12 +6,30 @@ resource: .ai/knowledge/INDEX.md
+@@ -6,12 +6,38 @@ resource: .ai/knowledge/INDEX.md
  tags: [broad-loads, routing]
  timestamp: 2026-07-08
  pkf:
 -  routes: {}
 +  routes:
-+    note-task-visibility:
-+      intent: "Explain note-task visibility across notes and boards"
-+      triggers: [note task visibility, linked task display]
++    note-visibility:
++      intent: "Note visibility"
++      triggers: [note visibility]
 +      modules: [notes, boards]
-+      requirements: [note-task-visibility]
++      requirements: [note-visibility]
 +      loads: [.ai/knowledge/notes/ui.md]
 +      load_coverage:
-+        .ai/knowledge/notes/ui.md: [note-task-visibility]
-+    note-task-policy:
-+      intent: "Explain permissions, lifecycle, and relationship policy for note-task links"
-+      triggers: [note task permissions, linked task lifecycle, note task policy]
++        .ai/knowledge/notes/ui.md: [note-visibility]
++    link-permissions:
++      intent: "Link permissions"
++      triggers: [link permissions]
 +      modules: [boards, notes]
-+      requirements: [task-link-permissions, task-link-lifecycle, note-link-policy]
-+      loads: [.ai/knowledge/boards/api.md, .ai/knowledge/boards/business_rules.md, .ai/knowledge/notes/business_rules.md]
++      requirements: [task-link-permissions, note-link-policy]
++      loads: [.ai/knowledge/boards/api.md, .ai/knowledge/notes/business_rules.md]
 +      load_coverage:
 +        .ai/knowledge/boards/api.md: [task-link-permissions]
-+        .ai/knowledge/boards/business_rules.md: [task-link-lifecycle]
 +        .ai/knowledge/notes/business_rules.md: [note-link-policy]
++    link-lifecycle:
++      intent: "Link lifecycle"
++      triggers: [link lifecycle]
++      modules: [boards, notes]
++      requirements: [task-link-lifecycle, note-link-policy, note-link-restoration]
++      loads: [.ai/knowledge/boards/business_rules.md, .ai/knowledge/notes/business_rules.md]
++      load_coverage:
++        .ai/knowledge/boards/business_rules.md: [task-link-lifecycle]
++        .ai/knowledge/notes/business_rules.md: [note-link-policy, note-link-restoration]
    loads: []
    related: []
  ---
@@ -98,8 +106,8 @@ index 7c1b3ff..f129569 100644
  |---|---|
 -| `src/backend/routes/**`, API route | `.ai/knowledge/backend/INDEX.md` then `.ai/knowledge/backend/api.md` |
 -| `src/frontend/**`, UI behavior | `.ai/knowledge/frontend/INDEX.md` then `.ai/knowledge/frontend/ui.md` |
-+| `src/boards/**`, Task-link rule | `.ai/knowledge/boards/INDEX.md` then `.ai/knowledge/boards/api.md` |
-+| `src/notes/**`, Note-task visibility | `.ai/knowledge/notes/INDEX.md` then `.ai/knowledge/notes/ui.md` |
++| boards | `.ai/knowledge/boards/INDEX.md` |
++| notes | `.ai/knowledge/notes/INDEX.md` |
 diff --git a/.ai/knowledge/backend/INDEX.md b/.ai/knowledge/backend/INDEX.md
 deleted file mode 100644
 index 595cdfc..0000000
@@ -602,4 +610,3 @@ index 0000000..118ccb6
 +export function noteLinkPolicy(): string {
 +  return "linked tasks remain visible on notes";
 +}
-

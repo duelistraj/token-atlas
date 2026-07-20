@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "tether-brain-lifecycle",
+  "workspace_links": ["frontend/node_modules"],
+  "retrieval": [
+    {
+      "id": "boards-add-task",
+      "retrieval_mode": "local",
+      "prompt": "Answer this repository behavior question without changing files: when the global Boards Add task action is used, how is its target list chosen and what happens when no eligible list exists? Return the requested structured answer with concise source evidence.",
+      "expected_answers": {
+        "targets_first_non_final_by_position": true,
+        "can_target_final_list": false,
+        "shows_error_when_none": true,
+        "mutates_board_when_none": false
+      }
+    },
+    {
+      "id": "note-task-links",
+      "retrieval_mode": "cross_capability",
+      "prompt": "Answer this cross-capability repository question without changing files: who may read or modify note-task links, are completed tasks linkable, and what does trashing then restoring a linked task, list, or board do to the relationship? Return the requested structured answer with concise source evidence. If PKF retrieval activates, include exactly one evidence string in this form: `PKF route: <route-id> + <route-id>; <N> unique leaves; fallback=<yes|no>`. List only the selected keyed route IDs, deduplicate their combined leaves, and omit the marker when PKF is unavailable or bypassed.",
+      "expected_answers": {
+        "owners_can_modify": true,
+        "editors_can_modify": true,
+        "viewers_can_modify": false,
+        "viewers_can_read": true,
+        "completed_tasks_linkable": true,
+        "trash_deletes_relationship": false,
+        "restore_reveals_relationship": true
+      }
+    }
+  ],
+  "mutation": {
+    "id": "favorite-visibility-mutation",
+    "prompt": "In this disposable benchmark checkout, change note visibility so a favorited note remains visible in All while staying excluded from its home category. Preserve current Archive behavior and favorite/archive mutual exclusion. Update the focused tests and run them. Follow all repository instructions and keep repository knowledge synchronized when required.",
+    "expected_paths": [
+      "frontend/src/notes/noteSectionState.ts",
+      "frontend/src/notes/noteSectionState.test.ts"
+    ],
+    "test_command": [
+      "npm",
+      "run",
+      "test",
+      "--prefix",
+      "frontend",
+      "--",
+      "noteSectionState.test.ts"
+    ]
+  },
+  "post_mutation": {
+    "id": "favorite-visibility-after-change",
+    "prompt": "Answer from the current repository state without changing files: where does a favorited note appear, is it still shown in its home category, and what happens when that note is archived? Return the requested structured answer with concise source evidence.",
+    "expected_answers": {
+      "favorite_appears_in_favorite": true,
+      "favorite_appears_in_all": true,
+      "favorite_appears_in_home": false,
+      "archiving_clears_favorite": true,
+      "archived_appears_in_all": true
+    }
+  },
+  "closeout": {
+    "id": "isolated-closeout",
+    "control_prompt": "A benchmark harness already applied and tested a repository mutation. Do not change application source or tests. This checkout has no PKF; return a compact acknowledgement that no knowledge synchronization surface exists without reading repository source.",
+    "pkf_prompt": "A benchmark harness already applied and tested the repository mutation described by the changed paths. Do not change application source or tests. Follow the repository bootstrap for routine mapped closeout: begin with the exact repository-local route helper, do not activate or read Token Atlas before the route result, reconcile every changed file with the returned leaves before validation, and emit the exact final `PKF closeout:` status line. Do not replay repository startup or rediscover the mutation.",
+    "patch": "../patches/favorite-visibility.patch",
+    "expected_paths": [
+      "frontend/src/notes/noteSectionState.ts",
+      "frontend/src/notes/noteSectionState.test.ts"
+    ],
+    "test_command": [
+      "npm",
+      "run",
+      "test",
+      "--prefix",
+      "frontend",
+      "--",
+      "noteSectionState.test.ts"
+    ]
+  }
+}

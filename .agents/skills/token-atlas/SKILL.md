@@ -7,9 +7,10 @@ description: Develop and validate Token Atlas PKF/OKF workflows and fixtures, in
 
 ## Purpose
 
-Generate and maintain a repository-specific, Open Knowledge Format (OKF) compatible knowledge base optimized for minimal-context retrieval by AI coding agents.
-
-Token Atlas extracts verified repository knowledge on demand or incrementally, stores each fact in one authoritative location, and routes agents to the smallest useful context set for a task.
+Token Atlas is an AI context-optimization skill for coding agents. It extracts
+verified repository knowledge into a compact `.ai/` knowledge base so agents
+load the smallest reliable context for each task instead of the whole
+repository.
 
 This `.agents/skills/token-atlas/` copy is the internal development and benchmarking surface for the Token Atlas project. The public user-facing package lives under `skills/token-atlas/`; keep normal target-repository usage guidance there and keep benchmark or maintenance-repo-specific guidance here.
 
@@ -29,7 +30,9 @@ If `.ai/PKF.md` is missing and Token Atlas was explicitly invoked:
 - Resume the normal execution flow only after `PKF.md` exists.
 - Report the recovery as a startup action.
 
-If `.ai/` exists but `.ai/PKF.md` is missing, treat the runtime as incomplete and run initialization before extraction.
+If `.ai/` exists but `.ai/PKF.md` is missing, treat the runtime as an incomplete
+draft. Repair it to a complete validated runtime; never treat partial output as
+an installed PKF.
 
 Do not activate this workflow for routine mapped closeout; the embedded repository
 protocol and route helper own that fast path.
@@ -56,7 +59,7 @@ Default profile is `core`.
 Use these profiles:
 
 - `core`: initialize, maintain incrementally, extract, optimize, and run lightweight validation.
-- `ci`: `core` plus strict validation, required simulator scenarios, and token budget gates.
+- `ci`: `core` plus strict validation and required simulator scenarios.
 - `retrieval`: `core` plus retrieval export generation when explicitly requested.
 - `full`: all workflows, including full simulator scenarios and retrieval exports.
 
@@ -74,11 +77,13 @@ Do not generate or load retrieval exports unless `retrieval_exports` is not `off
 If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 
 - Execute `references/initialize.md`
-- Execute `references/extract.md` using **Hybrid Extraction** for shared knowledge,
-  coverage-driven public behavior, important mutation entrypoints, and atomic
-  source-backed cross-capability routes without a fixed per-capability leaf cap
-- Mark deferred leaves `pkf.materialization: pending`
-- Validate once after hybrid extraction
+- Execute `references/extract.md` using **Complete Initialization Extraction**
+  for shared knowledge, every applicable verified public behavior, important
+  mutation entrypoints, and atomic source-backed cross-capability routes
+  without a fixed per-capability leaf cap
+- Omit nonapplicable leaves and reject empty, pending, unknown, TODO, or
+  placeholder output
+- Repair and revalidate until strict validation passes
 - Execute `references/optimize.md` only when validation reports a routing,
   duplication, or token-budget defect; revalidate only the affected slice if it
   changes knowledge
@@ -135,7 +140,7 @@ symbols, tests, styles/tokens, and targeted locator commands.
 `pkf.related` means "useful if the task expands." Keep it empty on startup and
 index surfaces; do not treat leaf-level related documents as automatic context.
 
-During initialization, set `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`, install the dependency-free repository-local helpers under `.ai/tools/`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Initialize architecture, bounded routing, dependencies, verified public behavior, and important mutation entrypoint facts; include focused public-behavior tests in leaf routing metadata and mark genuinely deferred leaves `pkf.materialization: pending`. Record source-backed cross-capability intents as keyed atomic root-index `pkf.routes` entries with requirements and per-leaf coverage. Broad tasks compose matching routes, deduplicate their leaf union, and remove leaves without unique requirement coverage. Treat runtime helpers as opaque executables during normal workflows. The bootstrap allows a cheap local probe without loading PKF, activates PKF for cross-capability or broad-discovery work, and knowledge-impact-gates closeout. Generated guidance must not name a specific vendor, agent, or model.
+During initialization, set `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`, install the dependency-free repository-local helpers under `.ai/tools/`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Initialize architecture, bounded routing, dependencies, every applicable verified public behavior, and important mutation entrypoint fact; include focused public-behavior tests in leaf routing metadata and omit nonapplicable leaves. Every emitted leaf is complete and source-backed. Record source-backed cross-capability intents as keyed atomic root-index `pkf.routes` entries with globally descriptive requirements and complete per-leaf coverage. Every requirement ID resolves to one authoritative leaf across the root catalog; reuse that owner across routes, allow one leaf to own several requirements, and split requirements that would need multiple owners. Broad tasks compose matching routes and deduplicate repeated requirement IDs and leaf references. Treat runtime helpers as opaque executables during normal workflows. The bootstrap allows a cheap local probe without loading PKF, activates PKF for cross-capability or broad-discovery work, and knowledge-impact-gates closeout. Generated guidance must remain repository, vendor, agent, and model agnostic.
 
 ---
 
@@ -177,8 +182,9 @@ Run the simulator:
 - On demand when a user asks what PKF would retrieve for a task.
 
 A simulation report must include selected modules, required docs, source targets,
-targeted commands, fallback-search status and reason, actual leaf/token telemetry,
-coverage and minimality status, routing evidence, and warnings or errors.
+targeted commands, fallback-search status and reason, actual leaf counts,
+estimated route-content tokens and estimator, coverage and irredundancy status,
+routing evidence, and warnings or errors.
 
 Treat unrelated modules loaded automatically through `pkf.loads` as blocking validation defects.
 
@@ -237,7 +243,8 @@ Each durable fact must be:
 - Stored in the narrowest authoritative document.
 - Written as retrieval-ready notes, not prose documentation.
 - Traceable to source paths, symbols, commands, or config keys.
-- Removed or marked `TODO` when no longer verifiable.
+- Removed when no longer verifiable; unresolved knowledge must not remain as a
+  TODO in a sealed runtime.
 
 Prefer compact tables and bullets over long explanations. Do not copy large source snippets into `.ai/`.
 
@@ -258,7 +265,7 @@ Optimization and validation must produce token budget output according to `token
 
 Use:
 
-- `summary`: startup path, changed module paths, and threshold status.
+- `summary`: startup path and changed module path measurements.
 - `full`: summary plus every module index load, representative tasks, and broad `pkf.loads` chains.
 
 Estimate token cost for:
@@ -269,16 +276,16 @@ Estimate token cost for:
 
 Use an exact tokenizer when one is available locally for the target model. If no exact tokenizer is available, use a deterministic approximate estimator and label the report `approximate`; the default approximation is `ceil(character_count / 4)` for Markdown content after front matter is included.
 
-Default structural thresholds and retrieval policy:
+Retrieval measurement policy:
 
 - Read startup protocol and indexes only after adaptive retrieval activates; refresh only after changes, contradictions, or a need for an uncached section.
 - Load the minimum sufficient leaf set for a task.
   Every selected leaf must cover a requirement not supplied by the other selected leaves.
-- Compose matching keyed routes for broad tasks, deduplicate their leaves, and remove any route or leaf that does not contribute unique requirement coverage.
+- Compose matching keyed routes for broad tasks and deduplicate repeated global requirement IDs and authoritative leaf references.
 - Report actual route leaf counts and token estimates as telemetry.
   They are not allowances, ceilings, or validation gates.
-- Gate startup above 2,500 tokens and any individual leaf above 1,500 tokens.
-  Warn locally and fail in CI.
+- Report startup, individual-leaf, and selected-route token counts as telemetry.
+  Do not impose numeric leaf or token ceilings.
 - Treat unrelated modules loaded automatically through `pkf.loads` as a blocking error.
 
 ---

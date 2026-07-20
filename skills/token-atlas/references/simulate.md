@@ -28,15 +28,16 @@ Classify intent as one or more:
 ## Selection Order
 
 1. Changed paths matched by `ARCHITECTURE.md` or `knowledge/INDEX.md`.
-2. The smallest set of matching atomic keyed `pkf.routes` entries for a cross-capability intent.
+2. Matching atomic keyed `pkf.routes` entries for a cross-capability intent, evaluated through their globally deduplicated requirement and authoritative-leaf unions.
 3. Module names and keywords in `knowledge/INDEX.md`.
 4. Module `INDEX.md` routing tables.
 5. Leaf-level `pkf.related` only as optional context.
 
 Do not automatically load unrelated modules.
 
-For every task, select the smallest context packet that completely covers its requirements, then return the exact `source_symbols` and Edit Map locator commands.
-For a cross-capability task, compose the smallest matching atomic route set, deduplicate its leaves, and remove any leaf without unique requirement coverage.
+For every task, pursue minimum-sufficient context, then return the exact `source_symbols` and Edit Map locator commands.
+For a cross-capability task, compose matching atomic routes, deduplicate global requirement IDs and authoritative leaves, and validate complete, irredundant selected-route coverage.
+Route-to-task relevance remains a model-reviewed selection concern and is not mechanically proven.
 When equally complete alternatives use the same leaf count, prefer the lower estimated token cost.
 Do not load adjacent indexes or leaf-level `pkf.related` entries unless routed evidence is contradictory.
 
@@ -65,12 +66,12 @@ Optional related docs: <docs not automatically loaded>
 Estimated tokens: <count>
 Estimator: <exact or approximate>
 Coverage status: <complete, incomplete, or unknown>
-Minimality status: <minimal, redundant, or unknown>
+Irredundancy status: <irredundant, redundant, invalid, or unknown>
 Source targets: <path:symbol entries>
 Targeted commands: <sg when verified as ast-grep, otherwise exact rg commands>
 Fallback search: <yes or no>
 Fallback reason: <reason or none>
-Route telemetry: <atomic route IDs, requirements covered, unique leaves, and estimated tokens>
+Route telemetry: <atomic route IDs, globally deduplicated requirements, authoritative leaves, and estimated route-content tokens plus estimator>
 Routing evidence:
 - <evidence>
 Warnings:

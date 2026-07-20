@@ -2,13 +2,14 @@
 type: api
 title: Backend API
 description: Backend API facts for the missing-runtime fixture.
-resource: .ai/knowledge/backend/api.md
+resource: src/backend/routes/catalog.ts
 tags: [missing-runtime, backend, api]
 timestamp: 2026-07-08
 source_symbols:
   src/backend/routes/catalog.ts:
     - listCatalogItems
 pkf:
+  materialization: complete
   loads: []
   related: []
 ---

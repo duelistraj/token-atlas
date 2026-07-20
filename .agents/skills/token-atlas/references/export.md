@@ -58,7 +58,7 @@ Every export object must include:
 | `id` | Stable deterministic ID derived from type and canonical path or evidence key. |
 | `type` | Object type, such as `document`, `entity`, `relationship`, or `claim`. |
 | `source_path` | Canonical `.ai/` Markdown path or repository source path. |
-| `evidence` | Compact source evidence label or `TODO` when unresolved. |
+| `evidence` | Compact resolving source evidence label. |
 | `timestamp` | Timestamp from the source OKF document metadata when available. |
 | `confidence` | `verified`, `todo`, or `derived`. |
 
@@ -179,7 +179,7 @@ Required fields:
 Rules:
 
 - Claims must be atomic and source-backed.
-- Claims must point to source evidence or be marked `TODO`.
+- Claims must point to resolving source evidence; omit unresolved claims.
 - Duplicate claims should reuse stable IDs or be reported as duplicate facts during validation.
 
 ---
@@ -236,7 +236,7 @@ Before writing or reporting success, verify:
 - Relationship endpoints resolve.
 - Claims are supported by evidence.
 - Export files match the selected `retrieval_exports` option.
-- Removed source paths are absent from current export records unless marked `TODO`.
+- Removed source paths are absent from current export records.
 
 ---
 
@@ -260,5 +260,5 @@ Export succeeds when:
 - Every generated file is valid JSONL.
 - Every record has required shared fields.
 - Every graph relationship endpoint resolves.
-- Every claim is source-backed or marked `TODO`.
+- Every claim is source-backed.
 - No generated export becomes canonical knowledge.

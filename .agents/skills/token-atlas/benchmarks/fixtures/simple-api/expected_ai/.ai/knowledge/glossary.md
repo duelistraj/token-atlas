@@ -2,7 +2,7 @@
 type: glossary
 title: Glossary
 description: Shared terms for the simple-api fixture.
-resource: .ai/knowledge/glossary.md
+resource: src/backend/routes/orders.ts
 tags: [simple-api, glossary]
 timestamp: 2026-07-08
 pkf:
@@ -10,4 +10,4 @@ pkf:
   related: []
 ---
 
-- Customer: account record stored by the backend module.
+- Order summary: an order identifier, open-or-paid status, and total in cents.

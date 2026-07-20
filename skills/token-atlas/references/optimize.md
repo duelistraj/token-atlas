@@ -66,14 +66,15 @@ Estimate automatic context cost for:
 
 Use an exact tokenizer when locally available. Otherwise use `ceil(character_count / 4)` and label estimates `approximate`.
 
-Default structural thresholds and retrieval policy:
+Retrieval measurement policy:
 
-- Startup path above 2,500 tokens: warning locally, error in CI.
-- Any leaf above 1,500 tokens: warning locally, error in CI.
-- Any unrelated module loaded automatically: blocking error.
+- Report startup, leaf, and selected-route token counts as telemetry without
+  numeric ceilings.
+- Treat any unrelated module loaded automatically as a blocking error.
 
 Treat every task as a minimum-sufficient context problem.
-Compose cross-cutting work from atomic route slices, deduplicate their combined leaves, and remove any leaf without unique requirement coverage.
+Compose cross-cutting work from atomic route slices, deduplicate global requirement IDs and authoritative leaves, and remove any route-declared leaf without selected-route requirement coverage.
+Treat minimum-sufficient context as the objective while reporting sufficient, deduplicated, and irredundant selected-route context as the validated property.
 Report route leaf counts and token estimates as telemetry; never optimize toward an allowance or reject a complete route because of its absolute size.
 
 ## Rules

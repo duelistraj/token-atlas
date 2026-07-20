@@ -56,7 +56,7 @@ class PkfValidateTests(unittest.TestCase):
 
     def test_missing_module_doc_exits_one_in_ci(self):
         with self.copy_ai() as ai:
-            (ai / "knowledge" / "backend" / "api.md").unlink()
+            (ai / "knowledge" / "backend" / "INDEX.md").unlink()
             report = validate_pkf(ai, strictness="ci")
 
         self.assertEqual(report.exit_code, 1)
@@ -295,7 +295,7 @@ class PkfValidateTests(unittest.TestCase):
 
     def test_advisory_reports_errors_but_exits_zero(self):
         with self.copy_ai() as ai:
-            (ai / "knowledge" / "backend" / "api.md").unlink()
+            (ai / "knowledge" / "backend" / "INDEX.md").unlink()
             report = validate_pkf(ai, strictness="advisory")
 
         self.assertEqual(report.exit_code, 0)
@@ -422,7 +422,7 @@ class PkfValidateTests(unittest.TestCase):
             )
             report = validate_pkf(ai, strictness="ci")
 
-        self.assertTrue(any("pkf.ownership_roots must be a non-empty list" in finding.issue for finding in report.errors))
+        self.assertTrue(any("must define ownership" in finding.issue for finding in report.errors))
 
     def test_empty_leaf_requires_standard_marker(self):
         with self.copy_ai() as ai:
@@ -433,7 +433,7 @@ class PkfValidateTests(unittest.TestCase):
 
         self.assertTrue(any("empty source_symbols requires marker" in finding.issue for finding in report.errors))
 
-    def test_pending_leaf_is_valid_without_edit_map(self):
+    def test_pending_leaf_is_incomplete(self):
         with self.copy_ai() as ai:
             leaf = ai / "knowledge" / "backend" / "ui.md"
             text = leaf.read_text(encoding="utf-8")
@@ -442,8 +442,8 @@ class PkfValidateTests(unittest.TestCase):
             leaf.write_text(text, encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
-        self.assertEqual(report.exit_code, 0)
-        self.assertTrue(any("explicitly unmaterialized" in item for item in report.passed))
+        self.assertNotEqual(report.exit_code, 0)
+        self.assertTrue(any("pending leaf is incomplete" in finding.issue for finding in report.errors))
 
     def test_pending_leaf_rejects_declared_source_symbols(self):
         with self.copy_ai() as ai:
@@ -453,18 +453,20 @@ class PkfValidateTests(unittest.TestCase):
             leaf.write_text(text, encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
-        self.assertTrue(any("pending leaf must not declare source_symbols" in finding.issue for finding in report.errors))
+        self.assertTrue(any("pending leaf is incomplete" in finding.issue for finding in report.errors))
 
-    def test_leaf_token_gate_warns_locally_and_fails_ci(self):
+    def test_leaf_token_count_is_telemetry_without_a_numeric_gate(self):
         with self.copy_ai() as ai:
             leaf = ai / "knowledge" / "backend" / "schema.md"
             leaf.write_text(leaf.read_text(encoding="utf-8") + ("context " * 3000), encoding="utf-8")
             advisory = validate_pkf(ai, strictness="advisory")
             ci = validate_pkf(ai, strictness="ci")
 
-        self.assertTrue(any(finding.file == "leaf:backend/schema.md" for finding in advisory.warnings))
-        self.assertTrue(any(finding.file == "leaf:backend/schema.md" for finding in ci.errors))
-        self.assertEqual(next(entry.status for entry in ci.token_impact if entry.route == "leaf:backend/schema.md"), "error")
+        self.assertFalse(any(finding.file == "leaf:backend/schema.md" for finding in advisory.warnings))
+        self.assertFalse(any(finding.file == "leaf:backend/schema.md" for finding in ci.errors))
+        entry = next(entry for entry in ci.token_impact if entry.route == "leaf:backend/schema.md")
+        self.assertIsNone(entry.threshold)
+        self.assertEqual(entry.status, "measured")
 
     def test_task_route_size_is_measured_without_a_numeric_gate(self):
         with self.copy_ai() as ai:
@@ -643,7 +645,82 @@ class PkfValidateTests(unittest.TestCase):
         self.assertEqual(route_errors, [])
         coverage = next(item for item in report.route_coverage if item.route == "shared-contract")
         self.assertEqual(coverage.leaf_count, 1)
-        self.assertEqual(coverage.minimality_status, "minimal")
+        self.assertEqual(coverage.irredundancy_status, "irredundant")
+        serialized = report_to_dict(report)
+        self.assertIn("irredundancy_status", serialized["route_coverage"][0])
+        self.assertNotIn("minimality_status", serialized["route_coverage"][0])
+
+    def test_requirement_owner_and_leaf_are_reused_across_routes(self):
+        with self.copy_two_module_ai() as ai:
+            owner = ".ai/knowledge/backend/business_rules.md"
+            self.set_cross_routes(
+                ai,
+                "    relationship-policy:\n"
+                '      intent: "Relationship policy"\n'
+                "      triggers: [relationship policy]\n"
+                "      modules: [backend, frontend]\n"
+                "      requirements: [shared-relationship-policy]\n"
+                f"      loads: [{owner}]\n"
+                "      load_coverage:\n"
+                f"        {owner}: [shared-relationship-policy]\n"
+                "    relationship-lifecycle:\n"
+                '      intent: "Relationship lifecycle"\n'
+                "      triggers: [relationship lifecycle]\n"
+                "      modules: [backend, frontend]\n"
+                "      requirements: [shared-relationship-policy, relationship-restoration]\n"
+                f"      loads: [{owner}]\n"
+                "      load_coverage:\n"
+                f"        {owner}: [shared-relationship-policy, relationship-restoration]",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertFalse(
+            [
+                finding
+                for finding in report.errors
+                if "pkf.routes" in finding.file or "requirement" in finding.issue
+            ]
+        )
+        self.assertEqual(len(report.route_coverage), 2)
+        self.assertTrue(
+            all(entry.irredundancy_status == "irredundant" for entry in report.route_coverage)
+        )
+
+    def test_same_requirement_with_different_owners_is_invalid(self):
+        with self.copy_two_module_ai() as ai:
+            self.set_cross_routes(
+                ai,
+                "    backend-policy:\n"
+                '      intent: "Backend relationship policy"\n'
+                "      triggers: [backend policy]\n"
+                "      modules: [backend, frontend]\n"
+                "      requirements: [shared-relationship-policy]\n"
+                "      loads: [.ai/knowledge/backend/business_rules.md]\n"
+                "      load_coverage:\n"
+                "        .ai/knowledge/backend/business_rules.md: [shared-relationship-policy]\n"
+                "    frontend-policy:\n"
+                '      intent: "Frontend relationship policy"\n'
+                "      triggers: [frontend policy]\n"
+                "      modules: [backend, frontend]\n"
+                "      requirements: [shared-relationship-policy]\n"
+                "      loads: [.ai/knowledge/frontend/business_rules.md]\n"
+                "      load_coverage:\n"
+                "        .ai/knowledge/frontend/business_rules.md: [shared-relationship-policy]",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertTrue(
+            any("conflicting authoritative leaves" in finding.issue for finding in report.errors)
+        )
+        self.assertTrue(
+            all(entry.irredundancy_status == "invalid" for entry in report.route_coverage)
+        )
+        self.assertTrue(
+            all(
+                entry.conflicting_requirement_ids == ["shared-relationship-policy"]
+                for entry in report.route_coverage
+            )
+        )
 
     def test_seven_uniquely_required_leaves_have_no_exception_ceiling(self):
         with self.copy_two_module_ai() as ai:
@@ -676,7 +753,7 @@ class PkfValidateTests(unittest.TestCase):
         self.assertEqual(route_errors, [])
         coverage = next(item for item in report.route_coverage if item.route == "seven-part-contract")
         self.assertEqual(coverage.leaf_count, 7)
-        self.assertEqual(coverage.minimality_status, "minimal")
+        self.assertEqual(coverage.irredundancy_status, "irredundant")
 
     def test_redundant_route_leaf_is_rejected(self):
         with self.copy_two_module_ai() as ai:
@@ -690,13 +767,13 @@ class PkfValidateTests(unittest.TestCase):
                 "      loads: [.ai/knowledge/backend/business_rules.md, .ai/knowledge/frontend/business_rules.md]\n"
                 "      load_coverage:\n"
                 "        .ai/knowledge/backend/business_rules.md: [relationship-policy]\n"
-                "        .ai/knowledge/frontend/business_rules.md: [relationship-policy]",
+                "        .ai/knowledge/frontend/business_rules.md: []",
             )
             report = validate_pkf(ai, strictness="ci")
 
         self.assertTrue(any("redundant loads" in finding.issue for finding in report.errors))
         coverage = next(item for item in report.route_coverage if item.route == "redundant-contract")
-        self.assertEqual(coverage.minimality_status, "redundant")
+        self.assertEqual(coverage.irredundancy_status, "redundant")
 
     def test_route_coverage_rejects_unknown_and_uncovered_requirements(self):
         with self.copy_two_module_ai() as ai:
@@ -718,9 +795,30 @@ class PkfValidateTests(unittest.TestCase):
         self.assertTrue(any("uncovered requirements: relationship-lifecycle" in issue for issue in issues))
         coverage = next(item for item in report.route_coverage if item.route == "incomplete-contract")
         self.assertEqual(coverage.coverage_status, "incomplete")
-        self.assertEqual(coverage.minimality_status, "invalid")
+        self.assertEqual(coverage.irredundancy_status, "invalid")
 
-    def test_legacy_route_remains_readable_with_unknown_minimality(self):
+    def test_route_coverage_rejects_malformed_ids_and_unresolved_leaves(self):
+        with self.copy_two_module_ai() as ai:
+            self.set_cross_routes(
+                ai,
+                "    malformed-contract:\n"
+                '      intent: "Malformed contract"\n'
+                "      triggers: [malformed contract]\n"
+                "      modules: [backend, frontend]\n"
+                '      requirements: ["", Valid_Name]\n'
+                "      loads: [.ai/knowledge/backend/missing.md]\n"
+                "      load_coverage:\n"
+                '        .ai/knowledge/backend/missing.md: ["", Valid_Name]',
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        issues = [finding.issue for finding in report.errors]
+        self.assertTrue(any("lowercase kebab-case ids" in issue for issue in issues))
+        self.assertTrue(any("must resolve to a module leaf" in issue for issue in issues))
+        coverage = next(item for item in report.route_coverage if item.route == "malformed-contract")
+        self.assertEqual(coverage.irredundancy_status, "invalid")
+
+    def test_runtime_v4_route_missing_coverage_fields_is_blocking(self):
         with self.copy_two_module_ai() as ai:
             self.set_cross_routes(
                 ai,
@@ -732,10 +830,12 @@ class PkfValidateTests(unittest.TestCase):
             )
             report = validate_pkf(ai, strictness="ci")
 
-        self.assertFalse(report.errors)
-        self.assertTrue(any("minimality is unknown" in finding.issue for finding in report.warnings))
+        issues = [finding.issue for finding in report.errors]
+        self.assertIn("cross route missing required field: requirements", issues)
+        self.assertIn("cross route missing required field: load_coverage", issues)
         coverage = next(item for item in report.route_coverage if item.route == "legacy-contract")
-        self.assertEqual(coverage.coverage_status, "unknown")
+        self.assertEqual(coverage.coverage_status, "incomplete")
+        self.assertEqual(coverage.irredundancy_status, "invalid")
 
     def test_unmapped_changed_path_warns(self):
         with self.copy_ai() as ai:
@@ -762,6 +862,11 @@ class PkfValidateTests(unittest.TestCase):
         skill = INTERNAL_SKILL.read_text(encoding="utf-8")
         self.assertIn("embed the Retrieval and Closeout Protocols", skill)
         self.assertIn("neutral bootstrap", skill)
+        self.assertIn("globally descriptive, non-empty kebab-case IDs", public)
+        self.assertIn("exactly one authoritative leaf", public)
+        self.assertIn("split into narrower IDs", public)
+        self.assertIn("model-reviewed authoring quality", public)
+        self.assertIn("irredundant context is validated", public)
 
     def test_seeded_fixture_runtimes_include_bootstrap_contract(self):
         for pkf in sorted(FIXTURES.rglob("PKF.md")):

@@ -29,13 +29,13 @@ the repository.
 The current runtime contract is `pkf.runtime_version: 4`. When an existing
 `.ai/PKF.md` has no runtime version or an older version, migrate it in the same
 maintenance cycle. For version 3, install the dependency-free helpers under
-`.ai/tools/`, add `pkf.ownership_roots` to module indexes, refresh only the
+`.ai/tools/`, add symbol-scoped `pkf.ownership` to module indexes, refresh only the
 managed bootstrap and embedded protocol blocks, and reconcile focused test
 evidence in materialized public-behavior leaves. For older versions, preserve
 the mutation gate, replace mandatory every-task retrieval with the adaptive
-local-probe gate, add `pkf.retrieval: adaptive`, and add the knowledge-impact closeout gate. Mark
-unextracted skeleton leaves `pkf.materialization: pending`; treat existing
-source-backed leaves as complete. Preserve an explicit closeout `off` value and
+local-probe gate, add `pkf.retrieval: adaptive`, and add the knowledge-impact
+closeout gate. Remove empty legacy skeleton leaves and complete every applicable
+source-backed leaf. Preserve an explicit closeout `off` value and
 validate before acknowledgment. Never downgrade an unknown newer runtime.
 
 ## Impact Mapping
@@ -49,7 +49,7 @@ Map changed paths through `ARCHITECTURE.md`, `knowledge/INDEX.md`, and module `I
 | Business logic | module `business_rules.md`, module `INDEX.md` |
 | UI behavior | module `ui.md`, module `INDEX.md` |
 | Config/tooling | `dependencies.md`, `ARCHITECTURE.md`, affected module index |
-| New source root or module | `ARCHITECTURE.md`, `knowledge/INDEX.md`, new module skeleton |
+| New source root or module | `ARCHITECTURE.md`, `knowledge/INDEX.md`, complete applicable module docs |
 | Deleted or renamed file | every canonical doc citing the old path |
 | Tests | relevant module doc and validation notes |
 
@@ -87,7 +87,7 @@ For deleted or renamed evidence:
 - Search canonical `.ai/**/*.md` for removed paths, old paths, symbols, routes, schemas, commands, config keys, and tests.
 - Replace evidence only when the new path or symbol is certain.
 - Remove current facts when implementation no longer exists.
-- Mark facts `TODO` only when source may still exist but cannot be verified.
+- Remove unverifiable facts and report the missing evidence as a blocking defect.
 
 Stale references to removed files or symbols are validation defects.
 

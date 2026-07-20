@@ -24,10 +24,11 @@ Token Atlas is an AI context-optimization skill for coding agents. It extracts *
 
    > Use the **token-atlas** skill to initialize PKF and extract knowledge for this repo.
 
-3. The first run inspects a bounded structural summary, reviews capability
-   ownership, deterministically creates `.ai/`, performs bounded hybrid source
-   extraction, and validates once. Optimization runs only when validation finds
-   a routing or token-budget defect.
+3. The first run inspects a bounded structural summary, reviews capability and
+   symbol ownership, creates a complete source-backed `.ai/` knowledge base,
+   repairs all validation findings, and seals it only after strict validation.
+   It emits no TODO, pending, unknown, or placeholder leaves. Optimization runs
+   only when validation finds a routing defect.
    Subsequent knowledge-impacting mutations run adaptive closeout automatically;
    read-only and knowledge-neutral turns bypass Token Atlas work.
 
@@ -55,8 +56,9 @@ for the session unless they change or contradict source truth.
 
 Initialization sets `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and
 `pkf.closeout: adaptive`, and installs dependency-free route and validation
-helpers under `.ai/tools/`. Hybrid extraction materializes routing and public
-entry points while leaving other leaves explicitly pending. Set closeout to
+helpers under `.ai/tools/`. Complete initialization extraction materializes all
+applicable verified public behavior, important mutation entrypoints, and
+cross-capability contracts while omitting nonapplicable leaf types. Set closeout to
 `"off"` in `.ai/PKF.md` to opt out. Hosts that support implicit
 skill invocation may load Token Atlas automatically; other hosts execute the
 embedded, vendor-neutral protocol from the repository instructions.
@@ -110,7 +112,7 @@ flowchart LR
 
 | Phase | Purpose |
 |-------|---------|
-| Initialize | Create the `.ai/` runtime and OKF skeleton (first run). |
+| Initialize | Create and strictly validate the complete `.ai/` knowledge base once. |
 | Closeout | Gate mutations and bypass read-only or knowledge-neutral turns. |
 | Maintain | Map changed, renamed, and deleted files to affected docs. |
 | Extract | Add only source-backed facts to the narrowest document. |
@@ -134,20 +136,14 @@ Full workflow details live in the reference docs: [initialize](skills/token-atla
 
 ## How it keeps context small
 
-- **Routing over duplication.** `pkf.loads` holds only what a task needs automatically; each atomic root-index `pkf.routes` entry maps requirements to the leaves that uniquely cover them, and broad tasks compose matching routes with a deduplicated minimum-sufficient union; leaf `pkf.related` remains optional context.
+- **Routing over duplication.** `pkf.loads` holds only what a task needs automatically; globally meaningful route requirements resolve to one authoritative leaf each, and broad tasks deduplicate repeated requirements and leaf references. Sufficient, deduplicated, and irredundant selected-route context is validated while minimum-sufficient context remains the optimization objective; leaf `pkf.related` remains optional.
 - **Source-backed only.** Every fact cites real evidence, so deleted or renamed evidence invalidates the fact on the next maintain — no invented or stale knowledge.
 
-Token usage is measured with an exact tokenizer when available, otherwise estimated as `ceil(character_count / 4)` (marked approximate). Task-route size is telemetry; structural documents retain maintainability thresholds:
-
-| Signal | Threshold | Result |
-|--------|-----------|--------|
-| Startup path (`PKF.md` through the indexes) | above ~2,500 tokens | Warning locally; error in CI |
-| Single module leaf | above ~1,500 tokens | Warning locally; error in CI |
-| Task route | actual unique leaves and estimated tokens | Telemetry only |
-| Route requirement coverage | incomplete or a leaf has no unique contribution | Error |
-| Unrelated module loaded automatically | any occurrence | Error |
-
-Warnings are advisory locally and become blocking under `validation_strictness: ci`.
+Token usage is measured with an exact tokenizer when available, otherwise
+estimated as `ceil(character_count / 4)` and marked approximate. Startup, leaf,
+and task-route sizes are telemetry without numeric ceilings. Incomplete route
+coverage, noncontributing route leaves, and unrelated automatic loads are
+errors.
 
 See [the published benchmarks](BENCHMARKS.md) for pinned real-repository
 measurements. The current harness separates generic source discovery, the local
@@ -160,7 +156,7 @@ exact traces and PKF snapshots remain in a gitignored local-only subtree.
 
 - **Retrieval simulation** — preview which modules and docs a task would load, with a token estimate, before you start.
 - **Deterministic validation** — the public package includes structure, runtime,
-  routing, source-symbol/Edit Map, affected-slice, and token-budget checks with
+  routing, source-symbol/Edit Map, affected-slice, and token-measurement checks with
   `--format json` for CI and no model calls.
 - **Deterministic runtime mechanics** — bounded scaffold inspection generates
   fresh skeletons without model-authored boilerplate, and changed-path routing

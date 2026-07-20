@@ -18,7 +18,7 @@ Each fixture contains:
 | `ui-change` | UI behavior extraction and changed-path routing. |
 | `deleted-evidence` | Stale source evidence detection. |
 | `broad-loads` | Detection of unrelated automatic loads. |
-| `functional-route-minimality` | Functional boards/notes routes prove one-leaf sufficiency and multi-leaf composition through requirement coverage. |
+| `functional-route-irredundancy` | Functional boards/notes routes prove one-leaf sufficiency, authoritative ownership, shared-route deduplication, and multi-leaf composition. |
 | `exports` | Retrieval export mode and JSONL validation. |
 | `functional-boundaries-init` | Generic flat capability discovery without technical-layer or placeholder modules. |
 | `functional-boundaries-migration` | Automatic migration from an unambiguously coarse module. |

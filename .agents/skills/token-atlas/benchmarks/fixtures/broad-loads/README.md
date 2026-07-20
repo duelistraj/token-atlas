@@ -39,11 +39,10 @@ Verify broad or unrelated `pkf.loads` chains are detected as retrieval defects.
 
 - Unrelated module loaded automatically through `pkf.loads`.
 
-## Token Thresholds
+## Token Measurements
 
-- Broad-load chain must be listed with threshold status.
+- Broad-load chain size must be reported; the unrelated automatic load is the defect.
 
 ## Exit Behavior
 
 - CI validation exits nonzero until unrelated automatic loads are removed or moved to `pkf.related`.
-

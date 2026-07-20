@@ -2,7 +2,7 @@
 type: dependencies
 title: Dependencies
 description: Shared dependencies for the simple-api fixture.
-resource: .ai/knowledge/dependencies.md
+resource: tsconfig.json
 tags: [simple-api, dependencies]
 timestamp: 2026-07-08
 pkf:

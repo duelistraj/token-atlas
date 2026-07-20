@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Create a deterministic Token Atlas runtime skeleton from a reviewed spec."""
+"""Create a complete Token Atlas runtime from a reviewed evidence specification."""
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -18,9 +20,9 @@ SKILL_DIR = SCRIPT_DIR.parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from pkf_contract import RUNTIME_VERSION  # noqa: E402
+from pkf_contract import LEAF_MODULE_DOCS, RUNTIME_VERSION  # noqa: E402
 
-DEFAULT_SPEC = Path(".ai/.pkf-init.json")
+DEFAULT_SPEC = Path(".pkf-init.json")
 SOURCE_EXTENSIONS = {
     ".c", ".cc", ".cpp", ".cs", ".go", ".java", ".js", ".jsx", ".kt",
     ".php", ".py", ".rb", ".rs", ".swift", ".ts", ".tsx", ".vue",
@@ -37,7 +39,6 @@ COMMON_SOURCE_ROOTS = (
     "src", "app", "lib", "server", "backend", "frontend/src", "client/src",
     "packages",
 )
-MODULE_DOCS = ("api.md", "schema.md", "business_rules.md", "ui.md")
 RUNTIME_TOOL_FILES = (
     "pkf_contract.py",
     "pkf_lib.py",
@@ -63,11 +64,16 @@ def parse_args() -> argparse.Namespace:
     inspect_parser.add_argument("--spec", type=Path, default=DEFAULT_SPEC)
     inspect_parser.add_argument("--root", action="append", default=[])
 
-    create_parser = subparsers.add_parser("create", help="Create a fresh runtime from a reviewed specification.")
+    create_parser = subparsers.add_parser("create", help="Create and validate a complete runtime from a reviewed specification.")
     create_parser.add_argument("--path", type=Path, default=Path("."))
     create_parser.add_argument("--spec", type=Path, default=DEFAULT_SPEC)
     create_parser.add_argument("--keep-spec", action="store_true")
-    create_parser.add_argument("--strictness", choices=("advisory", "ci"), default="advisory")
+    create_parser.add_argument(
+        "--strictness",
+        choices=("ci",),
+        default="ci",
+        help="Compatibility option; fresh initialization is always strict.",
+    )
     return parser.parse_args()
 
 
@@ -191,7 +197,7 @@ def inspect_repo(repo: Path, spec_path: Path, requested_roots: list[str]) -> dic
     )[:30]
     candidates, truncated, candidate_count = candidate_capabilities(repo, roots)
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "project": {"name": repo.name},
         "technologies": technology_names(all_files, manifests),
         "roots": {
@@ -227,33 +233,39 @@ def front_matter(
     loads: list[str] | None = None,
     related: list[str] | None = None,
     runtime: bool = False,
-    pending: bool = False,
     leaf: bool = False,
     ownership_roots: list[str] | None = None,
     cross_routes: bool = False,
+    resource: str = ".",
+    timestamp: str | None = None,
+    source_symbols: dict[str, list[str]] | None = None,
+    ownership: dict[str, list[str]] | None = None,
+    routes: dict[str, Any] | None = None,
 ) -> str:
     lines = [
         "---",
         f"type: {yaml_value(doc_type)}",
         f"title: {yaml_value(title)}",
         f"description: {yaml_value(description)}",
-        "resource: TODO",
+        f"resource: {yaml_value(resource)}",
         "tags: [pkf]",
-        "timestamp: TODO",
+        f"timestamp: {yaml_value(timestamp or dt.date.today().isoformat())}",
     ]
     if leaf:
-        lines.append("source_symbols: {}")
+        lines.extend(yaml_mapping("source_symbols", source_symbols or {}, 0))
     lines.append("pkf:")
     if runtime:
         lines.extend((f"  runtime_version: {RUNTIME_VERSION}", "  retrieval: adaptive", "  closeout: adaptive"))
-    if pending:
-        lines.append("  materialization: pending")
+    if leaf:
+        lines.append("  materialization: complete")
     if ownership_roots is not None:
         lines.append("  ownership_roots:")
         for item in ownership_roots:
             lines.append(f"    - {yaml_value(item)}")
+    if ownership is not None:
+        lines.extend(yaml_mapping("ownership", ownership, 2))
     if cross_routes:
-        lines.append("  routes: {}")
+        lines.extend(yaml_mapping("routes", routes or {}, 2))
     lines.append("  loads:")
     for item in loads or []:
         lines.append(f"    - {yaml_value(item)}")
@@ -266,6 +278,26 @@ def front_matter(
         lines[-1] = "  related: []"
     lines.extend(("---", ""))
     return "\n".join(lines)
+
+
+def yaml_mapping(key: str, value: dict[str, Any], indent: int) -> list[str]:
+    prefix = " " * indent
+    if not value:
+        return [f"{prefix}{key}: {{}}"]
+    lines = [f"{prefix}{key}:"]
+    for raw_key, raw_value in value.items():
+        rendered_key = str(raw_key)
+        if isinstance(raw_value, dict):
+            lines.extend(yaml_mapping(rendered_key, raw_value, indent + 2))
+        elif isinstance(raw_value, list):
+            if raw_value:
+                lines.append(f"{' ' * (indent + 2)}{rendered_key}:")
+                lines.extend(f"{' ' * (indent + 4)}- {yaml_value(str(item))}" for item in raw_value)
+            else:
+                lines.append(f"{' ' * (indent + 2)}{rendered_key}: []")
+        else:
+            lines.append(f"{' ' * (indent + 2)}{rendered_key}: {yaml_value(str(raw_value))}")
+    return lines
 
 
 def runtime_doc(project_name: str, protocols: str) -> str:
@@ -286,6 +318,8 @@ def simple_doc(
     *,
     related: list[str] | None = None,
     cross_routes: bool = False,
+    routes: dict[str, Any] | None = None,
+    resource: str = ".",
 ) -> str:
     return front_matter(
         doc_type=doc_type,
@@ -293,44 +327,36 @@ def simple_doc(
         description=description,
         related=related,
         cross_routes=cross_routes,
+        routes=routes,
+        resource=resource,
     ) + body.rstrip() + "\n"
 
 
 def module_index(module: dict[str, Any]) -> str:
     module_id = module["id"]
     title = str(module.get("title") or module_id.replace("-", " ").title())
-    roots = ", ".join(f"`{value}`" for value in module["source_roots"])
+    roots = ", ".join(f"`{value}`" for value in module["ownership"])
+    leaf_rows = "\n".join(
+        f"| {leaf['title']} | `{leaf['file']}` |" for leaf in module["leaves"]
+    )
     return front_matter(
         doc_type="module-index",
         title=f"{title} Knowledge Index",
         description=f"Routes work owned by the {title} capability.",
         related=[],
-        ownership_roots=list(module["source_roots"]),
+        ownership_roots=list(module["ownership"]),
+        ownership=module["ownership"],
+        resource=next(iter(module["ownership"])),
     ) + (
         f"# {title}\n\nOwnership roots: {roots}\n\n"
         "| Need | Document |\n| --- | --- |\n"
-        "| API or public interface | `api.md` |\n"
-        "| Data shape or persistence | `schema.md` |\n"
-        "| Behavior and workflows | `business_rules.md` |\n"
-        "| User interface | `ui.md` |\n"
+        f"{leaf_rows}\n"
     )
 
 
-def pending_leaf(module: dict[str, Any], filename: str) -> str:
-    module_id = module["id"]
-    label = filename.removesuffix(".md").replace("_", " ").title()
-    return front_matter(
-        doc_type="knowledge",
-        title=f"{module.get('title') or module_id} {label}",
-        description=f"Source-backed {label.lower()} facts for {module_id}.",
-        pending=True,
-        leaf=True,
-    ) + f"# {label}\n\n- TODO: Pending source extraction.\n"
-
-
 def validate_spec(repo: Path, value: Any) -> tuple[str, list[dict[str, Any]]]:
-    if not isinstance(value, dict) or value.get("schema_version") != 1:
-        raise ScaffoldError("spec schema_version must be 1")
+    if not isinstance(value, dict) or value.get("schema_version") != 2:
+        raise ScaffoldError("spec schema_version must be 2")
     project = value.get("project")
     name = project.get("name") if isinstance(project, dict) else None
     if not isinstance(name, str) or not name.strip():
@@ -339,33 +365,115 @@ def validate_spec(repo: Path, value: Any) -> tuple[str, list[dict[str, Any]]]:
     if not isinstance(capabilities, list) or not capabilities:
         raise ScaffoldError("reviewed spec must define at least one capability")
     seen_ids: set[str] = set()
-    ownership: set[str] = set()
+    ownership: dict[str, set[str] | None] = {}
     normalized: list[dict[str, Any]] = []
     for raw in capabilities:
         if not isinstance(raw, dict):
             raise ScaffoldError("each capability must be an object")
         module_id = raw.get("id")
-        roots = raw.get("source_roots")
+        raw_ownership = raw.get("ownership")
+        leaves = raw.get("leaves")
         if not isinstance(module_id, str) or not MODULE_RE.fullmatch(module_id):
             raise ScaffoldError(f"invalid flat capability id: {module_id!r}")
         if module_id in seen_ids:
             raise ScaffoldError(f"duplicate capability id: {module_id}")
-        if not isinstance(roots, list) or not roots:
-            raise ScaffoldError(f"capability {module_id} requires source_roots")
-        normalized_roots = []
-        for raw_root in roots:
-            if not isinstance(raw_root, str) or not raw_root.strip():
-                raise ScaffoldError(f"capability {module_id} has an invalid source root")
-            resolved = resolve_inside(repo, Path(raw_root))
+        if not isinstance(raw_ownership, dict) or not raw_ownership:
+            raise ScaffoldError(f"capability {module_id} requires ownership")
+        normalized_ownership: dict[str, list[str]] = {}
+        for raw_path, raw_symbols in raw_ownership.items():
+            if not isinstance(raw_path, str) or not raw_path.strip() or ":" in raw_path or "\n" in raw_path:
+                raise ScaffoldError(f"capability {module_id} has an invalid ownership path")
+            resolved = resolve_inside(repo, Path(raw_path))
             if not resolved.exists():
-                raise ScaffoldError(f"capability source root does not exist: {raw_root}")
-            root_ref = relative(repo, resolved)
-            if root_ref in ownership:
-                raise ScaffoldError(f"duplicate capability ownership root: {root_ref}")
-            ownership.add(root_ref)
-            normalized_roots.append(root_ref)
+                raise ScaffoldError(f"capability ownership path does not exist: {raw_path}")
+            path_ref = relative(repo, resolved)
+            if not isinstance(raw_symbols, list) or not all(
+                isinstance(symbol, str) and symbol.strip() for symbol in raw_symbols
+            ):
+                raise ScaffoldError(f"capability {module_id} ownership symbols must be a string list: {path_ref}")
+            symbols = list(dict.fromkeys(symbol.strip() for symbol in raw_symbols))
+            claimed = set(symbols) if symbols else None
+            previous = ownership.get(path_ref)
+            if previous is None and path_ref in ownership:
+                raise ScaffoldError(f"exclusive ownership path is already assigned: {path_ref}")
+            if claimed is None and path_ref in ownership:
+                raise ScaffoldError(f"exclusive ownership path conflicts with another capability: {path_ref}")
+            if previous is not None and claimed is not None and previous & claimed:
+                conflict = ", ".join(sorted(previous & claimed))
+                raise ScaffoldError(f"duplicate capability symbol ownership at {path_ref}: {conflict}")
+            ownership[path_ref] = None if claimed is None else (previous or set()) | claimed
+            text = resolved.read_text(encoding="utf-8", errors="ignore") if resolved.is_file() else ""
+            missing_symbols = [symbol for symbol in symbols if symbol not in text]
+            if missing_symbols:
+                raise ScaffoldError(
+                    f"capability {module_id} ownership symbols do not resolve in {path_ref}: "
+                    + ", ".join(missing_symbols)
+                )
+            normalized_ownership[path_ref] = symbols
+        if not isinstance(leaves, list) or not leaves:
+            raise ScaffoldError(f"capability {module_id} requires at least one evidence-backed leaf")
+        normalized_leaves: list[dict[str, Any]] = []
+        seen_leaves: set[str] = set()
+        for raw_leaf in leaves:
+            if not isinstance(raw_leaf, dict):
+                raise ScaffoldError(f"capability {module_id} leaf must be an object")
+            filename = raw_leaf.get("file")
+            if filename not in LEAF_MODULE_DOCS or filename in seen_leaves:
+                raise ScaffoldError(f"capability {module_id} has invalid or duplicate leaf: {filename!r}")
+            title = raw_leaf.get("title")
+            description = raw_leaf.get("description")
+            body = raw_leaf.get("body")
+            source_symbols = raw_leaf.get("source_symbols")
+            resource = raw_leaf.get("resource")
+            if not all(isinstance(item, str) and item.strip() for item in (title, description, body, resource)):
+                raise ScaffoldError(f"capability {module_id} leaf {filename} requires title, description, resource, and body")
+            if "TODO" in body.upper():
+                raise ScaffoldError(f"capability {module_id} leaf {filename} contains TODO")
+            resolved_resource = resolve_inside(repo, Path(resource))
+            if not resolved_resource.exists():
+                raise ScaffoldError(f"capability {module_id} leaf resource does not resolve: {resource}")
+            if not isinstance(source_symbols, dict) or not source_symbols:
+                raise ScaffoldError(f"capability {module_id} leaf {filename} requires source_symbols")
+            normalized_symbols: dict[str, list[str]] = {}
+            for raw_source, raw_names in source_symbols.items():
+                if not isinstance(raw_source, str) or ":" in raw_source or "\n" in raw_source:
+                    raise ScaffoldError(f"capability {module_id} leaf {filename} has invalid source path")
+                source = resolve_inside(repo, Path(raw_source))
+                if not source.is_file():
+                    raise ScaffoldError(f"capability {module_id} leaf source does not resolve: {raw_source}")
+                if not isinstance(raw_names, list) or not raw_names or not all(
+                    isinstance(symbol, str) and symbol.strip() for symbol in raw_names
+                ):
+                    raise ScaffoldError(f"capability {module_id} leaf source symbols must be non-empty: {raw_source}")
+                names = list(dict.fromkeys(symbol.strip() for symbol in raw_names))
+                source_text = source.read_text(encoding="utf-8", errors="ignore")
+                missing = [symbol for symbol in names if symbol not in source_text]
+                if missing:
+                    raise ScaffoldError(
+                        f"capability {module_id} leaf symbols do not resolve in {raw_source}: "
+                        + ", ".join(missing)
+                    )
+                normalized_symbols[relative(repo, source)] = names
+            normalized_leaves.append(
+                {
+                    "file": filename,
+                    "title": title.strip(),
+                    "description": description.strip(),
+                    "resource": relative(repo, resolved_resource),
+                    "source_symbols": normalized_symbols,
+                    "body": body.strip(),
+                }
+            )
+            seen_leaves.add(filename)
         seen_ids.add(module_id)
-        normalized.append({"id": module_id, "title": raw.get("title") or module_id, "source_roots": normalized_roots})
+        normalized.append(
+            {
+                "id": module_id,
+                "title": raw.get("title") or module_id,
+                "ownership": normalized_ownership,
+                "leaves": normalized_leaves,
+            }
+        )
     return name.strip(), normalized
 
 
@@ -384,21 +492,42 @@ def merge_bootstrap(repo: Path, block: str) -> Path:
     return path
 
 
-def create_runtime(repo: Path, spec_path: Path, strictness: str, keep_spec: bool) -> dict[str, Any]:
+def create_runtime(repo: Path, spec_path: Path, keep_spec: bool) -> dict[str, Any]:
     if (repo / ".ai/PKF.md").exists():
         raise ScaffoldError("fresh scaffold refused: .ai/PKF.md already exists")
     if not spec_path.is_file():
         raise ScaffoldError(f"reviewed specification does not exist: {relative(repo, spec_path)}")
     ai = repo / ".ai"
-    existing = [path for path in ai.rglob("*") if path != spec_path] if ai.exists() else []
-    if existing:
-        raise ScaffoldError("fresh scaffold refused: .ai contains content other than the reviewed specification")
+    if ai.exists() and any(ai.iterdir()):
+        raise ScaffoldError("fresh scaffold refused: .ai contains content")
     value = json.loads(spec_path.read_text(encoding="utf-8"))
     project_name, modules = validate_spec(repo, value)
+    routes = value.get("routes", {})
+    if not isinstance(routes, dict):
+        raise ScaffoldError("spec routes must be an object")
     protocols = (SKILL_DIR / "templates/protocols.md").read_text(encoding="utf-8")
     bootstrap = (SKILL_DIR / "templates/bootstrap.md").read_text(encoding="utf-8")
     knowledge = ai / "knowledge"
     created: list[Path] = []
+    agents_path = repo / "AGENTS.md"
+    original_agents = agents_path.read_text(encoding="utf-8") if agents_path.is_file() else None
+
+    def quarantine_runtime() -> Path | None:
+        destination = None
+        if ai.exists():
+            destination = (
+                repo
+                / ".token-atlas"
+                / "drafts"
+                / dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+            )
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(ai), str(destination))
+        if original_agents is None:
+            agents_path.unlink(missing_ok=True)
+        else:
+            agents_path.write_text(original_agents, encoding="utf-8")
+        return destination
 
     def write(path: Path, text: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -407,67 +536,124 @@ def create_runtime(repo: Path, spec_path: Path, strictness: str, keep_spec: bool
         path.write_text(text, encoding="utf-8")
         created.append(path)
 
-    write(ai / "PKF.md", runtime_doc(project_name, protocols))
-    write(ai / "MEMORY.md", simple_doc("memory", f"{project_name} Memory", "Stable repository-wide facts.", "# Memory\n\n- TODO: Add verified repository commands and invariants."))
-    ownership_rows = "\n".join(
-        f"| `{module['id']}` | {', '.join(f'`{root}`' for root in module['source_roots'])} |"
-        for module in modules
-    )
-    write(
-        ai / "ARCHITECTURE.md",
-        simple_doc(
-            "architecture", f"{project_name} Architecture", "Structure-backed capability ownership.",
-            "# Architecture\n\n| Capability | Ownership roots |\n| --- | --- |\n" + ownership_rows,
-            related=[],
-        ),
-    )
-    routing_rows = "\n".join(
-        f"| `{module['id']}` | {', '.join(f'`{root}`' for root in module['source_roots'])} | `.ai/knowledge/{module['id']}/INDEX.md` |"
-        for module in modules
-    )
-    write(
-        knowledge / "INDEX.md",
-        simple_doc(
-            "knowledge-index", f"{project_name} Knowledge Index", "Routes capabilities to minimal knowledge documents.",
-            (
-                "# Knowledge Index\n\n| Capability | Ownership roots | Route |\n| --- | --- | --- |\n"
-                + routing_rows
-                + "\n\n## Cross-capability routes\n\n"
-                "Source-backed cross-capability intents are keyed under `pkf.routes` with requirements and per-leaf coverage; broader tasks compose matching routes, deduplicate their leaves, and remove leaves without unique coverage.\n"
+    source_roots = list(value.get("roots", {}).get("source", [])) if isinstance(value.get("roots"), dict) else []
+    technologies = [str(item) for item in value.get("technologies", []) if str(item)]
+    commands = value.get("commands", {}) if isinstance(value.get("commands"), dict) else {}
+    memory_lines = [f"- Project: `{project_name}`."]
+    if source_roots:
+        memory_lines.append("- Source roots: " + ", ".join(f"`{item}`" for item in source_roots) + ".")
+    if technologies:
+        memory_lines.append("- Detected technologies: " + ", ".join(technologies) + ".")
+    for name, command in sorted(commands.items()):
+        if isinstance(name, str) and isinstance(command, str) and name.strip() and command.strip():
+            memory_lines.append(f"- `{name}` command: `{command}`.")
+
+    try:
+        write(ai / "PKF.md", runtime_doc(project_name, protocols))
+        write(
+            ai / "MEMORY.md",
+            simple_doc(
+                "memory",
+                f"{project_name} Memory",
+                "Verified stable repository-wide facts.",
+                "# Memory\n\n" + "\n".join(memory_lines),
+                resource=".",
             ),
-            related=[],
-            cross_routes=True,
-        ),
-    )
-    for filename, title, description in (
-        ("glossary.md", "Glossary", "Repository terminology."),
-        ("dependencies.md", "Dependencies", "Repository dependency and command facts."),
-        ("decision_log.md", "Decision Log", "Verified architectural decisions."),
-    ):
-        write(knowledge / filename, simple_doc("shared-knowledge", title, description, f"# {title}\n\n- TODO: Add verified facts."))
-    for module in modules:
-        module_dir = knowledge / module["id"]
-        write(module_dir / "INDEX.md", module_index(module))
-        for filename in MODULE_DOCS:
-            write(module_dir / filename, pending_leaf(module, filename))
-    for filename in RUNTIME_TOOL_FILES:
-        write(ai / "tools" / filename, (SCRIPT_DIR / filename).read_text(encoding="utf-8"))
-    created.append(merge_bootstrap(repo, bootstrap))
+        )
+        ownership_rows = "\n".join(
+            f"| `{module['id']}` | {', '.join(f'`{root}`' for root in module['ownership'])} |"
+            for module in modules
+        )
+        write(
+            ai / "ARCHITECTURE.md",
+            simple_doc(
+                "architecture", f"{project_name} Architecture", "Source-backed capability ownership.",
+                "# Architecture\n\n| Capability | Ownership evidence |\n| --- | --- |\n" + ownership_rows,
+                related=[],
+                resource=".",
+            ),
+        )
+        routing_rows = "\n".join(
+            f"| `{module['id']}` | {', '.join(f'`{root}`' for root in module['ownership'])} | `.ai/knowledge/{module['id']}/INDEX.md` |"
+            for module in modules
+        )
+        write(
+            knowledge / "INDEX.md",
+            simple_doc(
+                "knowledge-index", f"{project_name} Knowledge Index", "Routes repository-derived capabilities to evidence-backed knowledge.",
+                (
+                    "# Knowledge Index\n\n| Capability | Ownership evidence | Route |\n| --- | --- | --- |\n"
+                    + routing_rows
+                    + "\n\n## Cross-capability routes\n\n"
+                    "Requirements resolve to one authoritative leaf and composed routes deduplicate shared requirements and leaves.\n"
+                ),
+                related=[],
+                cross_routes=True,
+                routes=routes,
+                resource=".",
+            ),
+        )
+        if technologies or commands:
+            dependency_lines = [f"- Technology: {item}." for item in technologies]
+            dependency_lines.extend(
+                f"- `{name}`: `{command}`."
+                for name, command in sorted(commands.items())
+                if isinstance(name, str) and isinstance(command, str) and name.strip() and command.strip()
+            )
+            write(
+                knowledge / "dependencies.md",
+                simple_doc(
+                    "shared-knowledge",
+                    "Dependencies and Commands",
+                    "Verified repository technologies and commands.",
+                    "# Dependencies and Commands\n\n" + "\n".join(dependency_lines),
+                    resource=".",
+                ),
+            )
+        for module in modules:
+            module_dir = knowledge / module["id"]
+            write(module_dir / "INDEX.md", module_index(module))
+            for leaf in module["leaves"]:
+                write(
+                    module_dir / leaf["file"],
+                    front_matter(
+                        doc_type="knowledge",
+                        title=leaf["title"],
+                        description=leaf["description"],
+                        leaf=True,
+                        resource=leaf["resource"],
+                        source_symbols=leaf["source_symbols"],
+                    )
+                    + leaf["body"].rstrip()
+                    + "\n",
+                )
+        for filename in RUNTIME_TOOL_FILES:
+            write(ai / "tools" / filename, (SCRIPT_DIR / filename).read_text(encoding="utf-8"))
+        created.append(merge_bootstrap(repo, bootstrap))
+    except Exception:
+        quarantine_runtime()
+        raise
 
     validator = ai / "tools" / "pkf_validate.py"
-    completed = subprocess.run(
-        (sys.executable, "-S", str(validator), "--path", str(repo), "--strictness", strictness, "--format", "json", "--detail", "summary"),
-        cwd=repo,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            (sys.executable, "-S", str(validator), "--path", str(repo), "--strictness", "ci", "--format", "json", "--detail", "summary"),
+            cwd=repo,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except Exception:
+        quarantine_runtime()
+        raise
     try:
         validation_result = json.loads(completed.stdout)
     except json.JSONDecodeError as exc:
+        quarantine_runtime()
         raise ScaffoldError(f"generated runtime validation returned invalid JSON: {completed.stdout[-1000:].strip()}") from exc
     if completed.returncode != 0 or validation_result.get("status") == "failed":
         errors = validation_result.get("errors", [])
+        quarantine_runtime()
         raise ScaffoldError(f"generated runtime failed validation: {json.dumps(errors, sort_keys=True)}")
     if not keep_spec:
         spec_path.unlink()
@@ -494,7 +680,7 @@ def main() -> int:
                 "truncated": result["inspection"]["truncated"],
             }
         else:
-            summary = create_runtime(repo, spec_path, args.strictness, args.keep_spec)
+            summary = create_runtime(repo, spec_path, args.keep_spec)
         print(json.dumps(summary, indent=2, sort_keys=True))
         return 0
     except (OSError, json.JSONDecodeError, ScaffoldError) as exc:

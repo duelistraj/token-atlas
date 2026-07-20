@@ -25,8 +25,8 @@ Verify startup recovery when `.ai/PKF.md` is absent.
 - `.ai/MEMORY.md`
 - `.ai/ARCHITECTURE.md`
 - `.ai/knowledge/INDEX.md`
-- Shared docs: `glossary.md`, `dependencies.md`, `decision_log.md`
-- Module skeleton docs for every detected module.
+- Applicable source-backed shared docs.
+- A module index and every applicable complete evidence-backed leaf.
 
 ## Forbidden Automatic Loads
 
@@ -35,16 +35,16 @@ Verify startup recovery when `.ai/PKF.md` is absent.
 
 ## Expected Warnings
 
-- Unknown implementation details may remain `TODO`.
+- None. Unknown or nonapplicable knowledge is omitted.
 
 ## Expected Errors
 
 - None after initialization and validation.
 - In CI validation before initialization, missing `.ai/PKF.md` is a blocking startup error.
 
-## Token Thresholds
+## Token Measurements
 
-- Startup should stay at or below 2,500 tokens and each leaf at or below 1,500; task-route size is telemetry.
+- Startup, leaf, and task-route sizes are observed telemetry without numeric ceilings.
 
 ## Exit Behavior
 

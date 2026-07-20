@@ -83,7 +83,7 @@ Record keywords and changed paths that influenced the classification.
 Use routing evidence in this order:
 
 1. Changed file paths matched by `ARCHITECTURE.md` or `knowledge/INDEX.md` path ownership.
-2. The smallest set of matching atomic keyed root-index `pkf.routes` entries for cross-capability intent.
+2. Matching atomic keyed root-index `pkf.routes` entries for cross-capability intent, evaluated through their globally deduplicated requirement and authoritative-leaf unions.
 3. Module names and keywords in `knowledge/INDEX.md`.
 4. Module `INDEX.md` routing tables.
 5. Leaf-level `pkf.related` only as optional context.
@@ -92,8 +92,9 @@ If multiple modules match, keep all plausible candidates but mark ambiguity.
 
 Do not load unrelated modules automatically.
 
-For every task, select the smallest context packet that completely covers its requirements, then return the exact `source_symbols` and Edit Map locator commands.
-For a cross-capability task, compose the smallest matching atomic route set, deduplicate its leaves, and remove any leaf without unique requirement coverage.
+For every task, pursue minimum-sufficient context, then return the exact `source_symbols` and Edit Map locator commands.
+For a cross-capability task, compose matching atomic routes, deduplicate global requirement IDs and authoritative leaves, and validate complete, irredundant selected-route coverage.
+Route-to-task relevance remains a model-reviewed selection concern and is not mechanically proven.
 When equally complete alternatives use the same leaf count, prefer the lower estimated token cost.
 Do not load adjacent indexes or related leaves.
 
@@ -136,14 +137,12 @@ Use an exact tokenizer when available locally for the target model. Otherwise us
 ceil(character_count / 4)
 ```
 
-Report estimator type, coverage status, minimality status, and actual route size.
+Report estimator type, coverage status, selected-route irredundancy status, actual leaf count, and estimated route-content tokens.
 
-Apply structural thresholds and the minimum-sufficient retrieval policy:
+Apply the minimum-sufficient retrieval policy:
 
-- Startup path above 2,500 tokens: warning locally, error in CI.
-- Any leaf above 1,500 tokens: warning locally, error in CI.
-- Route leaf count and estimated tokens are telemetry, not validation gates.
-- Any unrelated module loaded automatically: error.
+- Startup, leaf, and route token counts are telemetry without numeric ceilings.
+- Any unrelated module loaded automatically is an error.
 
 ---
 
@@ -169,7 +168,7 @@ Warn when:
 - Changed file paths have no owner.
 - Required task type cannot be classified.
 - Optional related documents look broad or stale.
-- Token estimates cross warning thresholds.
+- Token measurements reveal an unexpectedly broad automatic load path.
 - Evidence suggests a capability split but does not satisfy the Module Boundary Contract.
 
 Error when:
@@ -218,12 +217,12 @@ Optional related docs: <docs not automatically loaded>
 Estimated tokens: <count>
 Estimator: <exact or approximate>
 Coverage status: <complete, incomplete, or unknown>
-Minimality status: <minimal, redundant, or unknown>
+Irredundancy status: <irredundant, redundant, invalid, or unknown>
 Source targets: <path:symbol entries>
 Targeted commands: <sg when verified as ast-grep, otherwise exact rg commands>
 Fallback search: <yes or no>
 Fallback reason: <reason or none>
-Route telemetry: <route IDs, requirements covered, unique leaves, and estimated tokens>
+Route telemetry: <route IDs, globally deduplicated requirements, authoritative leaves, and estimated route-content tokens plus estimator>
 Routing evidence:
 - <evidence item>
 Warnings:

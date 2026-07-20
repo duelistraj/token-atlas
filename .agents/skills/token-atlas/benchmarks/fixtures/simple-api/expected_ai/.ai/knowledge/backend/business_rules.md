@@ -1,15 +1,21 @@
 ---
 type: rules
-title: Backend Business Rules
-description: Backend rule facts for the simple-api fixture.
-resource: .ai/knowledge/backend/business_rules.md
+title: Order Lookup Business Rules
+description: Source-backed order lookup behavior.
+resource: src/backend/routes/orders.ts
 tags: [simple-api, backend, rules]
 timestamp: 2026-07-08
-source_symbols: {}
+source_symbols:
+  src/backend/routes/orders.ts:
+    - getOrderRoute
 pkf:
-  materialization: pending
+  materialization: complete
   loads: []
   related: []
 ---
 
-- TODO: Pending source extraction.
+## Edit Map
+
+| Behavior | Source symbols | Tests | Styles/tokens | Locator |
+|---|---|---|---|---|
+| Return 404 when an order is absent | `src/backend/routes/orders.ts:getOrderRoute` | Not documented | N/A | `rg -n -F -- 'getOrderRoute' 'src/backend/routes/orders.ts'` |

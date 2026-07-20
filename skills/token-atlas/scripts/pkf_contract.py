@@ -1,7 +1,7 @@
 """Canonical Token Atlas PKF contract values.
 
 Keep this module dependency-free. Tooling, tests, and docs drift guards import
-these values instead of copying threshold and schema literals.
+these values instead of copying measurement policy and schema literals.
 """
 
 from __future__ import annotations
@@ -16,9 +16,11 @@ RETRIEVAL_MODE_FIELD = "retrieval"
 RETRIEVAL_DEFAULT = "adaptive"
 RETRIEVAL_MODES = ("adaptive", "mandatory")
 
+# Context size is measured as telemetry. Retrieval quality is governed by
+# sufficiency, deduplication, and irredundancy rather than arbitrary ceilings.
 TOKEN_THRESHOLDS = {
-    "startup": 2500,
-    "leaf": 1500,
+    "startup": None,
+    "leaf": None,
 }
 ESTIMATOR_FORMULA = "ceil(character_count / 4)"
 
@@ -59,20 +61,27 @@ SHARED_DOCS = (
     "dependencies.md",
     "decision_log.md",
 )
-REQUIRED_MODULE_DOCS = (
-    "INDEX.md",
+REQUIRED_MODULE_DOCS = ("INDEX.md",)
+LEAF_MODULE_DOCS = (
     "api.md",
     "schema.md",
     "business_rules.md",
     "ui.md",
 )
-LEAF_MODULE_DOCS = tuple(doc for doc in REQUIRED_MODULE_DOCS if doc != "INDEX.md")
 LEAF_SOURCE_SYMBOLS_FIELD = "source_symbols"
 MODULE_OWNERSHIP_ROOTS_FIELD = "ownership_roots"
+MODULE_OWNERSHIP_FIELD = "ownership"
 CROSS_ROUTES_FIELD = "routes"
-CROSS_ROUTE_REQUIRED_FIELDS = ("intent", "triggers", "modules", "loads")
 CROSS_ROUTE_REQUIREMENTS_FIELD = "requirements"
 CROSS_ROUTE_LOAD_COVERAGE_FIELD = "load_coverage"
+CROSS_ROUTE_REQUIRED_FIELDS = (
+    "intent",
+    "triggers",
+    "modules",
+    CROSS_ROUTE_REQUIREMENTS_FIELD,
+    "loads",
+    CROSS_ROUTE_LOAD_COVERAGE_FIELD,
+)
 LEAF_MATERIALIZATION_FIELD = "materialization"
 LEAF_MATERIALIZATION_MODES = ("complete", "pending")
 EMPTY_LEAF_MARKER = "- TODO: No source-backed facts."

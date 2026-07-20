@@ -30,7 +30,7 @@ Default validation is advisory and lightweight.
 Use:
 
 - `advisory`: report warnings and errors, but run only summary token budgeting and changed-path simulation by default.
-- `ci`: fail on blocking errors, unrelated automatic loads, missing required simulations, and token budget gates.
+- `ci`: fail on blocking errors, unrelated automatic loads, and missing required simulations.
 
 `retrieval_exports` defaults to `off`; validation must not require `.ai/retrieval/` unless retrieval exports are explicitly enabled.
 
@@ -89,25 +89,18 @@ Verify:
 - Root `INDEX.md` exists.
 - Every detected module has a directory.
 
-Every module must contain:
+Every module must contain `INDEX.md` and at least one applicable complete,
+evidence-backed leaf. Omit nonapplicable leaf types.
 
-- `INDEX.md`
-- `api.md`
-- `schema.md`
-- `business_rules.md`
-- `ui.md`
-
-Every leaf is complete or explicitly `pkf.materialization: pending`. Pending
-leaves must have empty `source_symbols` and the standardized pending marker.
+Every emitted leaf must declare `pkf.materialization: complete`, contain
+non-empty resolving `source_symbols`, and contain no TODO, pending, unknown, or
+placeholder knowledge.
 
 Module directories must be flat, directly under `.ai/knowledge/`. A nested
 module `INDEX.md` is a structural validation error.
 
-Verify shared documents:
-
-- `glossary.md`
-- `dependencies.md`
-- `decision_log.md`
+Verify applicable shared documents are source-backed. Omit nonapplicable shared
+documents rather than creating placeholders.
 
 ---
 
@@ -140,12 +133,14 @@ Verify:
 - `pkf.loads` and `pkf.related` are lists.
 - `pkf.loads` and `pkf.related` entries resolve to existing documents.
 - Architecture, root-index, and module-index `pkf.related` values are empty.
-- Root-index `pkf.routes`, when present, is keyed by route ID; every route has a narrow intent, triggers, at least two exact modules, complete leaf loads, requirement IDs, and per-leaf requirement coverage.
-  Every requirement is covered and every leaf is the exclusive provider of at least one requirement.
+- Root-index `pkf.routes`, when present, is keyed by route ID; every route has a narrow intent, triggers, at least two exact modules, and mandatory `requirements`, complete leaf `loads`, and exact `load_coverage` metadata.
+  Requirement IDs are global within the root catalog: each ID resolves to one authoritative leaf, repeated IDs reuse that leaf, one leaf may own several IDs, every requirement is covered, and every route-declared leaf contributes.
+  Deterministic validation proves selected-route ownership and irredundancy, not semantic distinction between differently named IDs or route-to-task relevance.
   Broad tasks may compose routes, must deduplicate their leaf union, and must remove leaves without unique coverage.
-- `resource` paths resolve to existing repository paths or are marked `TODO`.
-- Every module leaf has a `source_symbols` path-to-symbol-list mapping; paths and
-  literal symbols resolve, and empty leaves use the standard marker.
+- `resource` paths resolve to existing repository paths and contain no
+  placeholder value.
+- Every module leaf has a non-empty `source_symbols` path-to-symbol-list mapping;
+  paths and literal symbols resolve.
 - Every implementation-bearing leaf has an Edit Map with specific behavior,
   declared source symbols, tests, styles/tokens, and a targeted locator per row.
   Placeholder behavior labels and declared symbols omitted from the table are
@@ -169,9 +164,9 @@ Ensure:
 - Deleted or renamed source files are not referenced as current facts.
 - Maintenance impact reports identify every deleted or renamed evidence path still cited by canonical Markdown.
 - Source evidence labels point to existing files, symbols, commands, config keys, or tests.
-- Source evidence older than the current implementation is updated or marked `TODO`.
+- Source evidence older than the current implementation is updated or removed.
 
-Unknown information must be marked as `TODO`.
+Unknown information is omitted rather than represented as durable knowledge.
 
 Never fabricated.
 
@@ -273,14 +268,18 @@ Estimator rules:
 - Otherwise use `ceil(character_count / 4)` and label the result `approximate`.
 - Report which estimator was used.
 
-Default thresholds:
+Measurement policy:
 
-| Check | Threshold | Severity |
-|------|-----------|----------|
-| Startup path | Above 2,500 estimated tokens | Warning locally; error in CI |
-| Module leaf | Above 1,500 estimated tokens | Warning locally; error in CI |
-| Task route | Actual leaves and estimated tokens | Telemetry only |
-| Unrelated automatic module load | Any occurrence | Error |
+| Check | Result |
+|------|--------|
+| Startup path | Observed token telemetry |
+| Module leaf | Observed token telemetry |
+| Task route | Actual leaves and observed token telemetry |
+| Unrelated automatic module load | Error |
+
+Do not impose numeric leaf or token ceilings. Retrieval validity comes from
+complete coverage, authoritative ownership, deduplication, irredundancy, and no
+unrelated automatic loads.
 
 Validation must fail in `ci` strictness when unrelated modules are loaded automatically through `pkf.loads`. In advisory mode, report the same condition as a blocking error recommendation.
 
@@ -308,7 +307,7 @@ Verify:
 - Every record has stable `id`, `type`, `source_path`, `evidence`, `timestamp`, and `confidence` fields.
 - `source_path` resolves to canonical Markdown or cited repository evidence.
 - Relationship endpoints resolve to exported entities, documents, or claims.
-- Claims are source-backed or marked `TODO`.
+- Claims are source-backed; unresolved claims are absent.
 - `.ai/retrieval/` is not treated as canonical source input.
 
 Flag errors for invalid JSONL, missing required fields, unresolved relationship endpoints, unsupported claims, or exports that contradict canonical Markdown.
@@ -327,7 +326,7 @@ Check:
 - Deleted file paths are not cited as current evidence.
 - Renamed file paths are updated to the new path when the rename is certain.
 - Removed symbols, routes, schemas, commands, config keys, and tests are not cited as current evidence.
-- Facts with unresolved evidence are removed or marked `TODO`.
+- Facts with unresolved evidence are removed.
 - Duplicate authoritative facts are reported.
 - Retrieval exports are ignored when disabled and marked stale or regenerated when enabled.
 - Eligible coarse modules were automatically repartitioned without losing facts, while ambiguous candidates were retained and reported.
@@ -421,10 +420,12 @@ Include:
 - Startup path estimate for `PKF.md -> MEMORY.md -> ARCHITECTURE.md -> knowledge/INDEX.md`.
 - Changed module path estimates in `summary` mode.
 - Each leaf, representative task estimate, and broad `pkf.loads` chain in `full` mode.
-- Coverage, minimality, actual leaf count, estimated tokens, and structural threshold status.
+- Coverage, selected-route irredundancy, actual leaf count, estimated route-content tokens, and estimator type.
 - Whether estimates are exact tokenizer counts or approximate counts.
 
-Use this section even when the estimate is approximate. Label approximations clearly. Apply the 2,500-token startup and 1,500-token individual-leaf gates. Report task-route size as telemetry and unrelated automatic module loads as blocking errors.
+Use this section even when the estimate is approximate. Label approximations
+clearly. Report all context sizes as telemetry and unrelated automatic module
+loads as blocking errors.
 
 ---
 
@@ -454,7 +455,7 @@ Validation succeeds when:
 - Tooling maps commands to documented workflows and preserves CI exit behavior.
 - Enabled retrieval simulations succeed or record evidence-backed skips.
 - Enabled simulation reports selected modules, required docs, optional docs, token cost, routing evidence, warnings, and errors.
-- Token budget output is present at the selected summary or full level and threshold status is clear.
+- Token measurements are present at the selected summary or full level.
 - AI can navigate using minimal context.
 - No blocking errors remain.
 
