@@ -15,6 +15,11 @@ sys.dont_write_bytecode = True
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPT_DIR.parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from pkf_contract import RUNTIME_VERSION  # noqa: E402
+
 DEFAULT_SPEC = Path(".ai/.pkf-init.json")
 SOURCE_EXTENSIONS = {
     ".c", ".cc", ".cpp", ".cs", ".go", ".java", ".js", ".jsx", ".kt",
@@ -33,6 +38,13 @@ COMMON_SOURCE_ROOTS = (
     "packages",
 )
 MODULE_DOCS = ("api.md", "schema.md", "business_rules.md", "ui.md")
+RUNTIME_TOOL_FILES = (
+    "pkf_contract.py",
+    "pkf_lib.py",
+    "pkf_route.py",
+    "pkf_tokens.py",
+    "pkf_validate.py",
+)
 MODULE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 START_MARKER = "<!-- token-atlas:bootstrap:start -->"
 END_MARKER = "<!-- token-atlas:bootstrap:end -->"
@@ -217,6 +229,7 @@ def front_matter(
     runtime: bool = False,
     pending: bool = False,
     leaf: bool = False,
+    ownership_roots: list[str] | None = None,
 ) -> str:
     lines = [
         "---",
@@ -231,9 +244,13 @@ def front_matter(
         lines.append("source_symbols: {}")
     lines.append("pkf:")
     if runtime:
-        lines.extend(("  runtime_version: 3", "  retrieval: adaptive", "  closeout: adaptive"))
+        lines.extend((f"  runtime_version: {RUNTIME_VERSION}", "  retrieval: adaptive", "  closeout: adaptive"))
     if pending:
         lines.append("  materialization: pending")
+    if ownership_roots is not None:
+        lines.append("  ownership_roots:")
+        for item in ownership_roots:
+            lines.append(f"    - {yaml_value(item)}")
     lines.append("  loads:")
     for item in loads or []:
         lines.append(f"    - {yaml_value(item)}")
@@ -271,17 +288,19 @@ def module_index(module: dict[str, Any]) -> str:
     module_id = module["id"]
     title = str(module.get("title") or module_id.replace("-", " ").title())
     roots = ", ".join(f"`{value}`" for value in module["source_roots"])
-    return simple_doc(
-        "module-index",
-        f"{title} Knowledge Index",
-        f"Routes work owned by the {title} capability.",
+    return front_matter(
+        doc_type="module-index",
+        title=f"{title} Knowledge Index",
+        description=f"Routes work owned by the {title} capability.",
+        related=[f".ai/knowledge/{module_id}/{name}" for name in MODULE_DOCS],
+        ownership_roots=list(module["source_roots"]),
+    ) + (
         f"# {title}\n\nOwnership roots: {roots}\n\n"
         "| Need | Document |\n| --- | --- |\n"
         "| API or public interface | `api.md` |\n"
         "| Data shape or persistence | `schema.md` |\n"
         "| Behavior and workflows | `business_rules.md` |\n"
-        "| User interface | `ui.md` |",
-        related=[f".ai/knowledge/{module_id}/{name}" for name in MODULE_DOCS],
+        "| User interface | `ui.md` |\n"
     )
 
 
@@ -414,9 +433,11 @@ def create_runtime(repo: Path, spec_path: Path, strictness: str, keep_spec: bool
         write(module_dir / "INDEX.md", module_index(module))
         for filename in MODULE_DOCS:
             write(module_dir / filename, pending_leaf(module, filename))
+    for filename in RUNTIME_TOOL_FILES:
+        write(ai / "tools" / filename, (SCRIPT_DIR / filename).read_text(encoding="utf-8"))
     created.append(merge_bootstrap(repo, bootstrap))
 
-    validator = SCRIPT_DIR / "pkf_validate.py"
+    validator = ai / "tools" / "pkf_validate.py"
     completed = subprocess.run(
         (sys.executable, "-S", str(validator), "--path", str(repo), "--strictness", strictness, "--format", "json", "--detail", "summary"),
         cwd=repo,
@@ -429,7 +450,8 @@ def create_runtime(repo: Path, spec_path: Path, strictness: str, keep_spec: bool
     except json.JSONDecodeError as exc:
         raise ScaffoldError(f"generated runtime validation returned invalid JSON: {completed.stdout[-1000:].strip()}") from exc
     if completed.returncode != 0 or validation_result.get("status") == "failed":
-        raise ScaffoldError(f"generated runtime failed validation: {completed.stdout[-1000:].strip()}")
+        errors = validation_result.get("errors", [])
+        raise ScaffoldError(f"generated runtime failed validation: {json.dumps(errors, sort_keys=True)}")
     if not keep_spec:
         spec_path.unlink()
     return {

@@ -1,0 +1,61 @@
+{
+  "arm_definitions": {
+    "pkf": "PKF installed with adaptive retrieval and closeout; an individual task may bypass retrieval.",
+    "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
+    "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only."
+  },
+  "artifact_mode": "full",
+  "artifacts": [
+    {
+      "path": "private/calls/001-r1-pkf-initialize/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/result.json",
+      "sha256": "e708b66baa8db7bc2cfd6f7e7f3dcff9c1196613bd675bf3c42da20dd06fa4f4",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/source.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/stderr.txt",
+      "sha256": "e1379a0c292875a16d72dfccd75ddaa86f18ad190a601e9ae308ba8b9ee948d6",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/trace.jsonl",
+      "sha256": "5968398517dc3854e1432da316352b185f06eda088aa46a344d8e304e9a63317",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/AGENTS.md",
+      "sha256": "edf48300215c75a6dad368a0822048cdea3a093696c90982543a461e82f125cb",
+      "visibility": "private"
+    },
+    {
+      "path": "private/validation/r1-initialize.json",
+      "sha256": "0897a6d510130007bd410cc6be73b9652d0ee533fd426ffea5db292d8053dd8d",
+      "visibility": "private"
+    }
+  ],
+  "calls": [
+    {
+      "arm": "pkf",
+      "call_id": "001-r1-pkf-initialize",
+      "phase": "setup",
+      "repetition": 1,
+      "returncode": 1,
+      "task_id": "initialize"
+    }
+  ],
+  "created_at": "2026-07-19T18:48:25+00:00",
+  "error": "isolated closeout patch failed focused test in probe_only",
+  "private_artifacts_local_only": true,
+  "run_id": "token-atlas-gpt-5.6-luna-high-all-one_pass_preflight-20260719T184825Z",
+  "schema_version": 1,
+  "status": "failed"
+}

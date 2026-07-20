@@ -6,7 +6,7 @@ resource: .ai/PKF.md
 tags: [simple-api, runtime]
 timestamp: 2026-07-08
 pkf:
-  runtime_version: 3
+  runtime_version: 4
   retrieval: adaptive
   loads:
     - .ai/MEMORY.md
@@ -176,3 +176,9 @@ PKF closeout: <no-op|updated|stale|disabled|blocked> — <affected docs or reaso
 Update the session acknowledgement only after synchronization and affected-slice
 validation finish successfully. Never acknowledge an ambiguous or failed
 snapshot as synchronized.
+
+## Runtime Tool Commands
+
+`python -S .ai/tools/pkf_route.py --path . --changed-path <path> --format json`
+
+`python -S .ai/tools/pkf_validate.py --path .ai --scope affected --strictness advisory --format json --detail summary --changed-path <path>`

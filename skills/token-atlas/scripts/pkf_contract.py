@@ -10,7 +10,7 @@ from __future__ import annotations
 REQUIRED_FRONT_MATTER = {"type", "title", "description", "resource", "tags", "timestamp", "pkf"}
 
 RUNTIME_VERSION_FIELD = "runtime_version"
-RUNTIME_VERSION = 3
+RUNTIME_VERSION = 4
 
 RETRIEVAL_MODE_FIELD = "retrieval"
 RETRIEVAL_DEFAULT = "adaptive"
@@ -74,6 +74,7 @@ REQUIRED_MODULE_DOCS = (
 )
 LEAF_MODULE_DOCS = tuple(doc for doc in REQUIRED_MODULE_DOCS if doc != "INDEX.md")
 LEAF_SOURCE_SYMBOLS_FIELD = "source_symbols"
+MODULE_OWNERSHIP_ROOTS_FIELD = "ownership_roots"
 LEAF_MATERIALIZATION_FIELD = "materialization"
 LEAF_MATERIALIZATION_MODES = ("complete", "pending")
 EMPTY_LEAF_MARKER = "- TODO: No source-backed facts."

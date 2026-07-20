@@ -64,7 +64,7 @@ ARCHITECTURE.md
 knowledge/INDEX.md
 ```
 
-Verify `PKF.md` sets `pkf.runtime_version: 3` and `pkf.retrieval` is `adaptive`
+Verify `PKF.md` sets `pkf.runtime_version: 4` and `pkf.retrieval` is `adaptive`
 or `mandatory`. Missing or older versions require migration; report an unknown
 newer version as unsupported and never downgrade it.
 

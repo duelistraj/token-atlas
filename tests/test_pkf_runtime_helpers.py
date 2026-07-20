@@ -52,11 +52,15 @@ class PkfRuntimeHelperTests(unittest.TestCase):
 
             self.assertFalse((root / ".ai/.pkf-init.json").exists())
             self.assertTrue((root / ".ai/PKF.md").is_file())
+            self.assertTrue((root / ".ai/tools/pkf_route.py").is_file())
+            self.assertTrue((root / ".ai/tools/pkf_validate.py").is_file())
             self.assertTrue((root / ".ai/knowledge/notes/ui.md").is_file())
             self.assertIn("Pending source extraction", (root / ".ai/knowledge/notes/api.md").read_text(encoding="utf-8"))
             bootstrap = (root / "AGENTS.md").read_text(encoding="utf-8")
             self.assertIn("Keep this instruction.", bootstrap)
             self.assertEqual(bootstrap.count("token-atlas:bootstrap:start"), 1)
+            self.assertIn("python -S .ai/tools/pkf_route.py", bootstrap)
+            self.assertIn("python -S .ai/tools/pkf_validate.py", bootstrap)
 
             validator = PUBLIC / "scripts/pkf_validate.py"
             validated = self.run_helper(
@@ -140,11 +144,34 @@ pkf:
             )
             self.assertEqual(routed.returncode, 0, routed.stderr)
             value = json.loads(routed.stdout)
+            self.assertEqual(value["schema_version"], 2)
             self.assertEqual(value["status"], "partial")
             self.assertEqual(value["affected_leaves"][0]["path"], ".ai/knowledge/notes/business_rules.md")
             self.assertEqual(value["unmatched_paths"], ["src/unknown.py"])
             self.assertEqual(value["index_fallback"], [".ai/knowledge/INDEX.md"])
             self.assertEqual(value["validation_scope"], "affected")
+
+    def test_route_reports_module_owned_unmapped_path_without_root_fallback(self):
+        with tempfile.TemporaryDirectory() as raw_temp:
+            root = Path(raw_temp)
+            self.prepare_repo(root)
+            self.initialize_runtime(root)
+
+            routed = self.run_helper(
+                root / ".ai/tools/pkf_route.py",
+                "--path", ".",
+                "--changed-path", "src/notes/newState.py",
+                "--format", "json",
+                cwd=root,
+            )
+            value = json.loads(routed.stdout)
+
+            self.assertEqual(routed.returncode, 0, routed.stderr)
+            self.assertEqual(value["status"], "unmapped")
+            self.assertTrue(value["routing_coverage_defect"])
+            self.assertEqual(value["index_fallback"], [".ai/knowledge/notes/INDEX.md"])
+            self.assertEqual(value["fallback_routes"][0]["kind"], "module")
+            self.assertEqual(value["fallback_routes"][0]["changed_paths"], ["src/notes/newState.py"])
 
     def test_route_requests_full_validation_for_index_change(self):
         with tempfile.TemporaryDirectory() as raw_temp:

@@ -15,3 +15,9 @@ facts, evidence, or routing changed, report a knowledge-neutral `no-op` without
 loading Token Atlas or PKF. Otherwise follow the **Closeout Protocol in
 `.ai/PKF.md`** exactly once, update only affected leaves, and run affected-slice
 summary validation. Do not rerun closeout because closeout changed `.ai/`.
+
+Routine mapped Closeout Protocol commands:
+
+`python -S .ai/tools/pkf_route.py --path . --changed-path <path> --format json`
+
+`python -S .ai/tools/pkf_validate.py --path .ai --scope affected --strictness advisory --format json --detail summary --changed-path <path>`

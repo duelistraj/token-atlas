@@ -82,16 +82,22 @@ the turn and report ambiguous pre-existing changes as `stale`.
 
 ### Incremental synchronization
 
-- Route mapped paths with the bundled `pkf_route.py` helper and read only
-  returned complete leaves. Do not load Token Atlas, startup documents, or an
-  index for this routine mapped path. Preserve the compact route result.
-- Treat pending, partial, and unmapped results as exceptional maintenance;
-  materialize affected pending leaves and repair deletes or renames there.
+- Route turn-owned paths with `python -S .ai/tools/pkf_route.py --path .
+  --changed-path <path> --format json`, repeating `--changed-path` for every
+  path. Preserve the compact route result.
+- For `mapped`, read only returned complete leaves. Do not load Token Atlas,
+  startup documents, workflow references, or indexes.
+- For `partial`, use returned leaves plus only module indexes named by
+  `fallback_routes`. For `unmapped`, report the routing-coverage defect and use
+  exceptional maintenance. Materialize affected pending leaves and repair
+  deletes or renames there.
 - Update indexes only when ownership or routing changed.
 - Optimize only defective affected routes.
-- Run exactly one affected-slice advisory validation with summary detail after
-  changing knowledge. Use full maintenance only for boundary changes, migrations,
-  unresolved drift, broad-load repair, or CI.
+- Run exactly one validation after changing knowledge with `python -S
+  .ai/tools/pkf_validate.py --path .ai --scope <affected|full> --strictness
+  advisory --format json --detail summary --changed-path <path>`. Repeat the
+  changed-path option and use the route result's scope. Use full maintenance only
+  for boundary changes, migrations, unresolved drift, broad-load repair, or CI.
 
 ### Safety and recursion
 

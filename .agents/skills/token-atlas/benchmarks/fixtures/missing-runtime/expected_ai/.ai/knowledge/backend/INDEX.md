@@ -6,6 +6,8 @@ resource: .ai/knowledge/backend/INDEX.md
 tags: [missing-runtime, backend, routing]
 timestamp: 2026-07-08
 pkf:
+  ownership_roots:
+    - "src/backend"
   loads: []
   related:
     - .ai/knowledge/backend/api.md

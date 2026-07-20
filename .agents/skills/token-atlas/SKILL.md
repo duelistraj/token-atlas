@@ -85,7 +85,7 @@ If `.ai/` does **not** exist or `.ai/PKF.md` is missing:
 Otherwise, after an intentional mutation with durable knowledge impact:
 
 - Apply the embedded closeout gate first and stop on a no-op
-- Route turn-owned paths with bundled `pkf_route.py`; do not replay startup for
+- Route turn-owned paths with repository-local `.ai/tools/pkf_route.py`; do not replay startup for
   a mapped route
 - Read `references/closeout.md` only for a partial, unmapped, or exceptional route
 - Execute `references/maintenance.md` to detect changed paths, stale references, duplicate facts, and affected docs when closeout identifies an exceptional case
@@ -130,7 +130,7 @@ symbols, tests, styles/tokens, and targeted locator commands.
 
 `pkf.related` means "useful if the task expands." Do not treat related documents as automatic context.
 
-During initialization, set `pkf.runtime_version: 3`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Initialize architecture, routing, dependencies, and public entry-point facts, and mark deferred leaves `pkf.materialization: pending`. The bootstrap allows a cheap local probe without loading PKF, activates PKF for cross-capability or broad-discovery work, and knowledge-impact-gates closeout. Generated guidance must not name a specific vendor, agent, or model.
+During initialization, set `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`, install the dependency-free repository-local helpers under `.ai/tools/`, embed the Retrieval and Closeout Protocols in `.ai/PKF.md`, and add a neutral bootstrap in a root `AGENTS.md` or the repository's existing agent-instruction entry point. Initialize architecture, routing, dependencies, and public entry-point facts, include focused public-behavior tests in leaf routing metadata, and mark deferred leaves `pkf.materialization: pending`. The bootstrap allows a cheap local probe without loading PKF, activates PKF for cross-capability or broad-discovery work, and knowledge-impact-gates closeout. Generated guidance must not name a specific vendor, agent, or model.
 
 ---
 

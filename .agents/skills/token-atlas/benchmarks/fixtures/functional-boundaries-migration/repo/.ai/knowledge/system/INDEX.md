@@ -6,6 +6,9 @@ resource: src
 tags: [system, routing]
 timestamp: 2026-07-12
 pkf:
+  ownership_roots:
+    - "src/layer-one"
+    - "src/layer-two"
   loads: []
   related: [.ai/knowledge/system/api.md, .ai/knowledge/system/schema.md, .ai/knowledge/system/business_rules.md, .ai/knowledge/system/ui.md]
 ---

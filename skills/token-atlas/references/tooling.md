@@ -6,7 +6,9 @@ Define the bundled deterministic helpers and optional local command wrappers for
 repeatable developer and CI requests.
 
 Public Token Atlas bundles dependency-light scaffold, changed-path route, and
-validation helpers under `scripts/`. They implement mechanical operations, not
+validation helpers under `scripts/`. Fresh scaffolding copies the runtime route,
+validator, and their dependency-free modules under `.ai/tools/` so repository
+closeout has stable commands without resolving the installed skill. They implement mechanical operations, not
 capability-boundary judgment, knowledge-impact judgment, extraction, or
 optimization. If a target repo provides a workflow wrapper, it should remain a
 thin selector and must not become a second source of truth.
@@ -30,7 +32,7 @@ After the semantic knowledge-impact gate accepts a durable mutation, resolve
 the smallest affected slice without loading leaf contents:
 
 ```bash
-python <skill-root>/scripts/pkf_route.py --path . \
+python -S .ai/tools/pkf_route.py --path . \
   --changed-path src/example.py --format json
 ```
 
@@ -40,11 +42,11 @@ or malformed PKF data exits `2`.
 
 ## Bundled Validator
 
-From the target repository, resolve the installed skill root and run:
+From an initialized target repository, run the repository-local validator:
 
 ```bash
-python <skill-root>/scripts/pkf_validate.py --path .ai --strictness advisory
-python <skill-root>/scripts/pkf_validate.py --path .ai --strictness ci --format json
+python -S .ai/tools/pkf_validate.py --path .ai --strictness advisory
+python -S .ai/tools/pkf_validate.py --path .ai --strictness ci --format json
 ```
 
 For closeout or incremental maintenance, repeat `--changed-path` for each
@@ -53,7 +55,7 @@ checks still run globally; leaf-contract and module token checks are limited to
 the matched implementation slice.
 
 ```bash
-python <skill-root>/scripts/pkf_validate.py --path .ai \
+python -S .ai/tools/pkf_validate.py --path .ai \
   --changed-path frontend/src/pages/NotesPage.tsx
 ```
 

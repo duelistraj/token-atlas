@@ -139,7 +139,7 @@ class PkfValidateTests(unittest.TestCase):
     def test_missing_runtime_version_requires_migration(self):
         with self.copy_ai() as ai:
             pkf = ai / "PKF.md"
-            pkf.write_text(pkf.read_text(encoding="utf-8").replace("  runtime_version: 3\n", ""), encoding="utf-8")
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("  runtime_version: 4\n", ""), encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
         self.assertEqual(report.exit_code, 1)
@@ -148,7 +148,7 @@ class PkfValidateTests(unittest.TestCase):
     def test_future_runtime_version_is_not_downgraded(self):
         with self.copy_ai() as ai:
             pkf = ai / "PKF.md"
-            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 3", "runtime_version: 4"), encoding="utf-8")
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 4", "runtime_version: 5"), encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
         self.assertEqual(report.exit_code, 1)
@@ -157,11 +157,11 @@ class PkfValidateTests(unittest.TestCase):
     def test_runtime_version_one_requires_mutation_gate_migration(self):
         with self.copy_ai() as ai:
             pkf = ai / "PKF.md"
-            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 3", "runtime_version: 2"), encoding="utf-8")
+            pkf.write_text(pkf.read_text(encoding="utf-8").replace("runtime_version: 4", "runtime_version: 3"), encoding="utf-8")
             report = validate_pkf(ai, strictness="ci")
 
         self.assertEqual(report.exit_code, 1)
-        self.assertTrue(any("must be 3; found 2" in finding.issue for finding in report.errors))
+        self.assertTrue(any("must be 4; found 3" in finding.issue for finding in report.errors))
 
     def test_invalid_closeout_mode_is_ci_blocking(self):
         with self.copy_ai() as ai:
@@ -392,6 +392,36 @@ class PkfValidateTests(unittest.TestCase):
             report = validate_pkf(ai, strictness="ci")
 
         self.assertTrue(any("omits declared source symbols" in finding.issue for finding in report.errors))
+
+    def test_edit_map_test_evidence_must_be_routable(self):
+        with self.copy_ai() as ai:
+            test_path = ai.parent / "src" / "backend" / "models" / "customer.test.ts"
+            test_path.write_text("export const customerSchemaTest = true;\n", encoding="utf-8")
+            leaf = ai / "knowledge" / "backend" / "schema.md"
+            leaf.write_text(
+                leaf.read_text(encoding="utf-8").replace(
+                    "| Not documented |",
+                    "| `src/backend/models/customer.test.ts:customerSchemaTest` |",
+                ),
+                encoding="utf-8",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertTrue(any("test evidence is missing from source_symbols" in finding.issue for finding in report.errors))
+
+    def test_module_index_requires_machine_readable_ownership_roots(self):
+        with self.copy_ai() as ai:
+            index = ai / "knowledge" / "backend" / "INDEX.md"
+            index.write_text(
+                index.read_text(encoding="utf-8").replace(
+                    '  ownership_roots:\n    - "src/backend"\n',
+                    "",
+                ),
+                encoding="utf-8",
+            )
+            report = validate_pkf(ai, strictness="ci")
+
+        self.assertTrue(any("pkf.ownership_roots must be a non-empty list" in finding.issue for finding in report.errors))
 
     def test_empty_leaf_requires_standard_marker(self):
         with self.copy_ai() as ai:

@@ -26,11 +26,14 @@ the repository.
 
 ## Runtime Migration
 
-The current runtime contract is `pkf.runtime_version: 3`. When an existing
+The current runtime contract is `pkf.runtime_version: 4`. When an existing
 `.ai/PKF.md` has no runtime version or an older version, migrate it in the same
-maintenance cycle. Preserve the version 2 mutation gate, replace mandatory
-every-task retrieval with the adaptive local-probe gate, add
-`pkf.retrieval: adaptive`, and add the knowledge-impact closeout gate. Mark
+maintenance cycle. For version 3, install the dependency-free helpers under
+`.ai/tools/`, add `pkf.ownership_roots` to module indexes, refresh only the
+managed bootstrap and embedded protocol blocks, and reconcile focused test
+evidence in materialized public-behavior leaves. For older versions, preserve
+the mutation gate, replace mandatory every-task retrieval with the adaptive
+local-probe gate, add `pkf.retrieval: adaptive`, and add the knowledge-impact closeout gate. Mark
 unextracted skeleton leaves `pkf.materialization: pending`; treat existing
 source-backed leaves as complete. Preserve an explicit closeout `off` value and
 validate before acknowledgment. Never downgrade an unknown newer runtime.

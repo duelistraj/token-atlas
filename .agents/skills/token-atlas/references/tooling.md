@@ -22,7 +22,7 @@ Public helper commands:
 ```text
 python <skill-root>/scripts/pkf_scaffold.py inspect --path .
 python <skill-root>/scripts/pkf_scaffold.py create --path .
-python <skill-root>/scripts/pkf_route.py --path . --changed-path <path> --format json
+python -S .ai/tools/pkf_route.py --path . --changed-path <path> --format json
 ```
 
 ---

@@ -37,6 +37,10 @@ EVALUATION_SUITES = ("retrieval", "lifecycle", "closeout", "all")
 ARTIFACT_MODES = ("full", "public", "off")
 TARGET_NAME = "tether-brain"
 ISOLATED_CLOSEOUT_PATCH = ROOT / "benchmarks" / "patches" / "favorite-visibility.patch"
+MUTATION_PATHS = (
+    "frontend/src/notes/noteSectionState.ts",
+    "frontend/src/notes/noteSectionState.test.ts",
+)
 INITIALIZATION_REFERENCE = {
     "non_cached_input_tokens": 99_720,
     "duration_ms": 516_944,
@@ -44,7 +48,7 @@ INITIALIZATION_REFERENCE = {
 ARM_DEFINITIONS = {
     "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only.",
     "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
-    "pkf": "PKF installed with adaptive retrieval and closeout; an individual task may bypass retrieval.",
+    "pkf": "PKF installed with adaptive retrieval and repository-local semantic closeout; an individual task may bypass retrieval.",
 }
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 
@@ -87,7 +91,8 @@ INITIALIZE_PROMPT = (
     "Use the token-atlas skill and its deterministic scaffold helper to initialize "
     "PKF with hybrid extraction: review capability boundaries, materialize shared "
     "architecture, routing, public behavior, and source-backed cross-capability "
-    "contracts needed for direct retrieval; leave unrelated implementation leaves "
+    "contracts needed for direct retrieval. Include capability-local public behavior "
+    "state/helpers and their focused tests in materialized leaf source_symbols; leave unrelated implementation leaves "
     "pending. Use profile=core, retrieval_exports=off, "
     "simulation=changed, token_budget=summary, and validation_strictness=ci. "
     "Do not change application source or tests."
@@ -241,6 +246,22 @@ class CodexResult:
     focused_test_passed: bool | None
     pkf_validation_passed: bool | None
     error: str
+    initial_route_status: str = "not_run"
+    final_route_status: str = "not_run"
+    route_attempt_count: int = 0
+    routing_coverage_defect: bool = False
+    route_attempts: tuple[Mapping[str, Any], ...] = ()
+    trace_segments: Mapping[str, Mapping[str, Any]] | None = None
+    implementation_explicit_ai_read_path_count: int = 0
+    implementation_explicit_skill_read_path_count: int = 0
+    implementation_fallback_search: bool = False
+    closeout_accessed_skill: bool = False
+    closeout_accessed_closeout: bool = False
+    closeout_fallback_search: bool = False
+    closeout_unexpected_read_path_count: int = 0
+    closeout_validation_call_count: int = 0
+    initialization_route_status: str = "not_applicable"
+    initialization_unmatched_paths: tuple[str, ...] = ()
 
 
 class EvaluationError(Exception):
@@ -478,6 +499,22 @@ def trace_tool_inputs(output: str) -> str:
     return "\n".join(values)
 
 
+def completed_tool_events(output: str) -> list[dict[str, Any]]:
+    events: list[dict[str, Any]] = []
+    for raw_line in output.splitlines():
+        try:
+            event = json.loads(raw_line)
+        except json.JSONDecodeError:
+            continue
+        item = event.get("item")
+        if event.get("type") != "item.completed" or not isinstance(item, dict):
+            continue
+        if str(item.get("type", "")) in {"agent_message", "reasoning"}:
+            continue
+        events.append(item)
+    return events
+
+
 def parse_jsonl(output: str) -> tuple[Usage | None, tuple[str, ...], str]:
     usage: Usage | None = None
     messages: list[str] = []
@@ -523,6 +560,19 @@ def inspect_jsonl_trace(
     known_paths: Sequence[str] = (),
     known_directories: Sequence[str] = (),
 ) -> TraceMetrics:
+    return inspect_tool_events(
+        completed_tool_events(output),
+        known_paths=known_paths,
+        known_directories=known_directories,
+    )
+
+
+def inspect_tool_events(
+    events: Sequence[Mapping[str, Any]],
+    *,
+    known_paths: Sequence[str] = (),
+    known_directories: Sequence[str] = (),
+) -> TraceMetrics:
     tool_calls = 0
     read_or_search_commands = 0
     tool_input_chars = 0
@@ -533,17 +583,8 @@ def inspect_jsonl_trace(
     fallback_search = False
     normalized_paths = tuple(sorted(set(known_paths), key=len, reverse=True))
     normalized_directories = set(known_directories)
-    for raw_line in output.splitlines():
-        try:
-            event = json.loads(raw_line)
-        except json.JSONDecodeError:
-            continue
-        item = event.get("item")
-        if event.get("type") != "item.completed" or not isinstance(item, dict):
-            continue
+    for item in events:
         item_type = str(item.get("type", ""))
-        if item_type in {"agent_message", "reasoning"}:
-            continue
         tool_calls += 1
         input_strings = named_field_strings(item, TOOL_INPUT_FIELDS)
         output_strings = named_field_strings(item, TOOL_OUTPUT_FIELDS)
@@ -596,6 +637,103 @@ def inspect_jsonl_trace(
         routed_document_count=len(routed_documents),
         fallback_search=fallback_search,
     )
+
+
+def explicit_read_paths_for_events(
+    events: Sequence[Mapping[str, Any]],
+    known_paths: Sequence[str],
+) -> set[str]:
+    paths: set[str] = set()
+    normalized_paths = tuple(sorted(set(known_paths), key=len, reverse=True))
+    for item in events:
+        item_type = str(item.get("type", ""))
+        input_strings = named_field_strings(item, TOOL_INPUT_FIELDS)
+        input_text = " ".join(input_strings)
+        lowered = input_text.lower()
+        read_like = any(token in f"{lowered} " for token in READ_OR_SEARCH_TOKENS) or any(
+            token in item_type.lower() for token in ("read", "search", "query")
+        )
+        if not read_like:
+            continue
+        for path in normalized_paths:
+            if path in input_text:
+                paths.add(path)
+    return paths
+
+
+def parse_route_attempts(events: Sequence[Mapping[str, Any]]) -> tuple[dict[str, Any], ...]:
+    attempts: list[dict[str, Any]] = []
+    for event_index, item in enumerate(events):
+        inputs = " ".join(named_field_strings(item, TOOL_INPUT_FIELDS))
+        if "pkf_route.py" not in inputs:
+            continue
+        parsed: Mapping[str, Any] | None = None
+        for raw_output in named_field_strings(item, TOOL_OUTPUT_FIELDS):
+            try:
+                candidate = json.loads(raw_output)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(candidate, Mapping) and candidate.get("status") in {"mapped", "partial", "unmapped"}:
+                parsed = candidate
+                break
+        if parsed is None:
+            continue
+        affected = [
+            str(value.get("path"))
+            for value in parsed.get("affected_leaves", [])
+            if isinstance(value, Mapping) and isinstance(value.get("path"), str)
+        ]
+        fallbacks = [
+            str(value.get("index"))
+            for value in parsed.get("fallback_routes", [])
+            if isinstance(value, Mapping) and isinstance(value.get("index"), str)
+        ]
+        if not fallbacks:
+            fallbacks = [str(value) for value in parsed.get("index_fallback", []) if isinstance(value, str)]
+        attempts.append(
+            {
+                "event_index": event_index,
+                "schema_version": int(parsed.get("schema_version", 1)),
+                "status": str(parsed["status"]),
+                "affected_leaves": sorted(set(affected)),
+                "fallback_indexes": sorted(set(fallbacks)),
+                "unmatched_paths": sorted(
+                    str(value) for value in parsed.get("unmatched_paths", []) if isinstance(value, str)
+                ),
+                "routing_coverage_defect": bool(
+                    parsed.get("routing_coverage_defect", parsed.get("unmatched_paths"))
+                ),
+                "validation_scope": str(parsed.get("validation_scope", "affected")),
+            }
+        )
+    return tuple(attempts)
+
+
+def segmented_trace(
+    events: Sequence[Mapping[str, Any]],
+    attempts: Sequence[Mapping[str, Any]],
+    *,
+    known_paths: Sequence[str],
+    known_directories: Sequence[str],
+) -> tuple[dict[str, TraceMetrics], dict[str, Sequence[Mapping[str, Any]]]]:
+    if attempts:
+        boundary = int(attempts[0]["event_index"])
+        event_segments: dict[str, Sequence[Mapping[str, Any]]] = {
+            "implementation": events[:boundary],
+            "routing": events[boundary : boundary + 1],
+            "closeout": events[boundary + 1 :],
+        }
+    else:
+        event_segments = {"implementation": events, "routing": (), "closeout": ()}
+    metrics = {
+        name: inspect_tool_events(
+            selected,
+            known_paths=known_paths,
+            known_directories=known_directories,
+        )
+        for name, selected in event_segments.items()
+    }
+    return metrics, event_segments
 
 
 def changed_paths(repo: Path) -> tuple[str, ...]:
@@ -659,11 +797,8 @@ def repository_diff(repo: Path, *, pkf_only: bool) -> str:
 
 
 def route_trace_excerpt(output: str) -> str:
-    excerpts: list[str] = []
-    for raw_line in output.splitlines():
-        if "pkf_route.py" in raw_line:
-            excerpts.append(raw_line)
-    return "\n".join(excerpts)
+    attempts = parse_route_attempts(completed_tool_events(output))
+    return "\n".join(json.dumps(value, sort_keys=True) for value in attempts)
 
 
 class ArtifactStore:
@@ -914,8 +1049,16 @@ def run_codex(
 
     usage, messages, event_text = parse_jsonl(stdout)
     repo_paths = tracked_paths(repo)
-    trace = inspect_jsonl_trace(
-        stdout,
+    tool_events = completed_tool_events(stdout)
+    trace = inspect_tool_events(
+        tool_events,
+        known_paths=repo_paths,
+        known_directories=tracked_directories(repo_paths),
+    )
+    route_attempts = parse_route_attempts(tool_events)
+    segment_metrics, segment_events = segmented_trace(
+        tool_events,
+        route_attempts,
         known_paths=repo_paths,
         known_directories=tracked_directories(repo_paths),
     )
@@ -928,6 +1071,28 @@ def run_codex(
     )
     accessed = detect_accessed_paths(event_text, repo_paths)
     tool_inputs = trace_tool_inputs(stdout).lower()
+    implementation_metrics = segment_metrics["implementation"]
+    closeout_metrics = segment_metrics["closeout"]
+    closeout_inputs = "\n".join(
+        value
+        for item in segment_events["closeout"]
+        for value in named_field_strings(item, TOOL_INPUT_FIELDS)
+    ).lower()
+    closeout_read_paths = explicit_read_paths_for_events(segment_events["closeout"], repo_paths)
+    allowed_closeout_reads: set[str] = set()
+    if route_attempts:
+        allowed_closeout_reads.update(route_attempts[0]["affected_leaves"])
+        if route_attempts[0]["status"] in {"partial", "unmapped"}:
+            allowed_closeout_reads.update(route_attempts[0]["fallback_indexes"])
+    unexpected_closeout_reads = {
+        path
+        for path in closeout_read_paths
+        if path not in allowed_closeout_reads
+    }
+    closeout_validation_calls = sum(
+        "pkf_validate.py" in " ".join(named_field_strings(item, TOOL_INPUT_FIELDS))
+        for item in segment_events["closeout"]
+    )
     changes = changed_paths(repo)
     result = CodexResult(
         repetition=repetition,
@@ -941,7 +1106,7 @@ def run_codex(
         answer_correct=answer_correct,
         accessed_skill="token-atlas/skill.md" in tool_inputs,
         accessed_closeout="token-atlas/references/closeout.md" in tool_inputs,
-        used_route_helper="pkf_route.py" in tool_inputs,
+        used_route_helper=bool(route_attempts),
         emitted_closeout="pkf closeout:" in "\n".join(messages).lower(),
         retrieval_decision=classify_retrieval_decision(arm=arm, phase=phase, trace=trace),
         fallback_search=trace.fallback_search,
@@ -962,6 +1127,20 @@ def run_codex(
         focused_test_passed=None,
         pkf_validation_passed=None,
         error=sanitized_error(stderr, (repo, workspace, ROOT)) if returncode else "",
+        initial_route_status=str(route_attempts[0]["status"]) if route_attempts else "not_run",
+        final_route_status=str(route_attempts[-1]["status"]) if route_attempts else "not_run",
+        route_attempt_count=len(route_attempts),
+        routing_coverage_defect=bool(route_attempts and route_attempts[0]["routing_coverage_defect"]),
+        route_attempts=route_attempts,
+        trace_segments={name: asdict(value) for name, value in segment_metrics.items()},
+        implementation_explicit_ai_read_path_count=implementation_metrics.explicit_ai_read_path_count,
+        implementation_explicit_skill_read_path_count=implementation_metrics.explicit_skill_read_path_count,
+        implementation_fallback_search=implementation_metrics.fallback_search,
+        closeout_accessed_skill="token-atlas/skill.md" in closeout_inputs,
+        closeout_accessed_closeout="token-atlas/references/closeout.md" in closeout_inputs,
+        closeout_fallback_search=closeout_metrics.fallback_search,
+        closeout_unexpected_read_path_count=len(unexpected_closeout_reads),
+        closeout_validation_call_count=closeout_validation_calls,
     )
     if artifacts is not None:
         artifacts.record_call(
@@ -984,9 +1163,9 @@ def replace_result(result: CodexResult, **updates: Any) -> CodexResult:
 
 
 def validate_pkf(repo: Path) -> tuple[bool, str]:
-    validator = repo / ".codex" / "skills" / "token-atlas" / "scripts" / "pkf_validate.py"
+    validator = repo / ".ai" / "tools" / "pkf_validate.py"
     if not validator.is_file():
-        return False, "public validator is missing"
+        return False, "repository-local validator is missing"
     completed = run_command(
         (
             sys.executable,
@@ -1004,6 +1183,28 @@ def validate_pkf(repo: Path) -> tuple[bool, str]:
     )
     output = "\n".join(value for value in (completed.stdout.strip(), completed.stderr.strip()) if value)
     return completed.returncode == 0, output[-10_000:]
+
+
+def probe_route_coverage(repo: Path, paths: Sequence[str]) -> tuple[str, tuple[str, ...], str]:
+    helper = repo / ".ai" / "tools" / "pkf_route.py"
+    if not helper.is_file():
+        return "invalid", tuple(paths), "repository-local route helper is missing"
+    command = [sys.executable, "-S", str(helper), "--path", "."]
+    for path in paths:
+        command.extend(("--changed-path", path))
+    command.extend(("--format", "json"))
+    completed = run_command(command, cwd=repo, check=False)
+    if completed.returncode != 0:
+        return "invalid", tuple(paths), completed.stdout + completed.stderr
+    try:
+        result = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        return "invalid", tuple(paths), completed.stdout
+    return (
+        str(result.get("status", "invalid")),
+        tuple(str(value) for value in result.get("unmatched_paths", []) if isinstance(value, str)),
+        completed.stdout,
+    )
 
 
 def pkf_materialization_inventory(repo: Path) -> dict[str, int]:
@@ -1209,15 +1410,55 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
             decision: sum(result.retrieval_decision == decision for result in grouped)
             for decision in ("activated", "bypassed", "not_applicable")
         }
+        entry["initial_route_statuses"] = {
+            status: sum(result.initial_route_status == status for result in grouped)
+            for status in ("mapped", "partial", "unmapped", "not_run", "invalid")
+        }
+        segmented = [result.trace_segments for result in grouped if result.trace_segments]
+        if segmented:
+            entry["trace_segments"] = {
+                segment: {
+                    metric: median(
+                        [
+                            float(value[segment][metric])
+                            for value in segmented
+                            if segment in value and metric in value[segment]
+                        ]
+                    )
+                    for metric in (
+                        "tool_call_count",
+                        "read_or_search_command_count",
+                        "explicit_read_path_count",
+                        "explicit_ai_read_path_count",
+                        "explicit_skill_read_path_count",
+                        "routed_document_count",
+                    )
+                } | {
+                    "fallback_rate": (
+                        sum(bool(value[segment].get("fallback_search")) for value in segmented if segment in value)
+                        / sum(segment in value for value in segmented)
+                    )
+                }
+                for segment in ("implementation", "routing", "closeout")
+            }
         by_task.setdefault(task_id, {})[arm] = entry
 
     sum_metrics = (*usage_metrics, "duration_ms", *trace_metrics)
     operational_by_repetition: list[dict[str, Any]] = []
     for repetition in sorted({result.repetition for result in results}):
         repeated = [result for result in results if result.repetition == repetition]
+        has_integrated_mutation = any(
+            result.task_id == "favorite_visibility_mutation" for result in repeated
+        )
         entry: dict[str, Any] = {"repetition": repetition}
         for arm in ("source_only", "probe_only", "pkf"):
-            arm_results = [result for result in repeated if result.arm == arm and result.phase != "setup"]
+            arm_results = [
+                result
+                for result in repeated
+                if result.arm == arm
+                and result.phase != "setup"
+                and not (has_integrated_mutation and result.phase == "closeout")
+            ]
             entry[arm] = {
                 metric: sum(
                     (
@@ -1231,6 +1472,71 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
                 for metric in sum_metrics
             }
         operational_by_repetition.append(entry)
+
+    lifecycle_phase_costs: list[dict[str, Any]] = []
+    phase_cost_metrics = (*usage_metrics, "duration_ms", *trace_metrics)
+    for repetition in sorted({result.repetition for result in results}):
+        by_key = {
+            (result.task_id, result.arm): result
+            for result in results
+            if result.repetition == repetition
+        }
+        required = {
+            ("favorite_visibility_mutation", "probe_only"),
+            ("favorite_visibility_mutation", "pkf"),
+            ("isolated_closeout", "probe_only"),
+            ("isolated_closeout", "pkf"),
+        }
+        if not required.issubset(by_key):
+            continue
+        implementation = by_key[("favorite_visibility_mutation", "probe_only")]
+        integrated = by_key[("favorite_visibility_mutation", "pkf")]
+        closeout_control = by_key[("isolated_closeout", "probe_only")]
+        closeout = by_key[("isolated_closeout", "pkf")]
+
+        def metric_value(result: CodexResult, metric: str) -> int:
+            if metric in usage_metrics:
+                return usage_value(result, metric) or 0
+            return int(getattr(result, metric))
+
+        lifecycle_phase_costs.append(
+            {
+                "repetition": repetition,
+                "implementation": {
+                    metric: metric_value(implementation, metric) for metric in phase_cost_metrics
+                },
+                "closeout": {metric: metric_value(closeout, metric) for metric in phase_cost_metrics},
+                "closeout_control": {
+                    metric: metric_value(closeout_control, metric) for metric in phase_cost_metrics
+                },
+                "closeout_incremental": {
+                    metric: metric_value(closeout, metric) - metric_value(closeout_control, metric)
+                    for metric in phase_cost_metrics
+                },
+                "composed_probe_plus_closeout": {
+                    metric: metric_value(implementation, metric) + metric_value(closeout, metric)
+                    for metric in phase_cost_metrics
+                },
+                "integrated_observed": {
+                    metric: metric_value(integrated, metric) for metric in phase_cost_metrics
+                },
+            }
+        )
+
+    lifecycle_phase_summary = {
+        phase: {
+            metric: median([entry[phase][metric] for entry in lifecycle_phase_costs])
+            for metric in phase_cost_metrics
+        }
+        for phase in (
+            "implementation",
+            "closeout",
+            "closeout_control",
+            "closeout_incremental",
+            "composed_probe_plus_closeout",
+            "integrated_observed",
+        )
+    } if lifecycle_phase_costs else {}
 
     activated_savings: dict[str, list[float]] = {metric: [] for metric in usage_metrics}
     bypassed_deltas: dict[str, dict[str, list[float]]] = {}
@@ -1289,8 +1595,8 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
                 and (value := usage_value(result, metric)) is not None
             ]
         )
-        mutation = comparisons.get("favorite_visibility_mutation", {}).get("probe_vs_pkf", {}).get(metric, {})
-        mutation_premium = max(0.0, float(mutation.get("delta", 0.0)))
+        closeout = comparisons.get("isolated_closeout", {}).get("probe_vs_pkf", {}).get(metric, {})
+        mutation_premium = max(0.0, float(closeout.get("delta", 0.0)))
         break_even[metric] = (
             math.ceil((init_cost + mutation_premium) / per_read_saving)
             if per_read_saving > 0
@@ -1301,6 +1607,8 @@ def aggregate_metrics(results: Sequence[CodexResult]) -> dict[str, Any]:
         "by_task": by_task,
         "comparisons": comparisons,
         "operational_by_repetition": operational_by_repetition,
+        "lifecycle_phase_costs_by_repetition": lifecycle_phase_costs,
+        "lifecycle_phase_cost_summary": lifecycle_phase_summary,
         "activated_pkf_knowledge_savings": {
             "paired_count": len(activated_savings["input_tokens"]),
             **{metric: median(values) for metric, values in activated_savings.items()},
@@ -1342,8 +1650,24 @@ def performance_advisories(metrics: Mapping[str, Any], repetitions: int) -> dict
     if isolated_closeout:
         tool_calls = float(isolated_closeout.get("tool_call_count", 0))
         routed_docs = float(isolated_closeout.get("routed_document_count", 0))
-        add_check("mapped_closeout_tool_calls", tool_calls, "<= 6", tool_calls <= 6)
-        add_check("mapped_closeout_routed_documents", routed_docs, "<= 2", routed_docs <= 2)
+        mapped_count = isolated_closeout.get("initial_route_statuses", {}).get("mapped", 0)
+        if mapped_count:
+            add_check("mapped_closeout_tool_calls", tool_calls, "<= 6", tool_calls <= 6)
+            add_check("mapped_closeout_routed_documents", routed_docs, "<= 2", routed_docs <= 2)
+    phase_costs = metrics.get("lifecycle_phase_cost_summary", {})
+    if phase_costs:
+        implementation = phase_costs["implementation"]
+        composed = phase_costs["composed_probe_plus_closeout"]
+        for metric in ("input_tokens", "non_cached_input_tokens", "duration_ms"):
+            baseline = float(implementation.get(metric, 0))
+            candidate = float(composed.get(metric, 0))
+            value = ((candidate - baseline) / baseline * 100.0) if baseline else None
+            add_check(
+                f"composed_mutation_{metric}_overhead",
+                value,
+                "<= 5%",
+                value is not None and value <= 5.0,
+            )
     operational = metrics.get("operational_by_repetition", [])
     for metric in ("input_tokens", "non_cached_input_tokens", "duration_ms"):
         probe = median([entry["probe_only"][metric] for entry in operational])
@@ -1382,6 +1706,12 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
             errors.append(f"{label}: incorrect structured answer")
         if result.task_id == "initialize" and result.pkf_validation_passed is not True:
             errors.append(f"{label}: initialized PKF failed strict validation")
+        if result.task_id == "initialize" and result.initialization_route_status != "mapped":
+            unmatched = ", ".join(result.initialization_unmatched_paths) or "unknown paths"
+            errors.append(
+                f"{label}: initialization routing-coverage defect; public mutation paths were "
+                f"{result.initialization_route_status}: {unmatched}"
+            )
         if result.task_id in {"boards_add_task", POST_MUTATION_TASK.task_id}:
             if result.explicit_ai_read_path_count or result.explicit_skill_read_path_count:
                 errors.append(f"{label}: local task explicitly read PKF or Token Atlas paths")
@@ -1398,28 +1728,54 @@ def evaluation_errors(results: Sequence[CodexResult], expected_count: int) -> li
             if result.focused_test_passed is not True:
                 errors.append(f"{label}: focused frontend test failed")
             if result.arm == "pkf":
+                if result.implementation_explicit_ai_read_path_count or result.implementation_explicit_skill_read_path_count:
+                    errors.append(f"{label}: implementation phase activated PKF or Token Atlas before routing")
                 if result.pkf_validation_passed is not True:
                     errors.append(f"{label}: PKF failed validation after mutation")
                 if not result.emitted_closeout:
                     errors.append(f"{label}: mutation did not emit PKF closeout status")
                 if not result.used_route_helper:
                     errors.append(f"{label}: mutation closeout did not use the changed-path route helper")
-                if result.accessed_skill or result.accessed_closeout:
-                    errors.append(f"{label}: mapped mutation closeout loaded Token Atlas workflow instructions")
-                if result.fallback_search:
-                    errors.append(f"{label}: mapped mutation closeout used fallback discovery")
+                if result.initial_route_status == "mapped":
+                    if result.route_attempt_count != 1:
+                        errors.append(f"{label}: mapped mutation closeout must route exactly once")
+                    if result.closeout_accessed_skill or result.closeout_accessed_closeout:
+                        errors.append(f"{label}: mapped mutation closeout loaded Token Atlas workflow instructions")
+                    if result.closeout_fallback_search:
+                        errors.append(f"{label}: mapped mutation closeout used fallback discovery")
+                    if result.closeout_unexpected_read_path_count:
+                        errors.append(f"{label}: mapped mutation closeout read paths outside returned leaves")
+                    if result.closeout_validation_call_count != 1:
+                        errors.append(f"{label}: mapped mutation closeout must run exactly one validation")
+                elif result.initial_route_status in {"partial", "unmapped"}:
+                    errors.append(
+                        f"{label}: mutation routing-coverage defect; initial route was {result.initial_route_status}"
+                    )
         if result.task_id == "isolated_closeout":
             if result.arm == "pkf":
+                if result.implementation_explicit_ai_read_path_count or result.implementation_explicit_skill_read_path_count:
+                    errors.append(f"{label}: isolated closeout loaded PKF or Token Atlas before routing")
                 if result.pkf_validation_passed is not True:
                     errors.append(f"{label}: isolated closeout left PKF invalid")
                 if not result.emitted_closeout:
                     errors.append(f"{label}: isolated closeout did not emit status")
                 if not result.used_route_helper:
                     errors.append(f"{label}: isolated closeout did not use the changed-path route helper")
-                if result.accessed_skill or result.accessed_closeout:
-                    errors.append(f"{label}: mapped isolated closeout loaded Token Atlas workflow instructions")
-                if result.fallback_search:
-                    errors.append(f"{label}: mapped isolated closeout used fallback discovery")
+                if result.initial_route_status == "mapped":
+                    if result.route_attempt_count != 1:
+                        errors.append(f"{label}: mapped isolated closeout must route exactly once")
+                    if result.closeout_accessed_skill or result.closeout_accessed_closeout:
+                        errors.append(f"{label}: mapped isolated closeout loaded Token Atlas workflow instructions")
+                    if result.closeout_fallback_search:
+                        errors.append(f"{label}: mapped isolated closeout used fallback discovery")
+                    if result.closeout_unexpected_read_path_count:
+                        errors.append(f"{label}: mapped isolated closeout read paths outside returned leaves")
+                    if result.closeout_validation_call_count != 1:
+                        errors.append(f"{label}: mapped isolated closeout must run exactly one validation")
+                elif result.initial_route_status in {"partial", "unmapped"}:
+                    errors.append(
+                        f"{label}: isolated closeout routing-coverage defect; initial route was {result.initial_route_status}"
+                    )
             elif result.explicit_ai_read_path_count or result.explicit_skill_read_path_count:
                 errors.append(f"{label}: closeout control accessed PKF or Token Atlas paths")
     return errors
@@ -1466,9 +1822,14 @@ def execute(
                 artifacts=artifacts,
             )
             init_valid, validation_error = validate_pkf(arms["pkf"])
+            route_status, unmatched_paths, route_output = probe_route_coverage(
+                arms["pkf"], MUTATION_PATHS
+            )
             init_result = replace_result(
                 init_result,
                 pkf_validation_passed=init_valid,
+                initialization_route_status=route_status,
+                initialization_unmatched_paths=unmatched_paths,
                 error=init_result.error or sanitized_error(
                     validation_error,
                     (arms["pkf"], workspace, ROOT),
@@ -1481,6 +1842,11 @@ def execute(
                 f"r{repetition}-initialize",
                 passed=init_valid,
                 output=validation_error,
+            )
+            artifacts.record_validation(
+                f"r{repetition}-initialize-route-coverage",
+                passed=route_status == "mapped",
+                output=route_output,
             )
             artifacts.snapshot_pkf(f"r{repetition}-initialize", arms["pkf"])
             if init_result.returncode == 0 and init_valid:
@@ -1577,7 +1943,7 @@ def execute(
     metrics = aggregate_metrics(results)
     performance = performance_advisories(metrics, args.repetitions)
     report = {
-        "schema_version": 4,
+        "schema_version": 5,
         "run_id": artifacts.run_id,
         "artifact_manifest_path": "../manifest.json" if artifacts.mode != "off" else None,
         "benchmark": "token-atlas-adaptive-attribution",
@@ -1613,7 +1979,14 @@ def execute(
             "arm_definitions": ARM_DEFINITIONS,
             "task_ids": sorted({item["task_id"] for item in build_schedule(1, args.suite)}),
             "arm_order": "three-arm Latin square and alternating two-arm phases",
-            "trace_accounting": "tool inputs and outputs parsed separately; path mentions remain unverified",
+            "trace_accounting": (
+                "ordered tool events segmented into implementation, first valid route call, and post-route closeout; "
+                "token and duration usage remain call-level"
+            ),
+            "phase_cost_accounting": (
+                "probe-only mutation measures implementation, isolated PKF closeout measures closeout, "
+                "and integrated PKF mutation remains the observed combined total"
+            ),
             "initialization_reference": INITIALIZATION_REFERENCE,
             "ambient_user_config": "ignored; authentication copied only",
             "raw_traces_published": False,
@@ -1693,8 +2066,8 @@ def render_markdown(
             "",
             f"### {usage_heading}",
             "",
-            "| Task | Phase | Arm | Retrieval | Input | Non-cached | Output | Duration ms | Tools | Routed docs | Correct |",
-            "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "| Task | Phase | Arm | Retrieval | Initial route | Input | Non-cached | Output | Duration ms | Tools | Routed docs | Correct |",
+            "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         )
     )
     phase_by_task = {
@@ -1707,12 +2080,57 @@ def render_markdown(
             decision = ", ".join(
                 f"{name}:{count}" for name, count in decisions.items() if count
             ) or "n/a"
+            route_statuses = values.get("initial_route_statuses", {})
+            route_status = ", ".join(
+                f"{name}:{count}" for name, count in route_statuses.items() if count and name != "not_run"
+            ) or "n/a"
             lines.append(
-                f"| {task_id} | {phase_by_task.get(task_id, 'unknown')} | `{arm}` | `{decision}` | "
+                f"| {task_id} | {phase_by_task.get(task_id, 'unknown')} | `{arm}` | `{decision}` | `{route_status}` | "
                 f"{values['input_tokens']:.0f} | {values['non_cached_input_tokens']:.0f} | "
                 f"{values['output_tokens']:.0f} | {values['duration_ms']:.0f} | "
                 f"{values['tool_call_count']:.0f} | {values['routed_document_count']:.0f} | {correct} |"
             )
+    phase_costs = metrics.get("lifecycle_phase_cost_summary", {})
+    lines.extend(("", "### Mutation phase attribution", ""))
+    if phase_costs:
+        lines.extend(
+            (
+                "Implementation and isolated closeout are separate calls; the integrated row is the directly observed combined mutation. The composed row is their explicit sum.",
+                "",
+                "| Evidence | Input | Non-cached | Output | Duration ms | Tools |",
+                "| --- | ---: | ---: | ---: | ---: | ---: |",
+            )
+        )
+        for phase in (
+            "implementation",
+            "closeout",
+            "closeout_control",
+            "closeout_incremental",
+            "composed_probe_plus_closeout",
+            "integrated_observed",
+        ):
+            values = phase_costs[phase]
+            lines.append(
+                f"| {phase} | {values['input_tokens']:.0f} | {values['non_cached_input_tokens']:.0f} | "
+                f"{values['output_tokens']:.0f} | {values['duration_ms']:.0f} | {values['tool_call_count']:.0f} |"
+            )
+        integrated_segments = (
+            metrics.get("by_task", {})
+            .get("favorite_visibility_mutation", {})
+            .get("pkf", {})
+            .get("trace_segments", {})
+        )
+        if integrated_segments:
+            lines.extend(("", "Integrated mutation tool segments:", ""))
+            for segment in ("implementation", "routing", "closeout"):
+                values = integrated_segments[segment]
+                lines.append(
+                    f"- `{segment}`: {values['tool_call_count']:.0f} tools, "
+                    f"{values['read_or_search_command_count']:.0f} reads/searches, "
+                    f"fallback rate {values['fallback_rate'] * 100:.0f}%."
+                )
+    else:
+        lines.append("- Requires both lifecycle and isolated-closeout evidence; use the `all` suite.")
     knowledge_savings = metrics.get("activated_pkf_knowledge_savings", {})
     lines.extend(("", "### PKF knowledge savings", ""))
     lines.append(

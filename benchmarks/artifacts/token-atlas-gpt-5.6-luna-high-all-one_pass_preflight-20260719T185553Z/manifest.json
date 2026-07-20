@@ -1,0 +1,1142 @@
+{
+  "arm_definitions": {
+    "pkf": "PKF installed with adaptive retrieval and closeout; an individual task may bypass retrieval.",
+    "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
+    "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only."
+  },
+  "artifact_mode": "full",
+  "artifacts": [
+    {
+      "path": "private/calls/001-r1-pkf-initialize/pkf.diff",
+      "sha256": "a7e88ec055c5f6df2cef4aa86dc9434bc5718e9e961adabd92d8e5be5a130f7a",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/result.json",
+      "sha256": "0521c70a9aa141489e6706815b14bafb301ca4af15f100b940de2181094b4061",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/route-output.jsonl",
+      "sha256": "50b453818854b8204124bcbca53d6933aa31e70a556e75eca411fba1df8106d3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/source.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/stderr.txt",
+      "sha256": "9781587aa4533a86d71b5433bb6781d0733e0d8558b65a4749ce0fb39a912873",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/001-r1-pkf-initialize/trace.jsonl",
+      "sha256": "f3598de124c73205c154be293a8801ac2d0f95eed5f23eebe34b16ccc7746775",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/002-r1-source_only-boards_add_task/answer.json",
+      "sha256": "1ad64ddbe6d5ad7aec359855f8f2d71aed468a2815c894ee2180442b77874695",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/002-r1-source_only-boards_add_task/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/002-r1-source_only-boards_add_task/result.json",
+      "sha256": "1f1d9db4d2f97945503356b2dacc47966507e7fb06dc9c0aa779afd4d9701f08",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/002-r1-source_only-boards_add_task/schema.json",
+      "sha256": "04e8c1af2d0df35bc0877a455d969c673cd42cb5c063bc2111d6811ef715638c",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/002-r1-source_only-boards_add_task/source.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/002-r1-source_only-boards_add_task/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/002-r1-source_only-boards_add_task/trace.jsonl",
+      "sha256": "f4e302a2b4a5c63c0b043846d6f7f63c5d755beaf933e62345b87ef85881878d",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/003-r1-probe_only-boards_add_task/answer.json",
+      "sha256": "1ad64ddbe6d5ad7aec359855f8f2d71aed468a2815c894ee2180442b77874695",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/003-r1-probe_only-boards_add_task/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/003-r1-probe_only-boards_add_task/result.json",
+      "sha256": "5d80d812f6c82e230d115aa0bbb64235d10c389ee8572bc980f7c7e3e9fca718",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/003-r1-probe_only-boards_add_task/schema.json",
+      "sha256": "04e8c1af2d0df35bc0877a455d969c673cd42cb5c063bc2111d6811ef715638c",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/003-r1-probe_only-boards_add_task/source.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/003-r1-probe_only-boards_add_task/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/003-r1-probe_only-boards_add_task/trace.jsonl",
+      "sha256": "2ccf6243fd544cf519703a53cecef897d5e28097e37b30a807a84154eae910cc",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/004-r1-pkf-boards_add_task/answer.json",
+      "sha256": "1ad64ddbe6d5ad7aec359855f8f2d71aed468a2815c894ee2180442b77874695",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/004-r1-pkf-boards_add_task/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/004-r1-pkf-boards_add_task/result.json",
+      "sha256": "bd4b92368ec4076fa7072517ed0a8bf28aa5fd231a5b301b2b48112c2e4a87c2",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/004-r1-pkf-boards_add_task/schema.json",
+      "sha256": "04e8c1af2d0df35bc0877a455d969c673cd42cb5c063bc2111d6811ef715638c",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/004-r1-pkf-boards_add_task/source.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/004-r1-pkf-boards_add_task/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/004-r1-pkf-boards_add_task/trace.jsonl",
+      "sha256": "513f7fdbbde173a1f1422fa39650f3ba5301e4438da206066fecc3554dc41bfe",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/005-r1-source_only-note_task_links/answer.json",
+      "sha256": "dbae05fbbd4b5b30db0e84f1bc66408768feb0a5fd23890c79058d26e02cba5e",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/005-r1-source_only-note_task_links/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/005-r1-source_only-note_task_links/result.json",
+      "sha256": "03eab97f3f9a8aef0be5755241d61afafbb52812985cb19e93753dde59dd32d3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/005-r1-source_only-note_task_links/schema.json",
+      "sha256": "6c9a213e2bff92f5db9a9563fc3303d1ee0ba3758ee3b468895091a950ecca40",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/005-r1-source_only-note_task_links/source.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/005-r1-source_only-note_task_links/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/005-r1-source_only-note_task_links/trace.jsonl",
+      "sha256": "0111b1e25e5cd052db0692444e338f837f4970de96c71f496708498100bac89b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/006-r1-probe_only-note_task_links/answer.json",
+      "sha256": "dbae05fbbd4b5b30db0e84f1bc66408768feb0a5fd23890c79058d26e02cba5e",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/006-r1-probe_only-note_task_links/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/006-r1-probe_only-note_task_links/result.json",
+      "sha256": "f0207bbde7eb5a7c80d76315be17b881666b65abf208a593e6de9bf5555cfb3f",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/006-r1-probe_only-note_task_links/schema.json",
+      "sha256": "6c9a213e2bff92f5db9a9563fc3303d1ee0ba3758ee3b468895091a950ecca40",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/006-r1-probe_only-note_task_links/source.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/006-r1-probe_only-note_task_links/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/006-r1-probe_only-note_task_links/trace.jsonl",
+      "sha256": "4ff3a0243da81fbea3e63c8a018c0f493c112f27b6713b3490663e1381b7ca90",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/007-r1-pkf-note_task_links/answer.json",
+      "sha256": "dbae05fbbd4b5b30db0e84f1bc66408768feb0a5fd23890c79058d26e02cba5e",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/007-r1-pkf-note_task_links/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/007-r1-pkf-note_task_links/result.json",
+      "sha256": "f652138f95679242adb01302685e3402cda7fcbfb6a7ed0ce1a6eb553dfc8136",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/007-r1-pkf-note_task_links/route-output.jsonl",
+      "sha256": "b7bf46cf3e7ce087208d76693e7c044eac657ef986fbb7d41053f08ff552d8a0",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/007-r1-pkf-note_task_links/schema.json",
+      "sha256": "6c9a213e2bff92f5db9a9563fc3303d1ee0ba3758ee3b468895091a950ecca40",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/007-r1-pkf-note_task_links/source.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/007-r1-pkf-note_task_links/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/007-r1-pkf-note_task_links/trace.jsonl",
+      "sha256": "28dd1e25bf15e62e921dcbdca8bfc619d87c6fe12ba38690ee27fb5b5b4e8aac",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/008-r1-probe_only-favorite_visibility_mutation/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/008-r1-probe_only-favorite_visibility_mutation/result.json",
+      "sha256": "bddd868887d0a09c5dd2f85ffe9dc7972320a656ff8c7d4844024f6950844e50",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/008-r1-probe_only-favorite_visibility_mutation/source.diff",
+      "sha256": "c3480ed80618e3804d24812c024b6b3ed45ba8bdcfc616689080399c7bcc5a52",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/008-r1-probe_only-favorite_visibility_mutation/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/008-r1-probe_only-favorite_visibility_mutation/trace.jsonl",
+      "sha256": "82549ae70baebcffb7605a35a85779308cb64a1067e7bd77421eeffa3597a264",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/009-r1-pkf-favorite_visibility_mutation/pkf.diff",
+      "sha256": "268706be4e38e0fde6c8572aa67b3d81a588c42e6066c68215c7e442f397a9f3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/009-r1-pkf-favorite_visibility_mutation/result.json",
+      "sha256": "3e472f310bbbd618095e6d7c0d17bf30486652157b68bd4cbcd4cc3474a50c75",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/009-r1-pkf-favorite_visibility_mutation/route-output.jsonl",
+      "sha256": "63e64f0f4afa42904dfc094b2b728835dd5fc9aca8415a6b460d31a24ec450e2",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/009-r1-pkf-favorite_visibility_mutation/source.diff",
+      "sha256": "ce7834e4c3dd5c59f54fe2322e1362f5ea2807a1bd0c7db016735bed27d4d1cc",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/009-r1-pkf-favorite_visibility_mutation/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/009-r1-pkf-favorite_visibility_mutation/trace.jsonl",
+      "sha256": "b6ca556d4d43d060b762dcdd5994da6f5842bb700aabde9973399fa657833664",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/010-r1-probe_only-favorite_visibility_after_change/answer.json",
+      "sha256": "8f3091a12bbccdc5a5338bcf6df503baba902e99cf51581e577b99dd387961dc",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/010-r1-probe_only-favorite_visibility_after_change/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/010-r1-probe_only-favorite_visibility_after_change/result.json",
+      "sha256": "c505b76678e640b8253784f95c1208c5f5bf30c10321586f4248ef061eef946f",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/010-r1-probe_only-favorite_visibility_after_change/schema.json",
+      "sha256": "0015187451bf4d75c1d30f6a0743a4cf1fda1cfd2f5f0e1008fd8f857eebcc43",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/010-r1-probe_only-favorite_visibility_after_change/source.diff",
+      "sha256": "c3480ed80618e3804d24812c024b6b3ed45ba8bdcfc616689080399c7bcc5a52",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/010-r1-probe_only-favorite_visibility_after_change/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/010-r1-probe_only-favorite_visibility_after_change/trace.jsonl",
+      "sha256": "31c80e6a8dcad98157e3bf1f05107a213228c3db204d87da7a0442301a5d9a05",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/011-r1-pkf-favorite_visibility_after_change/answer.json",
+      "sha256": "8f3091a12bbccdc5a5338bcf6df503baba902e99cf51581e577b99dd387961dc",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/011-r1-pkf-favorite_visibility_after_change/pkf.diff",
+      "sha256": "268706be4e38e0fde6c8572aa67b3d81a588c42e6066c68215c7e442f397a9f3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/011-r1-pkf-favorite_visibility_after_change/result.json",
+      "sha256": "4d4e0e229e1c2acf7dca72a6f3dad7b3df455d225ede8230c81ca742d526ce74",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/011-r1-pkf-favorite_visibility_after_change/schema.json",
+      "sha256": "0015187451bf4d75c1d30f6a0743a4cf1fda1cfd2f5f0e1008fd8f857eebcc43",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/011-r1-pkf-favorite_visibility_after_change/source.diff",
+      "sha256": "ce7834e4c3dd5c59f54fe2322e1362f5ea2807a1bd0c7db016735bed27d4d1cc",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/011-r1-pkf-favorite_visibility_after_change/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/011-r1-pkf-favorite_visibility_after_change/trace.jsonl",
+      "sha256": "7882e6d4b14ed0d704617d88c4e10a1bdb6205d60e5c9603c1f758b620eb9699",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/012-r1-probe_only-isolated_closeout/pkf.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/012-r1-probe_only-isolated_closeout/result.json",
+      "sha256": "48f2aa93ad672e6fa64b6aae3e7a76ea8cbcec46abbf23835153725483636727",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/012-r1-probe_only-isolated_closeout/source.diff",
+      "sha256": "6d666a8f5b90c476bb11e29c0c52f7ec4991fc7d63dd2c8edd7a4070f585d848",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/012-r1-probe_only-isolated_closeout/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/012-r1-probe_only-isolated_closeout/trace.jsonl",
+      "sha256": "e3e4879f7baf166933f170ce984188fd9c2f3c7b68b476f35493484b7b9ba2ca",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/013-r1-pkf-isolated_closeout/pkf.diff",
+      "sha256": "88134f9b91fa5fbea026df8b0c431a8b33b172ff2d9ab46d803830d85ead5561",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/013-r1-pkf-isolated_closeout/result.json",
+      "sha256": "40068bf794051ba4fe07938b9c02ebd1ccb3b4cebd9f0c43a62a3518f509209d",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/013-r1-pkf-isolated_closeout/route-output.jsonl",
+      "sha256": "d6cb71938ff2442bd40b5a8cf1eca028fd3a9aedc8a77c030cc67b97cfbf1381",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/013-r1-pkf-isolated_closeout/source.diff",
+      "sha256": "6d666a8f5b90c476bb11e29c0c52f7ec4991fc7d63dd2c8edd7a4070f585d848",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/013-r1-pkf-isolated_closeout/stderr.txt",
+      "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "visibility": "private"
+    },
+    {
+      "path": "private/calls/013-r1-pkf-isolated_closeout/trace.jsonl",
+      "sha256": "5a5efe6716aeba708a6ea8db34d696a055aef42b2c45a237f6f03284a0082abd",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/ARCHITECTURE.md",
+      "sha256": "618f4735f488f76ef835b08b0793fc9cfa548846291c3caebc3111060fa8e6b8",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/MEMORY.md",
+      "sha256": "7d439d0c61f9f9a5e63f94c0154d9ff7a56c4c24f2d422bb2e695a700a3e32c1",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/PKF.md",
+      "sha256": "dc18b9a38d18e17f87e11a5fece4ea825e1b221dcf5e2b8663f4c0ef9d5efec3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/INDEX.md",
+      "sha256": "272067df816fed4d0fcb6a6f62073204dfa429b60d06da37ff338f7c24a5dd6b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/auth/INDEX.md",
+      "sha256": "d2310986141daa0c5a5376c0fa7633dfa284675df98b9ab6d6e9324f99b5d908",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/auth/api.md",
+      "sha256": "47c7f689e9fce29923dac12ec9ab33a7088197976b98da80852b49cc88b9290b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/auth/business_rules.md",
+      "sha256": "d31534bb1dc57cc6857ce9be053f0560d9bf6103f7da3a9570d8ed8d7597490b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/auth/schema.md",
+      "sha256": "60eb1f07e8dafed6a5a3c9c83f3a453c34d1ee5bc1c984e11bb2f53cc965e7e0",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/auth/ui.md",
+      "sha256": "5aa3b98c6874d90bb490fba63c23dc35d4d1aabbe4ad734420faa7e19b05dcb8",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/billing/INDEX.md",
+      "sha256": "0a89894c097397ee12192e28b08453865fe1e7e8ca5f3cc4d91da1e5c70d43f3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/billing/api.md",
+      "sha256": "cfd5423cf7a2b7101cd90e7cf77e02a8106c8b4610a926f132422e6db70b92c8",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/billing/business_rules.md",
+      "sha256": "1e381722ffb2c0c42bf03b8c22a946404b68a6c94a9ddcfa34b8a33ac6892806",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/billing/schema.md",
+      "sha256": "166119d621d09f24ce242f018469164d11972377aec4890ba38766eca434deee",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/billing/ui.md",
+      "sha256": "c2b92ccdd4479ec69c12e8e931c3d80190875ad0ee6ec5f1a490fd765a8e6d77",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/boards/INDEX.md",
+      "sha256": "135a4684cdd4348a3d73da199fc1c35607706d6fc892ea8c4b8b4d071cbba5a5",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/boards/api.md",
+      "sha256": "a4c8f4c8ea13651f4d5e38ada4c256a7fbe517d1aa03447143e082f3a14b257a",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/boards/business_rules.md",
+      "sha256": "0f51e419ec8285b7cbf26dcf0d22e632d5b9371b5209e1d9fef04933b2a6fc67",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/boards/schema.md",
+      "sha256": "fc8da14d7e7ebfaa9651dde96a632a59aef525d6d41dd6e3de19fbdf9d32a14e",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/boards/ui.md",
+      "sha256": "60134939ab24095f795bb1aaf8b086947a1ec989031cfc12fb48ff0cd8e521bd",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/decision_log.md",
+      "sha256": "623948646ecb15e5b24dcc905e614a4b23752143217e926f0d29f6641fd99df9",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/dependencies.md",
+      "sha256": "9332e137bc2d853e46fe4f47cc1e714e8693904ccf32ac4d8f27e828505f212b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/glossary.md",
+      "sha256": "5df263eb9843355b2b1d15f887d94c299380db69e68181e9ff1c3fade32ed895",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/notes/INDEX.md",
+      "sha256": "5ee311ebff5220c88c5a1f7a2ad710832ff5a67fe78f5dac860be21be9a17b02",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/notes/api.md",
+      "sha256": "8a8b8ee3ff7fab58b477eb49e766b6544c2198c64becf44640625ff52922deee",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/notes/business_rules.md",
+      "sha256": "d4adc25e5d19950765aea5c74de47bda8b2e3902889ad4a2c26509a382ffb51d",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/notes/schema.md",
+      "sha256": "032776c1cfca4f180a6408b02c3365b146a64937c90c0475a53b2b52b82db245",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/notes/ui.md",
+      "sha256": "a29009238dc1fd3091d083792eb12f03fccf5ba1beea5aff1f0fc19824b7a6bb",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/runtime/INDEX.md",
+      "sha256": "9a4ca174b4f377950321fd426b7026cb1d74b57b8ec986d6c5a69505cd91ab05",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/runtime/api.md",
+      "sha256": "f9301069c4fefdf0c1e801785572275a2cf61d45cdc25b281c31b39d5b6e1e1b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/runtime/business_rules.md",
+      "sha256": "cecf68cefb7f7fd2c849073d3ac3ce34dd6e4f905d535c91a6024114c1e3f57f",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/runtime/schema.md",
+      "sha256": "ec95f0569ef7b2bcd8ea5cc2328b245553e6a787a4b5d15f114d345c451b2ad3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/runtime/ui.md",
+      "sha256": "bade77b3d2e39dc2a14483e5335005141e86b204f3fb158f84751d430e832208",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/workspace/INDEX.md",
+      "sha256": "b40dcc0a9a177e373a688013b95da673a16fbb406945565fc40b828dfa39654a",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/workspace/api.md",
+      "sha256": "c97f9d6b2d26e22efa3e3ae6024f696752ea7f7be970597f5417781b349bc955",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/workspace/business_rules.md",
+      "sha256": "5d74f8a4bf4c46c1ca403de3562495217bb98635757f0e28a2fc4c6042ce0ae2",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/workspace/schema.md",
+      "sha256": "627d5d55caf551c50281341c4fbeed1dce7ad32a5f5e4bdd6ee3a750a4eb34ca",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/.ai/knowledge/workspace/ui.md",
+      "sha256": "87287ea74e7cdfc13874ad4e2f81628fdae81648ea9f5946dae24c230f39c17f",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-favorite_visibility_mutation/AGENTS.md",
+      "sha256": "c8ec8ccf5d695e08d3c160edfaae0c8d57e671d81e6fc9f6033c7e3b333c84d0",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/ARCHITECTURE.md",
+      "sha256": "618f4735f488f76ef835b08b0793fc9cfa548846291c3caebc3111060fa8e6b8",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/MEMORY.md",
+      "sha256": "7d439d0c61f9f9a5e63f94c0154d9ff7a56c4c24f2d422bb2e695a700a3e32c1",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/PKF.md",
+      "sha256": "dc18b9a38d18e17f87e11a5fece4ea825e1b221dcf5e2b8663f4c0ef9d5efec3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/INDEX.md",
+      "sha256": "272067df816fed4d0fcb6a6f62073204dfa429b60d06da37ff338f7c24a5dd6b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/auth/INDEX.md",
+      "sha256": "d2310986141daa0c5a5376c0fa7633dfa284675df98b9ab6d6e9324f99b5d908",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/auth/api.md",
+      "sha256": "47c7f689e9fce29923dac12ec9ab33a7088197976b98da80852b49cc88b9290b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/auth/business_rules.md",
+      "sha256": "d31534bb1dc57cc6857ce9be053f0560d9bf6103f7da3a9570d8ed8d7597490b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/auth/schema.md",
+      "sha256": "60eb1f07e8dafed6a5a3c9c83f3a453c34d1ee5bc1c984e11bb2f53cc965e7e0",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/auth/ui.md",
+      "sha256": "5aa3b98c6874d90bb490fba63c23dc35d4d1aabbe4ad734420faa7e19b05dcb8",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/billing/INDEX.md",
+      "sha256": "0a89894c097397ee12192e28b08453865fe1e7e8ca5f3cc4d91da1e5c70d43f3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/billing/api.md",
+      "sha256": "cfd5423cf7a2b7101cd90e7cf77e02a8106c8b4610a926f132422e6db70b92c8",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/billing/business_rules.md",
+      "sha256": "1e381722ffb2c0c42bf03b8c22a946404b68a6c94a9ddcfa34b8a33ac6892806",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/billing/schema.md",
+      "sha256": "166119d621d09f24ce242f018469164d11972377aec4890ba38766eca434deee",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/billing/ui.md",
+      "sha256": "c2b92ccdd4479ec69c12e8e931c3d80190875ad0ee6ec5f1a490fd765a8e6d77",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/boards/INDEX.md",
+      "sha256": "135a4684cdd4348a3d73da199fc1c35607706d6fc892ea8c4b8b4d071cbba5a5",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/boards/api.md",
+      "sha256": "a4c8f4c8ea13651f4d5e38ada4c256a7fbe517d1aa03447143e082f3a14b257a",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/boards/business_rules.md",
+      "sha256": "0f51e419ec8285b7cbf26dcf0d22e632d5b9371b5209e1d9fef04933b2a6fc67",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/boards/schema.md",
+      "sha256": "fc8da14d7e7ebfaa9651dde96a632a59aef525d6d41dd6e3de19fbdf9d32a14e",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/boards/ui.md",
+      "sha256": "60134939ab24095f795bb1aaf8b086947a1ec989031cfc12fb48ff0cd8e521bd",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/decision_log.md",
+      "sha256": "623948646ecb15e5b24dcc905e614a4b23752143217e926f0d29f6641fd99df9",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/dependencies.md",
+      "sha256": "9332e137bc2d853e46fe4f47cc1e714e8693904ccf32ac4d8f27e828505f212b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/glossary.md",
+      "sha256": "5df263eb9843355b2b1d15f887d94c299380db69e68181e9ff1c3fade32ed895",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/notes/INDEX.md",
+      "sha256": "5ee311ebff5220c88c5a1f7a2ad710832ff5a67fe78f5dac860be21be9a17b02",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/notes/api.md",
+      "sha256": "8a8b8ee3ff7fab58b477eb49e766b6544c2198c64becf44640625ff52922deee",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/notes/business_rules.md",
+      "sha256": "d4adc25e5d19950765aea5c74de47bda8b2e3902889ad4a2c26509a382ffb51d",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/notes/schema.md",
+      "sha256": "032776c1cfca4f180a6408b02c3365b146a64937c90c0475a53b2b52b82db245",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/notes/ui.md",
+      "sha256": "3b537feae1580e270790eecaa8c8afee4087579da4a61d865438242b1f08d39e",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/runtime/INDEX.md",
+      "sha256": "9a4ca174b4f377950321fd426b7026cb1d74b57b8ec986d6c5a69505cd91ab05",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/runtime/api.md",
+      "sha256": "f9301069c4fefdf0c1e801785572275a2cf61d45cdc25b281c31b39d5b6e1e1b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/runtime/business_rules.md",
+      "sha256": "cecf68cefb7f7fd2c849073d3ac3ce34dd6e4f905d535c91a6024114c1e3f57f",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/runtime/schema.md",
+      "sha256": "ec95f0569ef7b2bcd8ea5cc2328b245553e6a787a4b5d15f114d345c451b2ad3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/runtime/ui.md",
+      "sha256": "bade77b3d2e39dc2a14483e5335005141e86b204f3fb158f84751d430e832208",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/workspace/INDEX.md",
+      "sha256": "b40dcc0a9a177e373a688013b95da673a16fbb406945565fc40b828dfa39654a",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/workspace/api.md",
+      "sha256": "c97f9d6b2d26e22efa3e3ae6024f696752ea7f7be970597f5417781b349bc955",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/workspace/business_rules.md",
+      "sha256": "5d74f8a4bf4c46c1ca403de3562495217bb98635757f0e28a2fc4c6042ce0ae2",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/workspace/schema.md",
+      "sha256": "627d5d55caf551c50281341c4fbeed1dce7ad32a5f5e4bdd6ee3a750a4eb34ca",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/.ai/knowledge/workspace/ui.md",
+      "sha256": "87287ea74e7cdfc13874ad4e2f81628fdae81648ea9f5946dae24c230f39c17f",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-initialize/AGENTS.md",
+      "sha256": "c8ec8ccf5d695e08d3c160edfaae0c8d57e671d81e6fc9f6033c7e3b333c84d0",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/ARCHITECTURE.md",
+      "sha256": "618f4735f488f76ef835b08b0793fc9cfa548846291c3caebc3111060fa8e6b8",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/MEMORY.md",
+      "sha256": "7d439d0c61f9f9a5e63f94c0154d9ff7a56c4c24f2d422bb2e695a700a3e32c1",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/PKF.md",
+      "sha256": "dc18b9a38d18e17f87e11a5fece4ea825e1b221dcf5e2b8663f4c0ef9d5efec3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/INDEX.md",
+      "sha256": "272067df816fed4d0fcb6a6f62073204dfa429b60d06da37ff338f7c24a5dd6b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/auth/INDEX.md",
+      "sha256": "d2310986141daa0c5a5376c0fa7633dfa284675df98b9ab6d6e9324f99b5d908",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/auth/api.md",
+      "sha256": "47c7f689e9fce29923dac12ec9ab33a7088197976b98da80852b49cc88b9290b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/auth/business_rules.md",
+      "sha256": "d31534bb1dc57cc6857ce9be053f0560d9bf6103f7da3a9570d8ed8d7597490b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/auth/schema.md",
+      "sha256": "60eb1f07e8dafed6a5a3c9c83f3a453c34d1ee5bc1c984e11bb2f53cc965e7e0",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/auth/ui.md",
+      "sha256": "5aa3b98c6874d90bb490fba63c23dc35d4d1aabbe4ad734420faa7e19b05dcb8",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/billing/INDEX.md",
+      "sha256": "0a89894c097397ee12192e28b08453865fe1e7e8ca5f3cc4d91da1e5c70d43f3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/billing/api.md",
+      "sha256": "cfd5423cf7a2b7101cd90e7cf77e02a8106c8b4610a926f132422e6db70b92c8",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/billing/business_rules.md",
+      "sha256": "1e381722ffb2c0c42bf03b8c22a946404b68a6c94a9ddcfa34b8a33ac6892806",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/billing/schema.md",
+      "sha256": "166119d621d09f24ce242f018469164d11972377aec4890ba38766eca434deee",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/billing/ui.md",
+      "sha256": "c2b92ccdd4479ec69c12e8e931c3d80190875ad0ee6ec5f1a490fd765a8e6d77",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/boards/INDEX.md",
+      "sha256": "135a4684cdd4348a3d73da199fc1c35607706d6fc892ea8c4b8b4d071cbba5a5",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/boards/api.md",
+      "sha256": "a4c8f4c8ea13651f4d5e38ada4c256a7fbe517d1aa03447143e082f3a14b257a",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/boards/business_rules.md",
+      "sha256": "0f51e419ec8285b7cbf26dcf0d22e632d5b9371b5209e1d9fef04933b2a6fc67",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/boards/schema.md",
+      "sha256": "fc8da14d7e7ebfaa9651dde96a632a59aef525d6d41dd6e3de19fbdf9d32a14e",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/boards/ui.md",
+      "sha256": "60134939ab24095f795bb1aaf8b086947a1ec989031cfc12fb48ff0cd8e521bd",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/decision_log.md",
+      "sha256": "623948646ecb15e5b24dcc905e614a4b23752143217e926f0d29f6641fd99df9",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/dependencies.md",
+      "sha256": "9332e137bc2d853e46fe4f47cc1e714e8693904ccf32ac4d8f27e828505f212b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/glossary.md",
+      "sha256": "5df263eb9843355b2b1d15f887d94c299380db69e68181e9ff1c3fade32ed895",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/notes/INDEX.md",
+      "sha256": "5ee311ebff5220c88c5a1f7a2ad710832ff5a67fe78f5dac860be21be9a17b02",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/notes/api.md",
+      "sha256": "8a8b8ee3ff7fab58b477eb49e766b6544c2198c64becf44640625ff52922deee",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/notes/business_rules.md",
+      "sha256": "481f6374ffcc0a4843b80f0436033017e093850d48677ac54e412ab886645bfb",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/notes/schema.md",
+      "sha256": "032776c1cfca4f180a6408b02c3365b146a64937c90c0475a53b2b52b82db245",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/notes/ui.md",
+      "sha256": "f58c19fa43bec55e33738b4c3c5c28d16c81d01c749266c5f5210972cbb1a15e",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/runtime/INDEX.md",
+      "sha256": "9a4ca174b4f377950321fd426b7026cb1d74b57b8ec986d6c5a69505cd91ab05",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/runtime/api.md",
+      "sha256": "f9301069c4fefdf0c1e801785572275a2cf61d45cdc25b281c31b39d5b6e1e1b",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/runtime/business_rules.md",
+      "sha256": "cecf68cefb7f7fd2c849073d3ac3ce34dd6e4f905d535c91a6024114c1e3f57f",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/runtime/schema.md",
+      "sha256": "ec95f0569ef7b2bcd8ea5cc2328b245553e6a787a4b5d15f114d345c451b2ad3",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/runtime/ui.md",
+      "sha256": "bade77b3d2e39dc2a14483e5335005141e86b204f3fb158f84751d430e832208",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/workspace/INDEX.md",
+      "sha256": "b40dcc0a9a177e373a688013b95da673a16fbb406945565fc40b828dfa39654a",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/workspace/api.md",
+      "sha256": "c97f9d6b2d26e22efa3e3ae6024f696752ea7f7be970597f5417781b349bc955",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/workspace/business_rules.md",
+      "sha256": "5d74f8a4bf4c46c1ca403de3562495217bb98635757f0e28a2fc4c6042ce0ae2",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/workspace/schema.md",
+      "sha256": "627d5d55caf551c50281341c4fbeed1dce7ad32a5f5e4bdd6ee3a750a4eb34ca",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/.ai/knowledge/workspace/ui.md",
+      "sha256": "87287ea74e7cdfc13874ad4e2f81628fdae81648ea9f5946dae24c230f39c17f",
+      "visibility": "private"
+    },
+    {
+      "path": "private/pkf-snapshots/r1-isolated_closeout/AGENTS.md",
+      "sha256": "c8ec8ccf5d695e08d3c160edfaae0c8d57e671d81e6fc9f6033c7e3b333c84d0",
+      "visibility": "private"
+    },
+    {
+      "path": "private/validation/r1-favorite_visibility_mutation.json",
+      "sha256": "25e871e99ed6ae7ed0c1adb54b05b0a689b278a1ea228bf807666ff3e9573074",
+      "visibility": "private"
+    },
+    {
+      "path": "private/validation/r1-initialize.json",
+      "sha256": "74e09d8c031f0d02e527578c07824b8a1023da1c839a6dc44ba300599b65091f",
+      "visibility": "private"
+    },
+    {
+      "path": "private/validation/r1-isolated_closeout.json",
+      "sha256": "8659e3869e0897ef3cd89a26b464a62e53ee307cec8dfdcd70e80375a9ca0dab",
+      "visibility": "private"
+    },
+    {
+      "path": "public/report.json",
+      "sha256": "a1a1aa84e2127e277cd8999e4dd387191d64905a0abb3e6ba60951c825669d73",
+      "visibility": "public"
+    },
+    {
+      "path": "public/report.md",
+      "sha256": "df2fba74a93e5503f70c07f3d143c81eaf259a12a112d169d4d2fbb70f2747f9",
+      "visibility": "public"
+    }
+  ],
+  "calls": [
+    {
+      "arm": "pkf",
+      "call_id": "001-r1-pkf-initialize",
+      "phase": "setup",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "initialize"
+    },
+    {
+      "arm": "source_only",
+      "call_id": "002-r1-source_only-boards_add_task",
+      "phase": "retrieval",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "boards_add_task"
+    },
+    {
+      "arm": "probe_only",
+      "call_id": "003-r1-probe_only-boards_add_task",
+      "phase": "retrieval",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "boards_add_task"
+    },
+    {
+      "arm": "pkf",
+      "call_id": "004-r1-pkf-boards_add_task",
+      "phase": "retrieval",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "boards_add_task"
+    },
+    {
+      "arm": "source_only",
+      "call_id": "005-r1-source_only-note_task_links",
+      "phase": "retrieval",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "note_task_links"
+    },
+    {
+      "arm": "probe_only",
+      "call_id": "006-r1-probe_only-note_task_links",
+      "phase": "retrieval",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "note_task_links"
+    },
+    {
+      "arm": "pkf",
+      "call_id": "007-r1-pkf-note_task_links",
+      "phase": "retrieval",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "note_task_links"
+    },
+    {
+      "arm": "probe_only",
+      "call_id": "008-r1-probe_only-favorite_visibility_mutation",
+      "phase": "mutation",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "favorite_visibility_mutation"
+    },
+    {
+      "arm": "pkf",
+      "call_id": "009-r1-pkf-favorite_visibility_mutation",
+      "phase": "mutation",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "favorite_visibility_mutation"
+    },
+    {
+      "arm": "probe_only",
+      "call_id": "010-r1-probe_only-favorite_visibility_after_change",
+      "phase": "post_mutation",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "favorite_visibility_after_change"
+    },
+    {
+      "arm": "pkf",
+      "call_id": "011-r1-pkf-favorite_visibility_after_change",
+      "phase": "post_mutation",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "favorite_visibility_after_change"
+    },
+    {
+      "arm": "probe_only",
+      "call_id": "012-r1-probe_only-isolated_closeout",
+      "phase": "closeout",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "isolated_closeout"
+    },
+    {
+      "arm": "pkf",
+      "call_id": "013-r1-pkf-isolated_closeout",
+      "phase": "closeout",
+      "repetition": 1,
+      "returncode": 0,
+      "task_id": "isolated_closeout"
+    }
+  ],
+  "created_at": "2026-07-19T18:55:53+00:00",
+  "error": "",
+  "private_artifacts_local_only": true,
+  "run_id": "token-atlas-gpt-5.6-luna-high-all-one_pass_preflight-20260719T185553Z",
+  "schema_version": 1,
+  "status": "failed"
+}

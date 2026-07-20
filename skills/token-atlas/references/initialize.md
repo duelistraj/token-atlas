@@ -51,6 +51,9 @@ module IDs, and overwriting an existing runtime. On success it:
 - Embeds the adaptive retrieval and closeout protocols from packaged templates.
 - Augments `AGENTS.md` inside managed markers without replacing existing
   instructions.
+- Installs dependency-free route and validation helpers under `.ai/tools/` so
+  routine closeout never needs to locate the installed skill.
+- Records machine-readable `pkf.ownership_roots` on each module index.
 - Marks every implementation leaf pending.
 - Runs compact deterministic validation.
 - Removes `.ai/.pkf-init.json` unless `--keep-spec` is set.
@@ -105,7 +108,10 @@ After scaffolding:
    `source_symbols: {}`, and the exact body marker
    `- TODO: Pending source extraction.`.
 4. Every materialized leaf must map repository-relative paths to exact symbols
-   in `source_symbols` and include a targeted Edit Map.
+   in `source_symbols` and include a targeted Edit Map. Public-behavior UI and
+   business-rule leaves must inspect capability-local state/behavior helpers and
+   focused tests; every source or test cited by the Edit Map must be included in
+   `source_symbols`.
 5. A complete leaf with no source-backed facts uses
    `pkf.materialization: complete` and
    `- TODO: No source-backed facts.`.
@@ -135,7 +141,7 @@ The generated runtime sets:
 
 ```yaml
 pkf:
-  runtime_version: 3
+  runtime_version: 4
   retrieval: adaptive
   closeout: adaptive
   loads:
@@ -147,7 +153,8 @@ pkf:
 
 The neutral bootstrap applies the cheap local probe without loading PKF,
 activates PKF for cross-capability, architecture, ownership, and repository-wide
-work, and knowledge-impact-gates closeout.
+work, and knowledge-impact-gates closeout. Routine mapped closeout uses the
+exact repository-local commands embedded by the scaffold.
 
 ## Success Criteria
 
@@ -155,6 +162,8 @@ work, and knowledge-impact-gates closeout.
 - The deterministic scaffold validates and preserves existing instructions.
 - Shared routing, public behavior, and source-backed cross-capability contracts
   are verified.
+- Public-behavior implementation helpers and focused tests route directly to
+  their materialized leaves.
 - Changed-route simulation covers every newly materialized route.
 - Deferred leaves are explicitly pending.
 - One final post-extraction validation completes.

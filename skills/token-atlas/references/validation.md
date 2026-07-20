@@ -16,7 +16,7 @@ Only report findings unless the user asks for fixes.
 Validate:
 
 - `PKF.md`, `MEMORY.md`, `ARCHITECTURE.md`, and `knowledge/INDEX.md` exist.
-- `PKF.md` sets `pkf.runtime_version: 3` and `pkf.retrieval` to `adaptive` or
+- `PKF.md` sets `pkf.runtime_version: 4` and `pkf.retrieval` to `adaptive` or
   `mandatory`; missing or older runtimes require migration, and newer versions
   are reported as unsupported rather than downgraded.
 - Every detected module has `INDEX.md`, `api.md`, `schema.md`, `business_rules.md`, and `ui.md`.

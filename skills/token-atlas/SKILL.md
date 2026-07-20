@@ -1,6 +1,6 @@
 ---
 name: token-atlas
-description: Generate and maintain repository-specific PKF runtime and OKF knowledge bases on demand or incrementally in target repositories. Use when explicitly asked to initialize, extract, maintain, optimize, validate, simulate, or export PKF/OKF knowledge, and after an intentional repository mutation changes durable facts, evidence, or routing in an initialized repository. Do not trigger for read-only turns, knowledge-neutral mutations, or unrelated repositories.
+description: Generate and maintain repository-specific PKF runtime and OKF knowledge bases on demand or incrementally in target repositories. Use when explicitly asked to initialize, extract, maintain, optimize, validate, simulate, or export PKF/OKF knowledge, or when an initialized repository reports a partial, unmapped, pending, migration, or otherwise exceptional closeout route. Do not trigger for routine mapped closeout, read-only turns, knowledge-neutral mutations, or unrelated repositories.
 ---
 
 # Token Atlas
@@ -17,7 +17,7 @@ watchers, daemons, global hooks, background jobs, or persistent runtime services
 
 Start by detecting whether `.ai/PKF.md` exists. Read it only when an explicit Token Atlas workflow or the repository's adaptive retrieval gate activates PKF.
 
-If `.ai/PKF.md` is missing, read `references/initialize.md` before repository analysis. If `.ai/PKF.md` exists, read `references/maintenance.md` before extraction only for exceptional drift, migration, or module-boundary work. Routine semantic closeout uses the embedded protocol, turn-owned changed paths, and bundled route helper; read `references/closeout.md` only when the route is partial, unmapped, or exceptional.
+If `.ai/PKF.md` is missing, read `references/initialize.md` before repository analysis. If `.ai/PKF.md` exists, read `references/maintenance.md` before extraction only for exceptional drift, migration, or module-boundary work. Routine semantic closeout uses the embedded protocol, turn-owned changed paths, and repository-local route helper; read `references/closeout.md` only when the route is partial, unmapped, or exceptional.
 
 Use the smallest needed reference set:
 
@@ -25,7 +25,7 @@ Use the smallest needed reference set:
 |------|------|
 | Create missing PKF runtime and OKF skeleton | `references/initialize.md` |
 | Detect changed, renamed, deleted, stale, or duplicate knowledge | `references/maintenance.md` |
-| Close out an intentional repository mutation | `references/closeout.md` |
+| Resolve a partial, unmapped, pending, or exceptional closeout | `references/closeout.md` |
 | Populate source-backed facts | `references/extract.md` |
 | Tighten routing, deduplicate facts, and reduce context cost | `references/optimize.md` |
 | Validate structure, sync, routing, token budget, and exports | `references/validation.md` |
@@ -57,7 +57,7 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - Derive flat module names from source-backed functional capabilities. Prefer capability boundaries over technical layers only when the repository proves at least two independently routable capabilities; never prescribe module names or create speculative modules.
 - During maintenance, automatically repartition coarse modules when capability ownership is unambiguous. Preserve the current structure and report ambiguity instead of guessing.
 - During `initialize`, embed the adaptive Retrieval Protocol into `.ai/PKF.md`, and ensure a neutral bootstrap can decide whether to use PKF without loading it first.
-- Default the runtime to `pkf.runtime_version: 3`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`. Permit `pkf.retrieval: mandatory` for compatibility and the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
+- Default the runtime to `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and `pkf.closeout: adaptive`. Permit `pkf.retrieval: mandatory` for compatibility and the quoted YAML value `pkf.closeout: "off"` as an explicit opt-out.
 - Initialize in hybrid mode: materialize runtime, architecture, dependencies,
   public behavior, and source-backed cross-capability contracts needed for
   direct routing; mark unrelated or genuinely deferred leaves
@@ -70,13 +70,14 @@ Use `ci` for strict validation, required simulations, and full token budget repo
 - Keep all generated guidance vendor, agent, and model agnostic. Reference no specific assistant, tool, or model.
 - Keep `pkf.loads` minimal and put optional context in `pkf.related`.
 - Require every module leaf to expose machine-readable `source_symbols`; use a compact Edit Map to connect behaviors to symbols, tests, styles, and targeted locator commands.
+- Require materialized public-behavior leaves to include their focused test evidence in `source_symbols`, and require module indexes to expose machine-readable `pkf.ownership_roots`.
 - Cache PKF protocol and index acknowledgements after activation. Do not load the startup path for a bypassed local task or routine semantic closeout.
 - Keep a normal task within one module index, one or two leaves, and the exact named symbols. Require an explicit reason for cross-cutting exceptions.
 - Do not load or generate `.ai/retrieval/` unless retrieval exports are enabled.
 - Report stale, unsupported, duplicate, or broad-loading knowledge as validation defects.
 - Prefer the bundled dependency-light validator for mechanical checks; keep source-truth and duplicate-authority judgments in the semantic validation workflow.
 - During routine closeout, run the validator with affected scope and summary detail. Reserve full, verbose validation for runtime/routing changes, exceptional maintenance, explicit validation, or CI.
-- Route durable turn-owned changes with the bundled changed-path helper before
+- Route durable turn-owned changes with the repository-local changed-path helper before
   reading indexes or leaves. A mapped route reads only returned complete leaves,
   performs one affected validation, and must not replay PKF startup or load
   Token Atlas workflow instructions.

@@ -6,6 +6,9 @@ resource: .
 tags: [capability-two, routing]
 timestamp: 2026-07-12
 pkf:
+  ownership_roots:
+    - "src/layer-one/capability-two"
+    - "src/layer-two/capability-two"
   loads: []
   related: [.ai/knowledge/capability-two/api.md, .ai/knowledge/capability-two/schema.md, .ai/knowledge/capability-two/business_rules.md, .ai/knowledge/capability-two/ui.md]
 ---

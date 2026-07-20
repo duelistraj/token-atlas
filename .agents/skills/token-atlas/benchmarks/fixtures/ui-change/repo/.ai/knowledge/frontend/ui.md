@@ -8,6 +8,8 @@ timestamp: 2026-07-08
 source_symbols:
   src/frontend/CartSummary.tsx:
     - renderCartSummary
+  src/frontend/CartSummary.test.ts:
+    - cartSummaryLabel
 pkf:
   loads: []
   related: []

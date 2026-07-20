@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -29,6 +30,7 @@ from pkf_contract import (  # noqa: E402
     LEAF_MATERIALIZATION_FIELD,
     LEAF_MATERIALIZATION_MODES,
     LEAF_SOURCE_SYMBOLS_FIELD,
+    MODULE_OWNERSHIP_ROOTS_FIELD,
     LEGACY_CLOSEOUT_PHRASES,
     REQUIRED_FRONT_MATTER,
     REQUIRED_MODULE_DOCS,
@@ -61,6 +63,15 @@ BOOTSTRAP_READ_ONLY_BYPASS = "Read-only turns bypass closeout silently"
 BOOTSTRAP_RETRIEVAL_GATE = "Use a cheap local probe"
 BOOTSTRAP_PKF_ACTIVATION = "Activate PKF retrieval"
 BOOTSTRAP_KNOWLEDGE_IMPACT = "durable facts, evidence, or routing"
+BOOTSTRAP_ROUTE_COMMAND = "python -S .ai/tools/pkf_route.py"
+BOOTSTRAP_VALIDATE_COMMAND = "python -S .ai/tools/pkf_validate.py"
+RUNTIME_TOOL_FILES = (
+    "pkf_contract.py",
+    "pkf_lib.py",
+    "pkf_route.py",
+    "pkf_tokens.py",
+    "pkf_validate.py",
+)
 
 
 @dataclass
@@ -206,12 +217,14 @@ def validate_pkf(
     check_required_docs(ai_dir, repo_root, report)
     check_runtime_protocols(ai_dir, repo_root, report)
     check_neutral_bootstrap(repo_root, report)
+    check_runtime_tools(ai_dir, repo_root, report)
     check_flat_module_layout(ai_dir, repo_root, report)
     modules = discover_modules(ai_dir)
     check_module_docs(ai_dir, repo_root, modules, report)
     front_matter = check_front_matter(ai_dir, repo_root, report)
     report.checked_docs = sorted(rel(path, repo_root) for path in front_matter)
     check_runtime_config(ai_dir, repo_root, front_matter, report)
+    check_module_ownership(ai_dir, repo_root, modules, front_matter, report)
     affected_modules, mapped_changed_paths = check_leaf_contracts(
         ai_dir,
         repo_root,
@@ -342,6 +355,16 @@ def check_required_docs(ai_dir: Path, repo_root: Path, report: ValidationReport)
         check_file(ai_dir / "knowledge" / doc, repo_root, report, f"shared doc exists: .ai/knowledge/{doc}")
 
 
+def check_runtime_tools(ai_dir: Path, repo_root: Path, report: ValidationReport) -> None:
+    for filename in RUNTIME_TOOL_FILES:
+        check_file(
+            ai_dir / "tools" / filename,
+            repo_root,
+            report,
+            f"repository-local runtime helper exists: .ai/tools/{filename}",
+        )
+
+
 def check_runtime_protocols(ai_dir: Path, repo_root: Path, report: ValidationReport) -> None:
     pkf = ai_dir / "PKF.md"
     if not pkf.is_file():
@@ -363,6 +386,14 @@ def check_runtime_protocols(ai_dir: Path, repo_root: Path, report: ValidationRep
                 passed(report, f"PKF.md embeds {protocol} protocol clause: {requirement}")
             else:
                 error(report, rel(pkf, repo_root), f"missing required {protocol} protocol clause: {requirement}")
+    for command, label in (
+        (BOOTSTRAP_ROUTE_COMMAND, "route"),
+        (BOOTSTRAP_VALIDATE_COMMAND, "validation"),
+    ):
+        if command in normalized_text:
+            passed(report, f"PKF.md embeds exact repository-local {label} command")
+        else:
+            error(report, rel(pkf, repo_root), f"missing exact repository-local {label} command: {command}")
     closeout_text = text.split(CLOSEOUT_PROTOCOL_HEADING, 1)[-1].lower()
     for phrase in LEGACY_CLOSEOUT_PHRASES:
         if phrase in closeout_text:
@@ -404,6 +435,14 @@ def check_neutral_bootstrap(repo_root: Path, report: ValidationReport) -> None:
         passed(report, "root bootstrap knowledge-impact-gates closeout")
     else:
         error(report, BOOTSTRAP_FILE, "bootstrap must gate closeout on durable knowledge impact")
+    for command, label in (
+        (BOOTSTRAP_ROUTE_COMMAND, "route"),
+        (BOOTSTRAP_VALIDATE_COMMAND, "validation"),
+    ):
+        if command in normalized_text:
+            passed(report, f"root bootstrap embeds exact repository-local {label} command")
+        else:
+            error(report, BOOTSTRAP_FILE, f"bootstrap must embed exact repository-local {label} command: {command}")
     lowered = text.lower()
     for phrase in LEGACY_CLOSEOUT_PHRASES:
         if phrase in lowered:
@@ -458,6 +497,42 @@ def discover_modules(ai_dir: Path) -> list[str]:
     if not knowledge.is_dir():
         return []
     return sorted(item.name for item in knowledge.iterdir() if item.is_dir() and item.name != "retrieval")
+
+
+def check_module_ownership(
+    ai_dir: Path,
+    repo_root: Path,
+    modules: list[str],
+    metadata: dict[Path, dict[str, Any]],
+    report: ValidationReport,
+) -> None:
+    seen: dict[str, str] = {}
+    for module in modules:
+        index = ai_dir / "knowledge" / module / "INDEX.md"
+        pkf = metadata.get(index, {}).get("pkf")
+        roots = pkf.get(MODULE_OWNERSHIP_ROOTS_FIELD) if isinstance(pkf, dict) else None
+        display = rel(index, repo_root)
+        if not isinstance(roots, list) or not roots:
+            error(report, display, f"pkf.{MODULE_OWNERSHIP_ROOTS_FIELD} must be a non-empty list")
+            continue
+        for raw_root in roots:
+            if not isinstance(raw_root, str) or not raw_root.strip():
+                error(report, display, f"pkf.{MODULE_OWNERSHIP_ROOTS_FIELD} contains an empty or non-string path")
+                continue
+            root = raw_root.strip().removeprefix("./").rstrip("/")
+            token = Path(root)
+            if token.is_absolute() or ".." in token.parts:
+                error(report, display, f"ownership root must be repository-relative without '..': {raw_root}")
+                continue
+            if not (repo_root / root).exists():
+                error(report, display, f"ownership root does not resolve: {root}")
+                continue
+            previous = seen.get(root)
+            if previous is not None and previous != module:
+                error(report, display, f"ownership root is also assigned to module {previous}: {root}")
+                continue
+            seen[root] = module
+            passed(report, f"module ownership root resolves: {module}:{root}")
 
 
 def check_flat_module_layout(ai_dir: Path, repo_root: Path, report: ValidationReport) -> None:
@@ -689,6 +764,7 @@ def validate_edit_map(
     column_by_name = {name.lower(): index for index, name in enumerate(header_cells)}
     behavior_index = column_by_name["behavior"]
     symbols_index = column_by_name["source symbols"]
+    tests_index = column_by_name["tests"]
     locator_index = column_by_name["locator"]
     known_symbols = {
         str(symbol).strip()
@@ -704,6 +780,7 @@ def validate_edit_map(
         if behavior in GENERIC_EDIT_MAP_BEHAVIORS or behavior.startswith("todo"):
             error(report, display, f"Edit Map behavior is generic or placeholder text: {row[behavior_index].strip()}")
         source_cell = row[symbols_index]
+        tests_cell = row[tests_index]
         locator = row[locator_index]
         row_symbols = {symbol for symbol in known_symbols if symbol in source_cell or symbol in locator}
         mentioned_symbols.update(row_symbols)
@@ -715,6 +792,14 @@ def validate_edit_map(
             )
         elif not row_symbols:
             error(report, display, f"Edit Map locator does not target a declared source symbol: {row[behavior_index].strip()}")
+        for evidence in re.findall(r"`([^`]+)`", tests_cell):
+            evidence_path = evidence.split(":", 1)[0].strip()
+            if "/" in evidence_path and evidence_path not in source_symbols:
+                error(
+                    report,
+                    display,
+                    f"Edit Map test evidence is missing from source_symbols: {evidence_path}",
+                )
 
     missing_symbols = sorted(known_symbols - mentioned_symbols)
     if missing_symbols:

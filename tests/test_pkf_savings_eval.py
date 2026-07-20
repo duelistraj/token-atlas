@@ -264,6 +264,20 @@ class PkfSavingsEvalTests(unittest.TestCase):
                 usage=pkf_savings_eval.Usage(1_500, 0, 20),
                 answer_correct=None,
             ),
+            self.make_result(
+                arm="probe_only",
+                task_id="isolated_closeout",
+                phase="closeout",
+                usage=pkf_savings_eval.Usage(100, 0, 5),
+                answer_correct=None,
+            ),
+            self.make_result(
+                arm="pkf",
+                task_id="isolated_closeout",
+                phase="closeout",
+                usage=pkf_savings_eval.Usage(600, 0, 5),
+                answer_correct=None,
+            ),
         ]
 
         metrics = pkf_savings_eval.aggregate_metrics(results)
@@ -271,6 +285,11 @@ class PkfSavingsEvalTests(unittest.TestCase):
         self.assertEqual(metrics["activated_pkf_knowledge_savings"]["input_tokens"], 500)
         self.assertEqual(metrics["activated_pkf_knowledge_savings"]["paired_count"], 1)
         self.assertEqual(metrics["break_even_activated_tasks"]["input_tokens"], 3)
+        phase_costs = metrics["lifecycle_phase_cost_summary"]
+        self.assertEqual(phase_costs["implementation"]["input_tokens"], 1_000)
+        self.assertEqual(phase_costs["closeout"]["input_tokens"], 600)
+        self.assertEqual(phase_costs["composed_probe_plus_closeout"]["input_tokens"], 1_600)
+        self.assertEqual(phase_costs["integrated_observed"]["input_tokens"], 1_500)
 
     def test_bypassed_tasks_are_not_counted_as_pkf_knowledge_savings(self):
         metrics = pkf_savings_eval.aggregate_metrics(
@@ -508,29 +527,111 @@ class PkfSavingsEvalTests(unittest.TestCase):
             phase="closeout",
             answer_correct=None,
             used_route_helper=True,
+            initial_route_status="mapped",
+            final_route_status="mapped",
+            route_attempt_count=1,
             emitted_closeout=True,
             pkf_validation_passed=True,
+            closeout_validation_call_count=1,
         )
 
         self.assertEqual(pkf_savings_eval.evaluation_errors((local, closeout), 2), [])
         errors = pkf_savings_eval.evaluation_errors(
             (
                 pkf_savings_eval.replace_result(local, retrieval_decision="activated"),
-                pkf_savings_eval.replace_result(closeout, accessed_closeout=True),
+                pkf_savings_eval.replace_result(closeout, closeout_accessed_closeout=True),
             ),
             2,
         )
         self.assertTrue(any("not classified as bypassed" in error for error in errors))
         self.assertTrue(any("loaded Token Atlas workflow" in error for error in errors))
 
+        unmapped_errors = pkf_savings_eval.evaluation_errors(
+            (
+                local,
+                pkf_savings_eval.replace_result(
+                    closeout,
+                    initial_route_status="unmapped",
+                    final_route_status="partial",
+                    routing_coverage_defect=True,
+                    closeout_accessed_closeout=True,
+                    closeout_fallback_search=True,
+                ),
+            ),
+            2,
+        )
+        self.assertTrue(any("routing-coverage defect" in error for error in unmapped_errors))
+        self.assertFalse(any("mapped isolated closeout" in error for error in unmapped_errors))
+
+    def test_mutation_trace_segments_at_first_valid_route_result(self):
+        route_result = {
+            "schema_version": 2,
+            "status": "mapped",
+            "affected_leaves": [{"path": ".ai/knowledge/notes/ui.md"}],
+            "fallback_routes": [],
+            "unmatched_paths": [],
+            "routing_coverage_defect": False,
+            "validation_scope": "affected",
+        }
+        output = "\n".join(
+            (
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {"type": "command_execution", "command": "rg --files frontend/src/notes", "output": "frontend/src/notes/state.ts"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "python -S .ai/tools/pkf_route.py --path . --changed-path frontend/src/notes/state.ts --format json",
+                            "output": json.dumps(route_result),
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {"type": "command_execution", "command": "sed -n '1,80p' .ai/knowledge/notes/ui.md", "output": "leaf"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {"type": "command_execution", "command": "python -S .ai/tools/pkf_validate.py --path .ai --scope affected --changed-path frontend/src/notes/state.ts", "output": "{}"},
+                    }
+                ),
+            )
+        )
+
+        events = pkf_savings_eval.completed_tool_events(output)
+        attempts = pkf_savings_eval.parse_route_attempts(events)
+        metrics, _ = pkf_savings_eval.segmented_trace(
+            events,
+            attempts,
+            known_paths=(".ai/knowledge/notes/ui.md",),
+            known_directories=("frontend/src/notes",),
+        )
+
+        self.assertEqual(attempts[0]["status"], "mapped")
+        self.assertEqual(metrics["implementation"].tool_call_count, 1)
+        self.assertTrue(metrics["implementation"].fallback_search)
+        self.assertEqual(metrics["routing"].tool_call_count, 1)
+        self.assertEqual(metrics["closeout"].tool_call_count, 2)
+        self.assertFalse(metrics["closeout"].fallback_search)
+
     def test_runtime_contract_restores_changed_simulation_and_narrow_closeout(self):
         initialize = (ROOT / "skills/token-atlas/references/initialize.md").read_text(encoding="utf-8")
         closeout = (ROOT / "skills/token-atlas/references/closeout.md").read_text(encoding="utf-8")
+        skill = (ROOT / "skills/token-atlas/SKILL.md").read_text(encoding="utf-8")
 
         self.assertIn("do not impose a fixed per-capability leaf\n   cap", initialize)
         self.assertIn("Run `simulation=changed`", initialize)
         self.assertIn("Do not read the skill, this reference", closeout)
         self.assertIn("exactly one affected-slice advisory validation", closeout)
+        self.assertIn("Do not trigger for routine mapped closeout", skill)
 
 
 if __name__ == "__main__":

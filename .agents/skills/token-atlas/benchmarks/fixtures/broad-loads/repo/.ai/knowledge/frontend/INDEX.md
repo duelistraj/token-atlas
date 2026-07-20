@@ -6,6 +6,8 @@ resource: .ai/knowledge/frontend/INDEX.md
 tags: [broad-loads, frontend, routing]
 timestamp: 2026-07-08
 pkf:
+  ownership_roots:
+    - "src/frontend"
   loads: []
   related:
     - .ai/knowledge/frontend/api.md

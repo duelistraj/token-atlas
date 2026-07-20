@@ -53,8 +53,9 @@ ends at exact declarations, tests, styles, and targeted locator commands instead
 of merely naming a large source file. Activated guidance and indexes are cached
 for the session unless they change or contradict source truth.
 
-Initialization sets `pkf.runtime_version: 3`, `pkf.retrieval: adaptive`, and
-`pkf.closeout: adaptive`. Hybrid extraction materializes routing and public
+Initialization sets `pkf.runtime_version: 4`, `pkf.retrieval: adaptive`, and
+`pkf.closeout: adaptive`, and installs dependency-free route and validation
+helpers under `.ai/tools/`. Hybrid extraction materializes routing and public
 entry points while leaving other leaves explicitly pending. Set closeout to
 `"off"` in `.ai/PKF.md` to opt out. Hosts that support implicit
 skill invocation may load Token Atlas automatically; other hosts execute the
@@ -67,6 +68,7 @@ embedded, vendor-neutral protocol from the repository instructions.
   PKF.md            # startup contract + routing rules
   MEMORY.md         # stable, cross-task facts
   ARCHITECTURE.md   # path ownership, source roots, module map
+  tools/            # repository-local route and validation helpers
   knowledge/
     INDEX.md              # root routing by task, keyword, module, path
     <module>/INDEX.md     # module routing + source-backed leaf docs
@@ -196,12 +198,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\pkf.ps1 --help
 uv run python scripts\pkf_validate.py --path .ai --strictness ci
 ```
 
-An installed public package can validate its target repository directly:
+An initialized repository can route and validate without locating the installed skill:
 
 ```bash
-python <skill-root>/scripts/pkf_validate.py --path .ai --strictness advisory
-python <skill-root>/scripts/pkf_validate.py --path .ai --strictness ci --format json
-python <skill-root>/scripts/pkf_validate.py --path .ai --scope affected --detail summary --changed-path src/example.py
+python -S .ai/tools/pkf_route.py --path . --changed-path src/example.py --format json
+python -S .ai/tools/pkf_validate.py --path .ai --strictness advisory
+python -S .ai/tools/pkf_validate.py --path .ai --scope affected --detail summary --changed-path src/example.py
 ```
 
 The portable approximate token estimator is the default. Pass `--model` only to

@@ -62,10 +62,10 @@ the mutation changed durable facts, evidence, or routing.
 ## Fast Changed-Path Route
 
 For a durable change, use the embedded protocol and turn-owned context first;
-do not load this reference merely to repeat the gate. Invoke the bundled helper:
+do not load this reference merely to repeat the gate. Invoke the repository-local helper:
 
 ```text
-python <token-atlas-skill>/scripts/pkf_route.py --path . \
+python -S .ai/tools/pkf_route.py --path . \
   --changed-path <path> --format json
 ```
 
@@ -77,10 +77,10 @@ context. A valid `partial` or `unmapped` result is not a tooling failure.
 - For `mapped`, read and synchronize only returned leaves whose
   `pkf.materialization` is `complete`. Do not read the skill, this reference,
   startup documents, or indexes.
-- For `partial`, synchronize mapped leaves and read the root index only for the
-  unmatched slice.
-- For `unmapped`, read the root index and escalate to exceptional maintenance if
-  ownership remains unresolved.
+- For `partial`, synchronize mapped leaves and read only module indexes returned
+  in `fallback_routes` for the unmatched slice.
+- For `unmapped`, report a routing-coverage defect, use the narrowest returned
+  module index, and read the root index only when no ownership root matches.
 - When the helper requests `full` validation, treat routing/runtime knowledge as
   changed; otherwise retain affected-slice validation.
 
@@ -101,7 +101,7 @@ context. A valid `partial` or `unmapped` result is not a tooling failure.
 - Run exactly one affected-slice advisory validation with summary detail after changing PKF
   knowledge. The bundled validator invocation is:
 
-  `python <token-atlas-skill>/scripts/pkf_validate.py --path . --strictness advisory --scope affected --detail summary --changed-path <path>`
+  `python -S .ai/tools/pkf_validate.py --path .ai --strictness advisory --scope affected --format json --detail summary --changed-path <path>`
 
   Repeat `--changed-path` for each turn-owned source or knowledge path. Do not
   emit inventories of successful checks during routine closeout.

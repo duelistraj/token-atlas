@@ -1,0 +1,1815 @@
+{
+  "arm_definitions": {
+    "pkf": "PKF installed with adaptive retrieval and closeout; an individual task may bypass retrieval.",
+    "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
+    "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only."
+  },
+  "artifact_manifest_path": "../manifest.json",
+  "benchmark": "token-atlas-adaptive-attribution",
+  "environment": {
+    "codex_version": "codex-cli 0.144.5",
+    "model": "gpt-5.6-luna",
+    "reasoning_effort": "high",
+    "repetitions": 1,
+    "scheduled_calls": 13
+  },
+  "errors": [
+    "repetition 1 pkf/favorite_visibility_mutation: mapped mutation closeout loaded Token Atlas workflow instructions",
+    "repetition 1 pkf/favorite_visibility_mutation: mapped mutation closeout used fallback discovery",
+    "repetition 1 pkf/isolated_closeout: mapped isolated closeout loaded Token Atlas workflow instructions",
+    "repetition 1 pkf/isolated_closeout: mapped isolated closeout used fallback discovery"
+  ],
+  "methodology": {
+    "ambient_user_config": "ignored; authentication copied only",
+    "arm_definitions": {
+      "pkf": "PKF installed with adaptive retrieval and closeout; an individual task may bypass retrieval.",
+      "probe_only": "Adaptive bounded local probe, with no PKF installed or available.",
+      "source_only": "No PKF and no adaptive local-probe instructions; generic source discovery only."
+    },
+    "arm_order": "three-arm Latin square and alternating two-arm phases",
+    "arms": [
+      "source_only",
+      "probe_only",
+      "pkf"
+    ],
+    "initialization_reference": {
+      "duration_ms": 516944,
+      "non_cached_input_tokens": 99720
+    },
+    "raw_traces_published": false,
+    "task_ids": [
+      "boards_add_task",
+      "favorite_visibility_after_change",
+      "favorite_visibility_mutation",
+      "initialize",
+      "isolated_closeout",
+      "note_task_links"
+    ],
+    "trace_accounting": "tool inputs and outputs parsed separately; path mentions remain unverified"
+  },
+  "metrics": {
+    "activated_pkf_knowledge_savings": {
+      "cached_input_tokens": 51968.0,
+      "input_tokens": 77544.0,
+      "non_cached_input_tokens": 25576.0,
+      "output_tokens": -1619.0,
+      "paired_count": 1
+    },
+    "break_even_activated_tasks": {
+      "input_tokens": 52,
+      "non_cached_input_tokens": 7
+    },
+    "by_task": {
+      "boards_add_task": {
+        "pkf": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 39168.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 27445.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 2.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 59900.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 3.0,
+          "non_cached_input_tokens": 20732.0,
+          "output_tokens": 1016.0,
+          "read_or_search_command_count": 3.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 1,
+            "not_applicable": 0
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 551.0,
+          "tool_output_chars": 27277.0
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 39168.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 30984.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 1.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 72017.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 12.0,
+          "non_cached_input_tokens": 32849.0,
+          "output_tokens": 1112.0,
+          "read_or_search_command_count": 3.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 466.0,
+          "tool_output_chars": 48264.0
+        },
+        "source_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 48384.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 27840.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 2.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 72480.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 12.0,
+          "non_cached_input_tokens": 24096.0,
+          "output_tokens": 808.0,
+          "read_or_search_command_count": 3.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 452.0,
+          "tool_output_chars": 45248.0
+        }
+      },
+      "favorite_visibility_after_change": {
+        "pkf": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 56576.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 33710.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 3.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 85599.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 26.0,
+          "non_cached_input_tokens": 29023.0,
+          "output_tokens": 1230.0,
+          "read_or_search_command_count": 3.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 1,
+            "not_applicable": 0
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 677.0,
+          "tool_output_chars": 65039.0
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 50432.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 37031.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 4.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 75641.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 26.0,
+          "non_cached_input_tokens": 25209.0,
+          "output_tokens": 1546.0,
+          "read_or_search_command_count": 3.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 3.0,
+          "tool_input_chars": 648.0,
+          "tool_output_chars": 41905.0
+        }
+      },
+      "favorite_visibility_mutation": {
+        "pkf": {
+          "ai_read_or_search_command_count": 8.0,
+          "cached_input_tokens": 1119744.0,
+          "correctness_rate": null,
+          "duration_ms": 229938.0,
+          "explicit_ai_read_path_count": 5.0,
+          "explicit_read_path_count": 13.0,
+          "explicit_skill_read_path_count": 3.0,
+          "input_tokens": 1182611.0,
+          "mentioned_ai_path_count": 37.0,
+          "mentioned_path_count": 177.0,
+          "non_cached_input_tokens": 62867.0,
+          "output_tokens": 9398.0,
+          "read_or_search_command_count": 19.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 2.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 39.0,
+          "tool_input_chars": 4395.0,
+          "tool_output_chars": 107046.0
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 501248.0,
+          "correctness_rate": null,
+          "duration_ms": 143816.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 7.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 540626.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 35.0,
+          "non_cached_input_tokens": 39378.0,
+          "output_tokens": 5602.0,
+          "read_or_search_command_count": 6.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 16.0,
+          "tool_input_chars": 2272.0,
+          "tool_output_chars": 69895.0
+        }
+      },
+      "initialize": {
+        "pkf": {
+          "ai_read_or_search_command_count": 12.0,
+          "cached_input_tokens": 3257600.0,
+          "correctness_rate": null,
+          "duration_ms": 718301.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 40.0,
+          "explicit_skill_read_path_count": 4.0,
+          "input_tokens": 3389863.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 183.0,
+          "non_cached_input_tokens": 132263.0,
+          "output_tokens": 33753.0,
+          "read_or_search_command_count": 56.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 90.0,
+          "tool_input_chars": 16686.0,
+          "tool_output_chars": 304572.0
+        }
+      },
+      "isolated_closeout": {
+        "pkf": {
+          "ai_read_or_search_command_count": 5.0,
+          "cached_input_tokens": 321024.0,
+          "correctness_rate": null,
+          "duration_ms": 156456.0,
+          "explicit_ai_read_path_count": 5.0,
+          "explicit_read_path_count": 11.0,
+          "explicit_skill_read_path_count": 4.0,
+          "input_tokens": 355078.0,
+          "mentioned_ai_path_count": 18.0,
+          "mentioned_path_count": 38.0,
+          "non_cached_input_tokens": 34054.0,
+          "output_tokens": 6729.0,
+          "read_or_search_command_count": 12.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 2.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 17.0,
+          "tool_input_chars": 2267.0,
+          "tool_output_chars": 36201.0
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 8960.0,
+          "correctness_rate": null,
+          "duration_ms": 10233.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 0.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 11305.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 0.0,
+          "non_cached_input_tokens": 2345.0,
+          "output_tokens": 69.0,
+          "read_or_search_command_count": 0.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 0.0,
+          "tool_input_chars": 0.0,
+          "tool_output_chars": 0.0
+        }
+      },
+      "note_task_links": {
+        "pkf": {
+          "ai_read_or_search_command_count": 10.0,
+          "cached_input_tokens": 194048.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 100146.0,
+          "explicit_ai_read_path_count": 10.0,
+          "explicit_read_path_count": 19.0,
+          "explicit_skill_read_path_count": 1.0,
+          "input_tokens": 236272.0,
+          "mentioned_ai_path_count": 24.0,
+          "mentioned_path_count": 56.0,
+          "non_cached_input_tokens": 42224.0,
+          "output_tokens": 4454.0,
+          "read_or_search_command_count": 25.0,
+          "retrieval_decisions": {
+            "activated": 1,
+            "bypassed": 0,
+            "not_applicable": 0
+          },
+          "routed_document_count": 3.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 25.0,
+          "tool_input_chars": 2225.0,
+          "tool_output_chars": 139475.0
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 246016.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 69607.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 7.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 313816.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 171.0,
+          "non_cached_input_tokens": 67800.0,
+          "output_tokens": 2835.0,
+          "read_or_search_command_count": 7.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 7.0,
+          "tool_input_chars": 2148.0,
+          "tool_output_chars": 271998.0
+        },
+        "source_only": {
+          "ai_read_or_search_command_count": 0.0,
+          "cached_input_tokens": 356608.0,
+          "correctness_rate": 1.0,
+          "duration_ms": 88859.0,
+          "explicit_ai_read_path_count": 0.0,
+          "explicit_read_path_count": 7.0,
+          "explicit_skill_read_path_count": 0.0,
+          "input_tokens": 426064.0,
+          "mentioned_ai_path_count": 0.0,
+          "mentioned_path_count": 164.0,
+          "non_cached_input_tokens": 69456.0,
+          "output_tokens": 3501.0,
+          "read_or_search_command_count": 11.0,
+          "retrieval_decisions": {
+            "activated": 0,
+            "bypassed": 0,
+            "not_applicable": 1
+          },
+          "routed_document_count": 0.0,
+          "searched_root_count": 0.0,
+          "tool_call_count": 11.0,
+          "tool_input_chars": 2682.0,
+          "tool_output_chars": 194115.0
+        }
+      }
+    },
+    "bypassed_pkf_environment_deltas": {
+      "boards_add_task": {
+        "cached_input_tokens": 0.0,
+        "input_tokens": -12117.0,
+        "non_cached_input_tokens": -12117.0,
+        "output_tokens": -96.0,
+        "paired_count": 1
+      },
+      "favorite_visibility_after_change": {
+        "cached_input_tokens": 6144.0,
+        "input_tokens": 9958.0,
+        "non_cached_input_tokens": 3814.0,
+        "output_tokens": -316.0,
+        "paired_count": 1
+      }
+    },
+    "comparisons": {
+      "boards_add_task": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 39168.0,
+            "candidate": 39168.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "duration_ms": {
+            "baseline": 30984.0,
+            "candidate": 27445.0,
+            "delta": -3539.0,
+            "percent": -11.422024270591272
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 1.0,
+            "candidate": 2.0,
+            "delta": 1.0,
+            "percent": 100.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 72017.0,
+            "candidate": 59900.0,
+            "delta": -12117.0,
+            "percent": -16.82519405140453
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 12.0,
+            "candidate": 3.0,
+            "delta": -9.0,
+            "percent": -75.0
+          },
+          "non_cached_input_tokens": {
+            "baseline": 32849.0,
+            "candidate": 20732.0,
+            "delta": -12117.0,
+            "percent": -36.886967639806386
+          },
+          "output_tokens": {
+            "baseline": 1112.0,
+            "candidate": 1016.0,
+            "delta": -96.0,
+            "percent": -8.633093525179856
+          },
+          "read_or_search_command_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "tool_input_chars": {
+            "baseline": 466.0,
+            "candidate": 551.0,
+            "delta": 85.0,
+            "percent": 18.240343347639485
+          },
+          "tool_output_chars": {
+            "baseline": 48264.0,
+            "candidate": 27277.0,
+            "delta": -20987.0,
+            "percent": -43.48375600861926
+          }
+        },
+        "source_vs_probe": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 48384.0,
+            "candidate": 39168.0,
+            "delta": -9216.0,
+            "percent": -19.047619047619047
+          },
+          "duration_ms": {
+            "baseline": 27840.0,
+            "candidate": 30984.0,
+            "delta": 3144.0,
+            "percent": 11.293103448275863
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 2.0,
+            "candidate": 1.0,
+            "delta": -1.0,
+            "percent": -50.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 72480.0,
+            "candidate": 72017.0,
+            "delta": -463.0,
+            "percent": -0.6387969094922737
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 12.0,
+            "candidate": 12.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "non_cached_input_tokens": {
+            "baseline": 24096.0,
+            "candidate": 32849.0,
+            "delta": 8753.0,
+            "percent": 36.325531208499335
+          },
+          "output_tokens": {
+            "baseline": 808.0,
+            "candidate": 1112.0,
+            "delta": 304.0,
+            "percent": 37.62376237623762
+          },
+          "read_or_search_command_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "tool_input_chars": {
+            "baseline": 452.0,
+            "candidate": 466.0,
+            "delta": 14.0,
+            "percent": 3.0973451327433628
+          },
+          "tool_output_chars": {
+            "baseline": 45248.0,
+            "candidate": 48264.0,
+            "delta": 3016.0,
+            "percent": 6.665487977369165
+          }
+        }
+      },
+      "favorite_visibility_after_change": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 50432.0,
+            "candidate": 56576.0,
+            "delta": 6144.0,
+            "percent": 12.18274111675127
+          },
+          "duration_ms": {
+            "baseline": 37031.0,
+            "candidate": 33710.0,
+            "delta": -3321.0,
+            "percent": -8.968161810375092
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 4.0,
+            "candidate": 3.0,
+            "delta": -1.0,
+            "percent": -25.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 75641.0,
+            "candidate": 85599.0,
+            "delta": 9958.0,
+            "percent": 13.164818021972211
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 26.0,
+            "candidate": 26.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "non_cached_input_tokens": {
+            "baseline": 25209.0,
+            "candidate": 29023.0,
+            "delta": 3814.0,
+            "percent": 15.12951723590781
+          },
+          "output_tokens": {
+            "baseline": 1546.0,
+            "candidate": 1230.0,
+            "delta": -316.0,
+            "percent": -20.439844760672703
+          },
+          "read_or_search_command_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 3.0,
+            "candidate": 3.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "tool_input_chars": {
+            "baseline": 648.0,
+            "candidate": 677.0,
+            "delta": 29.0,
+            "percent": 4.4753086419753085
+          },
+          "tool_output_chars": {
+            "baseline": 41905.0,
+            "candidate": 65039.0,
+            "delta": 23134.0,
+            "percent": 55.20582269418923
+          }
+        }
+      },
+      "favorite_visibility_mutation": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 8.0,
+            "delta": 8.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 501248.0,
+            "candidate": 1119744.0,
+            "delta": 618496.0,
+            "percent": 123.39121552604699
+          },
+          "duration_ms": {
+            "baseline": 143816.0,
+            "candidate": 229938.0,
+            "delta": 86122.0,
+            "percent": 59.88346220170217
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 5.0,
+            "delta": 5.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 7.0,
+            "candidate": 13.0,
+            "delta": 6.0,
+            "percent": 85.71428571428571
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 3.0,
+            "delta": 3.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 540626.0,
+            "candidate": 1182611.0,
+            "delta": 641985.0,
+            "percent": 118.74845086991748
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 37.0,
+            "delta": 37.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 35.0,
+            "candidate": 177.0,
+            "delta": 142.0,
+            "percent": 405.71428571428567
+          },
+          "non_cached_input_tokens": {
+            "baseline": 39378.0,
+            "candidate": 62867.0,
+            "delta": 23489.0,
+            "percent": 59.65005840824826
+          },
+          "output_tokens": {
+            "baseline": 5602.0,
+            "candidate": 9398.0,
+            "delta": 3796.0,
+            "percent": 67.76151374509104
+          },
+          "read_or_search_command_count": {
+            "baseline": 6.0,
+            "candidate": 19.0,
+            "delta": 13.0,
+            "percent": 216.66666666666666
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 2.0,
+            "delta": 2.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 16.0,
+            "candidate": 39.0,
+            "delta": 23.0,
+            "percent": 143.75
+          },
+          "tool_input_chars": {
+            "baseline": 2272.0,
+            "candidate": 4395.0,
+            "delta": 2123.0,
+            "percent": 93.4419014084507
+          },
+          "tool_output_chars": {
+            "baseline": 69895.0,
+            "candidate": 107046.0,
+            "delta": 37151.0,
+            "percent": 53.15258602188998
+          }
+        }
+      },
+      "initialize": {},
+      "isolated_closeout": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 5.0,
+            "delta": 5.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 8960.0,
+            "candidate": 321024.0,
+            "delta": 312064.0,
+            "percent": 3482.857142857143
+          },
+          "duration_ms": {
+            "baseline": 10233.0,
+            "candidate": 156456.0,
+            "delta": 146223.0,
+            "percent": 1428.9357959542656
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 5.0,
+            "delta": 5.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 11.0,
+            "delta": 11.0,
+            "percent": null
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 4.0,
+            "delta": 4.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 11305.0,
+            "candidate": 355078.0,
+            "delta": 343773.0,
+            "percent": 3040.8934099955773
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 18.0,
+            "delta": 18.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 0.0,
+            "candidate": 38.0,
+            "delta": 38.0,
+            "percent": null
+          },
+          "non_cached_input_tokens": {
+            "baseline": 2345.0,
+            "candidate": 34054.0,
+            "delta": 31709.0,
+            "percent": 1352.1961620469083
+          },
+          "output_tokens": {
+            "baseline": 69.0,
+            "candidate": 6729.0,
+            "delta": 6660.0,
+            "percent": 9652.173913043478
+          },
+          "read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 12.0,
+            "delta": 12.0,
+            "percent": null
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 2.0,
+            "delta": 2.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 0.0,
+            "candidate": 17.0,
+            "delta": 17.0,
+            "percent": null
+          },
+          "tool_input_chars": {
+            "baseline": 0.0,
+            "candidate": 2267.0,
+            "delta": 2267.0,
+            "percent": null
+          },
+          "tool_output_chars": {
+            "baseline": 0.0,
+            "candidate": 36201.0,
+            "delta": 36201.0,
+            "percent": null
+          }
+        }
+      },
+      "note_task_links": {
+        "probe_vs_pkf": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 10.0,
+            "delta": 10.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 246016.0,
+            "candidate": 194048.0,
+            "delta": -51968.0,
+            "percent": -21.12382934443288
+          },
+          "duration_ms": {
+            "baseline": 69607.0,
+            "candidate": 100146.0,
+            "delta": 30539.0,
+            "percent": 43.87346100248538
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 10.0,
+            "delta": 10.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 7.0,
+            "candidate": 19.0,
+            "delta": 12.0,
+            "percent": 171.42857142857142
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "delta": 1.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 313816.0,
+            "candidate": 236272.0,
+            "delta": -77544.0,
+            "percent": -24.71002115889566
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 24.0,
+            "delta": 24.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 171.0,
+            "candidate": 56.0,
+            "delta": -115.0,
+            "percent": -67.2514619883041
+          },
+          "non_cached_input_tokens": {
+            "baseline": 67800.0,
+            "candidate": 42224.0,
+            "delta": -25576.0,
+            "percent": -37.72271386430678
+          },
+          "output_tokens": {
+            "baseline": 2835.0,
+            "candidate": 4454.0,
+            "delta": 1619.0,
+            "percent": 57.107583774250436
+          },
+          "read_or_search_command_count": {
+            "baseline": 7.0,
+            "candidate": 25.0,
+            "delta": 18.0,
+            "percent": 257.14285714285717
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 3.0,
+            "delta": 3.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 7.0,
+            "candidate": 25.0,
+            "delta": 18.0,
+            "percent": 257.14285714285717
+          },
+          "tool_input_chars": {
+            "baseline": 2148.0,
+            "candidate": 2225.0,
+            "delta": 77.0,
+            "percent": 3.584729981378026
+          },
+          "tool_output_chars": {
+            "baseline": 271998.0,
+            "candidate": 139475.0,
+            "delta": -132523.0,
+            "percent": -48.72204942683402
+          }
+        },
+        "source_vs_probe": {
+          "ai_read_or_search_command_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "cached_input_tokens": {
+            "baseline": 356608.0,
+            "candidate": 246016.0,
+            "delta": -110592.0,
+            "percent": -31.012203876525486
+          },
+          "duration_ms": {
+            "baseline": 88859.0,
+            "candidate": 69607.0,
+            "delta": -19252.0,
+            "percent": -21.66578512024668
+          },
+          "explicit_ai_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "explicit_read_path_count": {
+            "baseline": 7.0,
+            "candidate": 7.0,
+            "delta": 0.0,
+            "percent": 0.0
+          },
+          "explicit_skill_read_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "input_tokens": {
+            "baseline": 426064.0,
+            "candidate": 313816.0,
+            "delta": -112248.0,
+            "percent": -26.34533778962785
+          },
+          "mentioned_ai_path_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "mentioned_path_count": {
+            "baseline": 164.0,
+            "candidate": 171.0,
+            "delta": 7.0,
+            "percent": 4.2682926829268295
+          },
+          "non_cached_input_tokens": {
+            "baseline": 69456.0,
+            "candidate": 67800.0,
+            "delta": -1656.0,
+            "percent": -2.3842432619212164
+          },
+          "output_tokens": {
+            "baseline": 3501.0,
+            "candidate": 2835.0,
+            "delta": -666.0,
+            "percent": -19.02313624678663
+          },
+          "read_or_search_command_count": {
+            "baseline": 11.0,
+            "candidate": 7.0,
+            "delta": -4.0,
+            "percent": -36.36363636363637
+          },
+          "routed_document_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "searched_root_count": {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "delta": 0.0,
+            "percent": null
+          },
+          "tool_call_count": {
+            "baseline": 11.0,
+            "candidate": 7.0,
+            "delta": -4.0,
+            "percent": -36.36363636363637
+          },
+          "tool_input_chars": {
+            "baseline": 2682.0,
+            "candidate": 2148.0,
+            "delta": -534.0,
+            "percent": -19.910514541387027
+          },
+          "tool_output_chars": {
+            "baseline": 194115.0,
+            "candidate": 271998.0,
+            "delta": 77883.0,
+            "percent": 40.12209257398964
+          }
+        }
+      }
+    },
+    "operational_by_repetition": [
+      {
+        "pkf": {
+          "ai_read_or_search_command_count": 23,
+          "cached_input_tokens": 1730560,
+          "duration_ms": 547695,
+          "explicit_ai_read_path_count": 20,
+          "explicit_read_path_count": 48,
+          "explicit_skill_read_path_count": 8,
+          "input_tokens": 1919460,
+          "mentioned_ai_path_count": 79,
+          "mentioned_path_count": 300,
+          "non_cached_input_tokens": 188900,
+          "output_tokens": 22827,
+          "read_or_search_command_count": 62,
+          "routed_document_count": 7,
+          "searched_root_count": 0,
+          "tool_call_count": 87,
+          "tool_input_chars": 10115,
+          "tool_output_chars": 375038
+        },
+        "probe_only": {
+          "ai_read_or_search_command_count": 0,
+          "cached_input_tokens": 845824,
+          "duration_ms": 291671,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 19,
+          "explicit_skill_read_path_count": 0,
+          "input_tokens": 1013405,
+          "mentioned_ai_path_count": 0,
+          "mentioned_path_count": 244,
+          "non_cached_input_tokens": 167581,
+          "output_tokens": 11164,
+          "read_or_search_command_count": 19,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 29,
+          "tool_input_chars": 5534,
+          "tool_output_chars": 432062
+        },
+        "repetition": 1,
+        "source_only": {
+          "ai_read_or_search_command_count": 0,
+          "cached_input_tokens": 404992,
+          "duration_ms": 116699,
+          "explicit_ai_read_path_count": 0,
+          "explicit_read_path_count": 9,
+          "explicit_skill_read_path_count": 0,
+          "input_tokens": 498544,
+          "mentioned_ai_path_count": 0,
+          "mentioned_path_count": 176,
+          "non_cached_input_tokens": 93552,
+          "output_tokens": 4309,
+          "read_or_search_command_count": 14,
+          "routed_document_count": 0,
+          "searched_root_count": 0,
+          "tool_call_count": 14,
+          "tool_input_chars": 3134,
+          "tool_output_chars": 239363
+        }
+      }
+    ]
+  },
+  "performance": {
+    "checks": [
+      {
+        "met": true,
+        "name": "local_input_tokens_overhead",
+        "target": "<= 5%",
+        "value": -16.82519405140453
+      },
+      {
+        "met": true,
+        "name": "local_non_cached_input_tokens_overhead",
+        "target": "<= 5%",
+        "value": -36.886967639806386
+      },
+      {
+        "met": true,
+        "name": "local_duration_ms_overhead",
+        "target": "<= 5%",
+        "value": -11.422024270591272
+      },
+      {
+        "met": true,
+        "name": "cross_capability_non_cached_input_tokens_delta",
+        "target": "< 0",
+        "value": -25576.0
+      },
+      {
+        "met": false,
+        "name": "cross_capability_tool_call_count_delta",
+        "target": "< 0",
+        "value": 18.0
+      },
+      {
+        "met": false,
+        "name": "initialization_non_cached_input_tokens_delta",
+        "target": "< 0 versus runtime-v3 one-pass",
+        "value": 32543.0
+      },
+      {
+        "met": false,
+        "name": "initialization_duration_ms_delta",
+        "target": "< 0 versus runtime-v3 one-pass",
+        "value": 201357.0
+      },
+      {
+        "met": false,
+        "name": "mapped_closeout_tool_calls",
+        "target": "<= 6",
+        "value": 17.0
+      },
+      {
+        "met": true,
+        "name": "mapped_closeout_routed_documents",
+        "target": "<= 2",
+        "value": 2.0
+      },
+      {
+        "met": false,
+        "name": "operational_input_tokens_overhead",
+        "target": "<= 5%",
+        "value": 89.4069991760451
+      },
+      {
+        "met": false,
+        "name": "operational_non_cached_input_tokens_overhead",
+        "target": "<= 5%",
+        "value": 12.721609251645475
+      },
+      {
+        "met": false,
+        "name": "operational_duration_ms_overhead",
+        "target": "<= 5%",
+        "value": 87.77835300732674
+      }
+    ],
+    "evidence_strength": "directional",
+    "status": "preliminary_advisory_missed"
+  },
+  "pkf_inventory": {
+    "by_repetition": [
+      {
+        "materialized_leaf_count": 21,
+        "pending_leaf_count": 3,
+        "repetition": 1,
+        "unknown_leaf_count": 3
+      }
+    ],
+    "materialized_leaf_count": 21.0,
+    "pending_leaf_count": 3.0,
+    "unknown_leaf_count": 3.0
+  },
+  "quality_status": "failed",
+  "recorded_at": "2026-07-19T19:23:58+00:00",
+  "replicated": false,
+  "run_class": "one_pass_preflight",
+  "run_id": "token-atlas-gpt-5.6-luna-high-all-one_pass_preflight-20260719T185553Z",
+  "runs": [
+    {
+      "accessed_closeout": false,
+      "accessed_skill": true,
+      "ai_read_or_search_command_count": 12,
+      "answer_correct": null,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 2,
+      "duration_ms": 718301,
+      "emitted_closeout": false,
+      "error": "\"threshold\": 1500,\n      \"tokens\": 494\n    },\n    {\n      \"estimator\": \"approximate\",\n      \"route\": \"leaf:runtime/schema.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 75\n    },\n    {\n      \"estimator\": \"approximate\",\n      \"route\": \"leaf:runtime/business_rules.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 81\n    },\n    {\n      \"estimator\": \"approximate\",\n      \"route\": \"leaf:runtime/ui.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 72\n    },\n    {\n      \"estimator\": \"approximate\",\n      \"route\": \"task:runtime\",\n      \"status\": \"passed\",\n      \"threshold\": 4000,\n      \"tokens\": 1029\n    },\n    {\n      \"estimator\": \"approximate\",\n      \"route\": \"leaf:workspace/api.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 412\n    },\n    {\n      \"estimator\": \"approximate\",\n      \"route\": \"leaf:workspace/schema.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 488\n    },\n    {\n      \"estimator\": \"approximate\",\n      \"route\": \"leaf:workspace/business_rules.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 753\n    },\n    {\n      \"estimator\": \"approximate\",\n      \"route\": \"leaf:workspace/ui.md\",\n      \"status\": \"passed\",\n      \"threshold\": 1500,\n      \"tokens\": 549\n    },\n    {\n      \"estimator\": \"approximate\",\n      \"route\": \"task:workspace\",\n      \"status\": \"passed\",\n      \"threshold\": 4000,\n      \"tokens\": 1700\n    }\n  ],\n  \"warnings\": []\n}",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 40,
+      "explicit_skill_read_path_count": 4,
+      "fallback_search": true,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 183,
+      "phase": "setup",
+      "pkf_validation_passed": true,
+      "read_or_search_command_count": 56,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "routed_document_count": 0,
+      "searched_root_count": 0,
+      "task_id": "initialize",
+      "tool_call_count": 90,
+      "tool_input_chars": 16686,
+      "tool_output_chars": 304572,
+      "usage": {
+        "cached_input_tokens": 3257600,
+        "input_tokens": 3389863,
+        "output_tokens": 33753
+      },
+      "used_route_helper": true
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "source_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 27840,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 2,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 12,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "routed_document_count": 0,
+      "searched_root_count": 0,
+      "task_id": "boards_add_task",
+      "tool_call_count": 3,
+      "tool_input_chars": 452,
+      "tool_output_chars": 45248,
+      "usage": {
+        "cached_input_tokens": 48384,
+        "input_tokens": 72480,
+        "output_tokens": 808
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "probe_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 30984,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 1,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 12,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "routed_document_count": 0,
+      "searched_root_count": 0,
+      "task_id": "boards_add_task",
+      "tool_call_count": 3,
+      "tool_input_chars": 466,
+      "tool_output_chars": 48264,
+      "usage": {
+        "cached_input_tokens": 39168,
+        "input_tokens": 72017,
+        "output_tokens": 1112
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 27445,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 2,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 3,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "retrieval_decision": "bypassed",
+      "returncode": 0,
+      "routed_document_count": 0,
+      "searched_root_count": 0,
+      "task_id": "boards_add_task",
+      "tool_call_count": 3,
+      "tool_input_chars": 551,
+      "tool_output_chars": 27277,
+      "usage": {
+        "cached_input_tokens": 39168,
+        "input_tokens": 59900,
+        "output_tokens": 1016
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "source_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 88859,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 7,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": true,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 164,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 11,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "routed_document_count": 0,
+      "searched_root_count": 0,
+      "task_id": "note_task_links",
+      "tool_call_count": 11,
+      "tool_input_chars": 2682,
+      "tool_output_chars": 194115,
+      "usage": {
+        "cached_input_tokens": 356608,
+        "input_tokens": 426064,
+        "output_tokens": 3501
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "probe_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 69607,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 7,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": true,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 171,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 7,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "routed_document_count": 0,
+      "searched_root_count": 0,
+      "task_id": "note_task_links",
+      "tool_call_count": 7,
+      "tool_input_chars": 2148,
+      "tool_output_chars": 271998,
+      "usage": {
+        "cached_input_tokens": 246016,
+        "input_tokens": 313816,
+        "output_tokens": 2835
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": true,
+      "ai_read_or_search_command_count": 10,
+      "answer_correct": true,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 0,
+      "duration_ms": 100146,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 10,
+      "explicit_read_path_count": 19,
+      "explicit_skill_read_path_count": 1,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 24,
+      "mentioned_path_count": 56,
+      "phase": "retrieval",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 25,
+      "repetition": 1,
+      "retrieval_decision": "activated",
+      "returncode": 0,
+      "routed_document_count": 3,
+      "searched_root_count": 0,
+      "task_id": "note_task_links",
+      "tool_call_count": 25,
+      "tool_input_chars": 2225,
+      "tool_output_chars": 139475,
+      "usage": {
+        "cached_input_tokens": 194048,
+        "input_tokens": 236272,
+        "output_tokens": 4454
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": null,
+      "arm": "probe_only",
+      "changed_expected_paths": true,
+      "changed_path_count": 2,
+      "duration_ms": 143816,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 7,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": true,
+      "focused_test_passed": true,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 35,
+      "phase": "mutation",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 6,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "routed_document_count": 0,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_mutation",
+      "tool_call_count": 16,
+      "tool_input_chars": 2272,
+      "tool_output_chars": 69895,
+      "usage": {
+        "cached_input_tokens": 501248,
+        "input_tokens": 540626,
+        "output_tokens": 5602
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": true,
+      "ai_read_or_search_command_count": 8,
+      "answer_correct": null,
+      "arm": "pkf",
+      "changed_expected_paths": true,
+      "changed_path_count": 3,
+      "duration_ms": 229938,
+      "emitted_closeout": true,
+      "error": "",
+      "explicit_ai_read_path_count": 5,
+      "explicit_read_path_count": 13,
+      "explicit_skill_read_path_count": 3,
+      "fallback_search": true,
+      "focused_test_passed": true,
+      "mentioned_ai_path_count": 37,
+      "mentioned_path_count": 177,
+      "phase": "mutation",
+      "pkf_validation_passed": true,
+      "read_or_search_command_count": 19,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "routed_document_count": 2,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_mutation",
+      "tool_call_count": 39,
+      "tool_input_chars": 4395,
+      "tool_output_chars": 107046,
+      "usage": {
+        "cached_input_tokens": 1119744,
+        "input_tokens": 1182611,
+        "output_tokens": 9398
+      },
+      "used_route_helper": true
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "probe_only",
+      "changed_expected_paths": null,
+      "changed_path_count": 2,
+      "duration_ms": 37031,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 4,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 26,
+      "phase": "post_mutation",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "routed_document_count": 0,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_after_change",
+      "tool_call_count": 3,
+      "tool_input_chars": 648,
+      "tool_output_chars": 41905,
+      "usage": {
+        "cached_input_tokens": 50432,
+        "input_tokens": 75641,
+        "output_tokens": 1546
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": true,
+      "arm": "pkf",
+      "changed_expected_paths": null,
+      "changed_path_count": 3,
+      "duration_ms": 33710,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 3,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": null,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 26,
+      "phase": "post_mutation",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 3,
+      "repetition": 1,
+      "retrieval_decision": "bypassed",
+      "returncode": 0,
+      "routed_document_count": 0,
+      "searched_root_count": 0,
+      "task_id": "favorite_visibility_after_change",
+      "tool_call_count": 3,
+      "tool_input_chars": 677,
+      "tool_output_chars": 65039,
+      "usage": {
+        "cached_input_tokens": 56576,
+        "input_tokens": 85599,
+        "output_tokens": 1230
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": false,
+      "accessed_skill": false,
+      "ai_read_or_search_command_count": 0,
+      "answer_correct": null,
+      "arm": "probe_only",
+      "changed_expected_paths": true,
+      "changed_path_count": 2,
+      "duration_ms": 10233,
+      "emitted_closeout": false,
+      "error": "",
+      "explicit_ai_read_path_count": 0,
+      "explicit_read_path_count": 0,
+      "explicit_skill_read_path_count": 0,
+      "fallback_search": false,
+      "focused_test_passed": true,
+      "mentioned_ai_path_count": 0,
+      "mentioned_path_count": 0,
+      "phase": "closeout",
+      "pkf_validation_passed": null,
+      "read_or_search_command_count": 0,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "routed_document_count": 0,
+      "searched_root_count": 0,
+      "task_id": "isolated_closeout",
+      "tool_call_count": 0,
+      "tool_input_chars": 0,
+      "tool_output_chars": 0,
+      "usage": {
+        "cached_input_tokens": 8960,
+        "input_tokens": 11305,
+        "output_tokens": 69
+      },
+      "used_route_helper": false
+    },
+    {
+      "accessed_closeout": true,
+      "accessed_skill": true,
+      "ai_read_or_search_command_count": 5,
+      "answer_correct": null,
+      "arm": "pkf",
+      "changed_expected_paths": true,
+      "changed_path_count": 4,
+      "duration_ms": 156456,
+      "emitted_closeout": true,
+      "error": "",
+      "explicit_ai_read_path_count": 5,
+      "explicit_read_path_count": 11,
+      "explicit_skill_read_path_count": 4,
+      "fallback_search": true,
+      "focused_test_passed": true,
+      "mentioned_ai_path_count": 18,
+      "mentioned_path_count": 38,
+      "phase": "closeout",
+      "pkf_validation_passed": true,
+      "read_or_search_command_count": 12,
+      "repetition": 1,
+      "retrieval_decision": "not_applicable",
+      "returncode": 0,
+      "routed_document_count": 2,
+      "searched_root_count": 0,
+      "task_id": "isolated_closeout",
+      "tool_call_count": 17,
+      "tool_input_chars": 2267,
+      "tool_output_chars": 36201,
+      "usage": {
+        "cached_input_tokens": 321024,
+        "input_tokens": 355078,
+        "output_tokens": 6729
+      },
+      "used_route_helper": true
+    }
+  ],
+  "schema_version": 4,
+  "status": "failed",
+  "suite": "all",
+  "target": {
+    "commit": "5c458df3c737f0af2a2193186d98af90c45163f0",
+    "name": "tether-brain",
+    "repository": "duelistraj/tether-brain",
+    "tree": "d679f127ae072f8b4f20dbe39c90f7d5173bedf4",
+    "visibility_at_measurement": "private"
+  },
+  "token_atlas": {
+    "commit": "3adc3c40948e1f2f54fb108ea845896c0c38fd8e",
+    "harness_sha256": "90e8c4ef24ba202ebf9cfc6ca1cb325507ca82fa4e5b270d4e8384d5a144c301",
+    "public_skill_sha256": "15e4ef1f3aa6afe8f38f060ca2fa6f2a79cfe0483b216ed9bd6a253e5bcab74a"
+  }
+}
